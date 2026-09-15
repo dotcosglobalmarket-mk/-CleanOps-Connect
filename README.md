@@ -140,6 +140,10 @@ Mapbox is used for:
 
 Placeholder service: `/src/services/mapbox.service.js`
 
+## Request Validation
+
+Request bodies and path params are validated with [Zod](https://zod.dev) before reaching any controller or service — see `/src/validation/`. A malformed request returns `400` with a `details` array naming each invalid field, before any database or business logic runs.
+
 ## AI Lead Scoring
 
 Initial rule‑based scoring considers:

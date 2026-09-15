@@ -10,14 +10,20 @@ function errorHandler(err, req, res, next) {
     return res.status(400).json({ message: err.message });
   }
 
+  if (err.name === 'CastError') {
+    return res.status(400).json({ message: `Invalid value for field "${err.path}"` });
+  }
+
   if (err.code === 11000) {
     return res.status(409).json({ message: 'Duplicate value violates a unique constraint' });
   }
 
   const status = err.status || 500;
-  res.status(status).json({
-    message: err.message || 'Internal server error',
-  });
+  const body = { message: err.message || 'Internal server error' };
+  if (err.details) {
+    body.details = err.details;
+  }
+  res.status(status).json(body);
 }
 
 module.exports = {
