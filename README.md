@@ -159,6 +159,16 @@ Later phases introduce machine learning based on job outcomes.
 
 Placeholder service: `/src/services/ai-scoring.service.js`
 
+## Testing
+
+Run the automated test suite:
+
+```
+npm test
+```
+
+Unit tests (`tests/unit/`) cover the pure business logic — coverage filtering, AI scoring, insurance gating, Mapbox geocoding, auth/validation middleware, and error handling — with no database required. Integration tests (`tests/integration/`) exercise the Express routes end-to-end (auth, ownership checks, validation) with the Mongoose models mocked, so no live MongoDB is needed to run them locally or in CI. The GitHub Actions deploy workflow (`.github/workflows/deploy.yml`) runs this suite as a required `test` job before every deploy.
+
 ## Deployment
 
 ### Local Development
