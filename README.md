@@ -4,8 +4,6 @@ A UK‑focused domestic and industrial cleaning lead‑allocation platform. Clea
 
 This repository contains the backend service powering the CleanOps Connect platform.
 
-> **Note:** This repository currently contains two parallel backend scaffolds: the Node.js/Express service documented below (`src/`), and an earlier lightweight Python scaffold in `cleanops_connect/` (see [Python backend scaffold](#python-backend-scaffold)). Consolidating on one is a follow-up.
-
 ## Features
 
 ### AI‑Driven Lead Allocation
@@ -199,21 +197,6 @@ MongoDB can be hosted on:
 ## License
 
 MIT License
-
-## Python backend scaffold
-
-This repository also includes an earlier, lightweight Python backend scaffold in `cleanops_connect/` with:
-
-- data models for `User`, `CleanerProfile`, `Job`, `JobOffer`, `ServiceType`, and `Subscription`
-- modular `controllers`, `services`, `repositories`, and `middleware`
-- placeholder services for Mapbox postcode geocoding, AI lead scoring, spatial filtering, cleaner onboarding, job creation, subscription billing, and insurance add-on logic
-- in-memory repositories to support future API and persistence work
-
-Run its tests with:
-
-```bash
-python -m unittest discover -s tests
-```
 
 ## Author
 
