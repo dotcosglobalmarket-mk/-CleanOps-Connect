@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from .models import CleanerProfile, Job
+from .models import CleanerProfile, Job, Subscription
 from .services import (
     CleanerOnboardingService,
     JobCreationService,
@@ -45,5 +45,5 @@ class JobController:
 class SubscriptionController:
     billing_service: SubscriptionBillingService
 
-    def preview_billing(self, subscription) -> dict[str, object]:
+    def preview_billing(self, subscription: Subscription) -> dict[str, object]:
         return self.billing_service.preview_invoice(subscription)

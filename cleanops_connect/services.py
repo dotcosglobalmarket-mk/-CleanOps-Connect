@@ -116,11 +116,12 @@ class CleanerOnboardingService:
             insurance_opt_in=insurance_opt_in,
             compliance_checks=compliance_checks or {"dbs": False, "coshh": False},
         )
-        insurance_required = any(
-            self.repositories.service_types.get(code).insurance_required
+        selected_service_types = [
+            service_type
             for code in service_type_codes
-            if self.repositories.service_types.get(code)
-        )
+            if (service_type := self.repositories.service_types.get(code)) is not None
+        ]
+        insurance_required = any(service_type.insurance_required for service_type in selected_service_types)
         insurance_summary = self.insurance_service.determine_add_on(
             ServiceType(
                 code="combined-cleaner-services",

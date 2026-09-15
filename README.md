@@ -4,7 +4,7 @@ UK domestic and industrial cleaning lead allocation platform with AI scoring, Ma
 
 ## Backend scaffold
 
-This repository now includes a lightweight Python backend scaffold in `/home/runner/work/-CleanOps-Connect/-CleanOps-Connect/cleanops_connect` with:
+This repository now includes a lightweight Python backend scaffold in `cleanops_connect/` with:
 
 - data models for `User`, `CleanerProfile`, `Job`, `JobOffer`, `ServiceType`, and `Subscription`
 - modular `controllers`, `services`, `repositories`, and `middleware`
