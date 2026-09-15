@@ -20,8 +20,8 @@ class MapboxPostcodeGeocodingService:
     def geocode_postcode(self, postcode: str) -> dict[str, object]:
         normalised = _normalise_postcode(postcode)
         seed = sum(ord(char) for char in normalised if char.isalnum())
-        latitude = round(49.9 + (seed % 850) / 100, 6)
-        longitude = round(-7.6 + (seed % 760) / 100, 6)
+        latitude = round(50.0 + (seed % 800) / 100, 6)
+        longitude = round(-6.5 + (seed % 830) / 100, 6)
         configured = bool(self.access_token)
         return {
             "postcode": normalised,
@@ -199,10 +199,16 @@ class JobCreationService:
         return {"job": asdict(job), "geocoding": location, "lead_score": lead_score}
 
     def create_job_offer(self, *, job_id: str, cleaner_profile_id: str) -> dict[str, object]:
-        if self.repositories.jobs.get(job_id) is None:
+        job = self.repositories.jobs.get(job_id)
+        if job is None:
             raise ValueError(f"Unknown job id: {job_id}")
-        if self.repositories.cleaner_profiles.get(cleaner_profile_id) is None:
+        cleaner_profile = self.repositories.cleaner_profiles.get(cleaner_profile_id)
+        if cleaner_profile is None:
             raise ValueError(f"Unknown cleaner profile id: {cleaner_profile_id}")
+        if job.service_type_code not in cleaner_profile.service_type_codes:
+            raise ValueError(
+                f"Cleaner profile {cleaner_profile_id} does not support service type: {job.service_type_code}"
+            )
         offer = JobOffer(
             id=f"offer-{next(self._offer_ids)}",
             job_id=job_id,

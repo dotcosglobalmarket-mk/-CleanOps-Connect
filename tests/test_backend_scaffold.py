@@ -14,6 +14,10 @@ class BackendScaffoldTests(unittest.TestCase):
         self.assertTrue(geocode["configured"])
         self.assertEqual(geocode["provider"], "mapbox")
         self.assertEqual(geocode["mode"], "live")
+        self.assertGreaterEqual(geocode["latitude"], 50.0)
+        self.assertLessEqual(geocode["latitude"], 58.0)
+        self.assertGreaterEqual(geocode["longitude"], -6.5)
+        self.assertLessEqual(geocode["longitude"], 1.8)
 
     def test_onboarding_job_creation_and_billing_placeholders(self):
         app = create_application()
@@ -112,7 +116,7 @@ class BackendScaffoldTests(unittest.TestCase):
     def test_controller_validation_and_auth_middleware_are_predictable(self):
         app = create_application()
 
-        auth_result = app.middleware["auth"].authorize({"Authorization": "Bearer " + "demo-token"})
+        auth_result = app.middleware["auth"].authorize({"Authorization": "bearer " + "demo-token"})
         self.assertTrue(auth_result["authenticated"])
 
         with self.assertRaisesRegex(ValueError, "unexpected fields: unknown"):
@@ -150,6 +154,31 @@ class BackendScaffoldTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "Unknown job id: job-missing"):
             app.services["job_creation"].create_job_offer(job_id="job-missing", cleaner_profile_id="cleaner-missing")
+
+        onboarding = app.controllers["cleaners"].onboard(
+            {
+                "email": "cleaner@example.com",
+                "postcode": "M1 1AE",
+                "business_name": "Sparkle Works",
+                "service_type_codes": ["domestic-standard"],
+                "insurance_opt_in": True,
+            }
+        )
+        job_result = app.controllers["jobs"].create(
+            {
+                "customer_name": "Factory Site",
+                "postcode": "M1 1AE",
+                "service_type_code": "industrial-deep-clean",
+            }
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "does not support service type: industrial-deep-clean",
+        ):
+            app.services["job_creation"].create_job_offer(
+                job_id=job_result["job"]["id"],
+                cleaner_profile_id=onboarding["cleaner_profile"]["id"],
+            )
 
 
 if __name__ == "__main__":

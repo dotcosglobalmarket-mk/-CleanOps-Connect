@@ -17,5 +17,6 @@ class AuthMiddleware:
     def authorize(self, headers: dict[str, str]) -> dict[str, object]:
         normalized_headers = {key.lower(): value for key, value in headers.items()}
         token = normalized_headers.get("authorization", "")
-        authenticated = token.startswith(self.bearer_prefix) and len(token) > len(self.bearer_prefix)
+        scheme, _, credential = token.partition(" ")
+        authenticated = scheme.lower() == "bearer" and bool(credential.strip())
         return {"authenticated": authenticated, "token_present": bool(token)}
