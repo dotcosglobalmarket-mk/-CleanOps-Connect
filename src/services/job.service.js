@@ -1,16 +1,62 @@
+const Job = require('../models/Job');
+const JobOffer = require('../models/JobOffer');
+const CleanerProfile = require('../models/CleanerProfile');
+const mapboxService = require('./mapbox.service');
+const coverageService = require('./coverage.service');
+const aiScoringService = require('./ai-scoring.service');
+const insuranceService = require('./insurance.service');
+
+const MAX_OFFERS = 5;
+
+function notFound(message) {
+  const error = new Error(message);
+  error.status = 404;
+  return error;
+}
+
 async function createJob(jobData) {
-  // TODO: implement job creation, including postcode geocoding
-  throw new Error('Not implemented');
+  const { lat, lng } = await mapboxService.geocodePostcode(jobData.postcode);
+
+  const job = new Job({
+    ...jobData,
+    lat,
+    lng,
+  });
+
+  await job.save();
+  return job;
 }
 
 async function getJobById(jobId) {
-  // TODO: implement job lookup
-  throw new Error('Not implemented');
+  return Job.findById(jobId);
 }
 
 async function allocateJob(jobId) {
-  // TODO: implement allocation using coverage + ai-scoring services
-  throw new Error('Not implemented');
+  const job = await Job.findById(jobId);
+  if (!job) {
+    throw notFound('Job not found');
+  }
+
+  const candidates = await CleanerProfile.find({ services: job.serviceType });
+
+  const inCoverage = coverageService.filterCleanersByCoverage(job.lat, job.lng, candidates);
+  const insured = inCoverage.filter((cleaner) => insuranceService.validateInsuranceForJob(job, cleaner));
+  const ranked = aiScoringService.rankCleanersForJob(job, insured).slice(0, MAX_OFFERS);
+
+  const offers = await JobOffer.insertMany(
+    ranked.map(({ cleaner, score, scoreBreakdown }) => ({
+      job: job._id,
+      cleaner: cleaner._id,
+      score,
+      scoreBreakdown,
+      status: 'sent',
+    }))
+  );
+
+  job.status = 'allocated';
+  await job.save();
+
+  return { jobId: job._id, offers };
 }
 
 module.exports = {
