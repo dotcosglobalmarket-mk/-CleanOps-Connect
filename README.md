@@ -1,2 +1,183 @@
-# -CleanOps-Connect
-UK domestic &amp; industrial cleaning lead allocation platform with AI scoring, Mapbox postcode routing, cleaner subscriptions, insurance add-ons, compliance checks (DBS/COSHH), and job automation.
+# CleanOps Connect
+
+A UK‑focused domestic and industrial cleaning lead‑allocation platform. CleanOps Connect intelligently matches customers with verified cleaners using AI scoring, Mapbox postcode geolocation, compliance checks (DBS/COSHH), subscription plans, and optional insurance add‑ons.
+
+This repository contains the backend service powering the CleanOps Connect platform.
+
+## Features
+
+### AI‑Driven Lead Allocation
+
+- Scores cleaners based on distance, experience, rating, insurance status, compliance, and price fit.
+- Supports both domestic and industrial cleaning categories.
+
+### Mapbox Postcode Routing
+
+- Converts UK postcodes to coordinates.
+- Filters cleaners by radius or polygon coverage areas.
+- Enables precise geographic lead distribution.
+
+### Cleaner Subscription System
+
+- Monthly subscription tiers: Starter, Pro, Industrial Pro.
+- Optional insurance add‑on integrated into billing logic.
+
+### Compliance & Verification
+
+- DBS verification for domestic cleaners.
+- COSHH training flags for industrial cleaners.
+- Insurance validation for high‑risk jobs.
+
+### Job Management
+
+- Customers create jobs with postcode, budget, frequency, and service type.
+- Cleaners receive job offers based on AI scoring.
+- Supports one‑off, recurring, and industrial contract jobs.
+
+## Tech Stack
+
+- Node.js + Express
+- MongoDB (Atlas or DigitalOcean Managed)
+- Mapbox Geocoding API
+- Modular service‑based architecture
+- JWT authentication
+- Environment‑based configuration
+
+## Project Structure
+
+```
+cleanops-connect/
+  src/
+    controllers/
+    services/
+    models/
+    middleware/
+    utils/
+    config/
+  tests/
+  package.json
+  .env.example
+  README.md
+```
+
+## Environment Variables
+
+Create a `.env` file based on `.env.example`:
+
+```
+PORT=4000
+MONGO_URI=
+MAPBOX_API_KEY=
+JWT_SECRET=
+```
+
+## Installation
+
+Clone the repository:
+
+```
+git clone https://github.com/dotsonglobalmarket-mk/CleanOps-Connect.git
+cd CleanOps-Connect
+```
+
+Install dependencies:
+
+```
+npm install
+```
+
+Start development server:
+
+```
+npm run dev
+```
+
+## Core Models
+
+- **User** – authentication and identity
+- **CleanerProfile** – coverage, skills, compliance, insurance
+- **Job** – customer job requests
+- **JobOffer** – AI‑ranked cleaner offers
+- **ServiceType** – domestic & industrial categories
+- **Subscription** – monthly plans + insurance add‑on
+
+## API Endpoints (Initial Set)
+
+### Jobs
+
+- `POST /jobs` – Create a new job
+- `POST /jobs/:id/allocate` – Run AI allocation and send offers
+- `GET /jobs/:id` – View job details
+
+### Cleaners
+
+- `POST /cleaners` – Register cleaner
+- `POST /cleaners/coverage` – Set radius or polygon coverage
+- `GET /cleaners/:id` – View cleaner profile
+
+### Subscriptions
+
+- `POST /subscriptions` – Activate plan
+- `POST /subscriptions/insurance` – Add insurance add‑on
+
+## Mapbox Integration
+
+Mapbox is used for:
+
+- Postcode → lat/lng conversion
+- Coverage radius filtering
+- Polygon coverage (GeoJSON)
+- Spatial matching for lead allocation
+
+Placeholder service: `/src/services/mapbox.service.js`
+
+## AI Lead Scoring
+
+Initial rule‑based scoring considers:
+
+- Distance
+- Experience
+- Rating
+- Price fit
+- Insurance status
+- Compliance flags
+
+Later phases introduce machine learning based on job outcomes.
+
+Placeholder service: `/src/services/ai-scoring.service.js`
+
+## Deployment
+
+### Local Development
+
+Run with Node.js.
+
+### Production Deployment (DigitalOcean)
+
+You can deploy via:
+
+- DigitalOcean App Platform (recommended)
+- DigitalOcean Droplet (manual control)
+
+MongoDB can be hosted on:
+
+- MongoDB Atlas (free tier available)
+- DigitalOcean Managed MongoDB
+
+## Future Roadmap
+
+- Customer mobile app
+- Cleaner mobile app
+- Industrial tendering module
+- Escrow payments
+- Automated compliance document generation
+- AI‑powered job pricing suggestions
+
+## License
+
+MIT License
+
+## Author
+
+Collins — Founder of CleanOps Connect
+Pontefract, UK
