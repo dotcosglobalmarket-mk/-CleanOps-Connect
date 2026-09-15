@@ -74,12 +74,13 @@ class SpatialFilteringService:
 
 class InsuranceAddOnService:
     def determine_add_on(self, service_type: ServiceType, wants_cover: bool) -> dict[str, object]:
-        eligible = service_type.insurance_required or wants_cover
-        add_on_gbp = 19.99 if eligible else 0.0
+        selected = service_type.insurance_required or wants_cover
+        add_on_gbp = 19.99 if selected else 0.0
         return {
             "service_type": service_type.code,
-            "eligible": eligible,
+            "available": True,
             "required": service_type.insurance_required,
+            "selected": selected,
             "add_on_gbp": add_on_gbp,
         }
 
@@ -145,7 +146,7 @@ class CleanerOnboardingService:
             cleaner_profile_id=cleaner.id,
             plan_name="starter",
             amount_gbp=39.0,
-            insurance_add_on=bool(insurance_summary["eligible"]),
+            insurance_add_on=bool(insurance_summary["selected"]),
         )
         self.repositories.users.add(user.id, user)
         self.repositories.cleaner_profiles.add(cleaner.id, cleaner)
@@ -198,6 +199,10 @@ class JobCreationService:
         return {"job": asdict(job), "geocoding": location, "lead_score": lead_score}
 
     def create_job_offer(self, *, job_id: str, cleaner_profile_id: str) -> dict[str, object]:
+        if self.repositories.jobs.get(job_id) is None:
+            raise ValueError(f"Unknown job id: {job_id}")
+        if self.repositories.cleaner_profiles.get(cleaner_profile_id) is None:
+            raise ValueError(f"Unknown cleaner profile id: {cleaner_profile_id}")
         offer = JobOffer(
             id=f"offer-{next(self._offer_ids)}",
             job_id=job_id,

@@ -54,6 +54,14 @@ class BackendScaffoldTests(unittest.TestCase):
         self.assertEqual(no_add_on_preview["line_items"], [{"name": "starter", "amount_gbp": 39.0}])
         self.assertEqual(no_add_on_preview["total_gbp"], 39.0)
 
+        insurance_summary = app.services["insurance_add_on"].determine_add_on(
+            app.repositories.service_types.get("industrial-deep-clean"),
+            wants_cover=False,
+        )
+        self.assertTrue(insurance_summary["available"])
+        self.assertTrue(insurance_summary["required"])
+        self.assertTrue(insurance_summary["selected"])
+
     def test_spatial_filtering_supports_coordinate_and_postcode_matches(self):
         app = create_application()
         job_result = app.controllers["jobs"].create(
@@ -139,6 +147,9 @@ class BackendScaffoldTests(unittest.TestCase):
                     "insurance_opt_in": True,
                 }
             )
+
+        with self.assertRaisesRegex(ValueError, "Unknown job id: job-missing"):
+            app.services["job_creation"].create_job_offer(job_id="job-missing", cleaner_profile_id="cleaner-missing")
 
 
 if __name__ == "__main__":
