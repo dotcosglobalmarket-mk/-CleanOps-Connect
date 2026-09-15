@@ -7,6 +7,11 @@ const logger = require('./utils/logger');
 const PORT = process.env.PORT || 4000;
 
 async function start() {
+  if (!process.env.JWT_SECRET) {
+    logger.error('JWT_SECRET is not set in the environment');
+    process.exit(1);
+  }
+
   await connectDB();
 
   const app = createApp();

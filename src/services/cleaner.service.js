@@ -7,6 +7,12 @@ function notFound(message) {
   return error;
 }
 
+function forbidden(message) {
+  const error = new Error(message);
+  error.status = 403;
+  return error;
+}
+
 async function createCleaner(cleanerData) {
   const { lat, lng } = await mapboxService.geocodePostcode(cleanerData.basePostcode);
 
@@ -24,10 +30,14 @@ async function getCleanerById(cleanerId) {
   return CleanerProfile.findById(cleanerId);
 }
 
-async function setCoverage(cleanerId, coverageData) {
+async function setCoverage(cleanerId, coverageData, requestingUser) {
   const cleaner = await CleanerProfile.findById(cleanerId);
   if (!cleaner) {
     throw notFound('Cleaner not found');
+  }
+
+  if (requestingUser.role !== 'admin' && cleaner.user.toString() !== requestingUser.id) {
+    throw forbidden('You do not have access to this cleaner profile');
   }
 
   cleaner.coverageType = coverageData.coverageType;
