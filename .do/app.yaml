@@ -1,0 +1,28 @@
+name: cleanops-connect
+region: lon
+services:
+  - name: api
+    dockerfile_path: Dockerfile
+    source_dir: /
+    github:
+      repo: dotcosglobalmarket-mk/-CleanOps-Connect
+      branch: main
+      deploy_on_push: true
+    http_port: 4000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    routes:
+      - path: /
+    envs:
+      - key: PORT
+        value: "4000"
+        scope: RUN_TIME
+      - key: MONGO_URI
+        scope: RUN_TIME
+        type: SECRET
+      - key: MAPBOX_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: JWT_SECRET
+        scope: RUN_TIME
+        type: SECRET
