@@ -41,7 +41,8 @@ class BackendScaffoldTests(unittest.TestCase):
         )
         self.assertGreaterEqual(job_result["lead_score"]["score"], 80)
         self.assertEqual(job_result["geocoding"]["mode"], "placeholder")
-        self.assertEqual(job_result["job"]["metadata"]["geocoding_mode"], "placeholder")
+        self.assertEqual(job_result["job"]["metadata"]["geocoding_mode"], "caller-value")
+        self.assertEqual(job_result["job"]["metadata"]["resolved_geocoding_mode"], "placeholder")
 
         subscription = app.repositories.subscriptions.get(onboarding["subscription"]["id"])
         preview = app.controllers["subscriptions"].preview_billing(subscription)
@@ -125,6 +126,17 @@ class BackendScaffoldTests(unittest.TestCase):
                     "postcode": "M1 1AE",
                     "service_type_code": "industrial-deep-clean",
                     "extra": True,
+                }
+            )
+
+        with self.assertRaisesRegex(ValueError, "Unknown service type codes: unknown-service"):
+            app.controllers["cleaners"].onboard(
+                {
+                    "email": "cleaner@example.com",
+                    "postcode": "M1 1AE",
+                    "business_name": "Sparkle Works",
+                    "service_type_codes": ["unknown-service"],
+                    "insurance_opt_in": True,
                 }
             )
 

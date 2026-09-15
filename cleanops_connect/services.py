@@ -102,6 +102,18 @@ class CleanerOnboardingService:
         insurance_opt_in: bool,
         compliance_checks: dict[str, bool] | None = None,
     ) -> dict[str, object]:
+        selected_service_types = []
+        unknown_service_type_codes = []
+        for code in service_type_codes:
+            service_type = self.repositories.service_types.get(code)
+            if service_type is None:
+                unknown_service_type_codes.append(code)
+                continue
+            selected_service_types.append(service_type)
+        if unknown_service_type_codes:
+            unknown_codes = ", ".join(sorted(unknown_service_type_codes))
+            raise ValueError(f"Unknown service type codes: {unknown_codes}")
+
         user = User(
             id=f"user-{next(self._user_ids)}",
             email=email,
@@ -118,11 +130,6 @@ class CleanerOnboardingService:
             insurance_opt_in=insurance_opt_in,
             compliance_checks=compliance_checks or {"dbs": False, "coshh": False},
         )
-        selected_service_types = [
-            service_type
-            for code in service_type_codes
-            if (service_type := self.repositories.service_types.get(code)) is not None
-        ]
         insurance_required = any(service_type.insurance_required for service_type in selected_service_types)
         insurance_summary = self.insurance_service.determine_add_on(
             ServiceType(
@@ -175,7 +182,7 @@ class JobCreationService:
         if service_type is None:
             raise ValueError(f"Unknown service type: {service_type_code}")
         location = self.geocoding_service.geocode_postcode(postcode)
-        job_metadata = {**(metadata or {}), "geocoding_mode": location["mode"]}
+        job_metadata = {**(metadata or {}), "resolved_geocoding_mode": location["mode"]}
         job = Job(
             id=f"job-{next(self._job_ids)}",
             customer_name=customer_name,
