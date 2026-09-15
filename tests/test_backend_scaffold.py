@@ -36,7 +36,7 @@ class BackendScaffoldTests(unittest.TestCase):
                 "customer_name": "Factory Site",
                 "postcode": "M1 1AE",
                 "service_type_code": "industrial-deep-clean",
-                "metadata": {"urgent": True, "recurring": True},
+                "metadata": {"urgent": True, "recurring": True, "geocoding_mode": "caller-value"},
             }
         )
         self.assertGreaterEqual(job_result["lead_score"]["score"], 80)
@@ -77,14 +77,14 @@ class BackendScaffoldTests(unittest.TestCase):
             user_id="user-postcode",
             business_name="Local Clean",
             service_type_codes=["domestic-standard"],
-            coverage_postcodes=["L1 1AA"],
+            coverage_postcodes=["L1 8JQ"],
         )
         wrong_service_type = CleanerProfile(
             id="cleaner-wrong-service",
             user_id="user-wrong-service",
             business_name="Industrial Only",
             service_type_codes=["industrial-deep-clean"],
-            coverage_postcodes=["L1 1AA"],
+            coverage_postcodes=["L1 8JQ"],
         )
         misses = CleanerProfile(
             id="cleaner-miss",

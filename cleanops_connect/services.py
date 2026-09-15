@@ -57,8 +57,8 @@ class SpatialFilteringService:
                 if distance <= cleaner.radius_miles:
                     matches.append(cleaner)
                     continue
-            job_prefix = job.postcode.split()[0]
-            if any(job_prefix == postcode.split()[0] for postcode in cleaner.coverage_postcodes):
+            job_postcode = _normalise_postcode(job.postcode)
+            if any(job_postcode == _normalise_postcode(postcode) for postcode in cleaner.coverage_postcodes):
                 matches.append(cleaner)
         return matches
 
@@ -175,7 +175,7 @@ class JobCreationService:
         if service_type is None:
             raise ValueError(f"Unknown service type: {service_type_code}")
         location = self.geocoding_service.geocode_postcode(postcode)
-        job_metadata = {"geocoding_mode": location["mode"], **(metadata or {})}
+        job_metadata = {**(metadata or {}), "geocoding_mode": location["mode"]}
         job = Job(
             id=f"job-{next(self._job_ids)}",
             customer_name=customer_name,
