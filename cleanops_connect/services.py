@@ -22,12 +22,14 @@ class MapboxPostcodeGeocodingService:
         seed = sum(ord(char) for char in normalised if char.isalnum())
         latitude = round(49.9 + (seed % 850) / 100, 6)
         longitude = round(-7.6 + (seed % 760) / 100, 6)
+        configured = bool(self.access_token)
         return {
             "postcode": normalised,
             "latitude": latitude,
             "longitude": longitude,
             "provider": "mapbox",
-            "configured": bool(self.access_token),
+            "configured": configured,
+            "mode": "live" if configured else "placeholder",
         }
 
 
@@ -173,6 +175,7 @@ class JobCreationService:
         if service_type is None:
             raise ValueError(f"Unknown service type: {service_type_code}")
         location = self.geocoding_service.geocode_postcode(postcode)
+        job_metadata = {"geocoding_mode": location["mode"], **(metadata or {})}
         job = Job(
             id=f"job-{next(self._job_ids)}",
             customer_name=customer_name,
@@ -180,7 +183,7 @@ class JobCreationService:
             service_type_code=service_type_code,
             latitude=location["latitude"],
             longitude=location["longitude"],
-            metadata=metadata or {},
+            metadata=job_metadata,
         )
         lead_score = self.scoring_service.score_job(job, service_type)
         job.lead_score = lead_score["score"]

@@ -13,6 +13,7 @@ class BackendScaffoldTests(unittest.TestCase):
         geocode = app.services["mapbox_geocoding"].geocode_postcode("SW1A 1AA")
         self.assertTrue(geocode["configured"])
         self.assertEqual(geocode["provider"], "mapbox")
+        self.assertEqual(geocode["mode"], "live")
 
     def test_onboarding_job_creation_and_billing_placeholders(self):
         app = create_application()
@@ -39,10 +40,18 @@ class BackendScaffoldTests(unittest.TestCase):
             }
         )
         self.assertGreaterEqual(job_result["lead_score"]["score"], 80)
+        self.assertEqual(job_result["geocoding"]["mode"], "placeholder")
+        self.assertEqual(job_result["job"]["metadata"]["geocoding_mode"], "placeholder")
 
         subscription = app.repositories.subscriptions.get(onboarding["subscription"]["id"])
         preview = app.controllers["subscriptions"].preview_billing(subscription)
         self.assertEqual(preview["total_gbp"], 58.99)
+
+        no_add_on_subscription = app.repositories.subscriptions.get(onboarding["subscription"]["id"])
+        no_add_on_subscription.insurance_add_on = False
+        no_add_on_preview = app.controllers["subscriptions"].preview_billing(no_add_on_subscription)
+        self.assertEqual(no_add_on_preview["line_items"], [{"name": "starter", "amount_gbp": 39.0}])
+        self.assertEqual(no_add_on_preview["total_gbp"], 39.0)
 
     def test_spatial_filtering_supports_coordinate_and_postcode_matches(self):
         app = create_application()
