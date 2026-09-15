@@ -100,6 +100,34 @@ class BackendScaffoldTests(unittest.TestCase):
         )
         self.assertEqual([cleaner.id for cleaner in matches], ["cleaner-geo", "cleaner-postcode"])
 
+    def test_controller_validation_and_auth_middleware_are_predictable(self):
+        app = create_application()
+
+        auth_result = app.middleware["auth"].authorize({"Authorization": "Bearer " + "demo-token"})
+        self.assertTrue(auth_result["authenticated"])
+
+        with self.assertRaisesRegex(ValueError, "unexpected fields: unknown"):
+            app.controllers["cleaners"].onboard(
+                {
+                    "email": "cleaner@example.com",
+                    "postcode": "M1 1AE",
+                    "business_name": "Sparkle Works",
+                    "service_type_codes": ["domestic-standard"],
+                    "insurance_opt_in": True,
+                    "unknown": "value",
+                }
+            )
+
+        with self.assertRaisesRegex(ValueError, "unexpected fields: extra"):
+            app.controllers["jobs"].create(
+                {
+                    "customer_name": "Factory Site",
+                    "postcode": "M1 1AE",
+                    "service_type_code": "industrial-deep-clean",
+                    "extra": True,
+                }
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
