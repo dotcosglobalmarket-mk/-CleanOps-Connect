@@ -15,10 +15,52 @@ servers:
 
 paths:
 
+  /auth/register:
+    post:
+      summary: Register a new user (customer or cleaner)
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '409':
+          description: Email already registered
+
+  /auth/login:
+    post:
+      summary: Log in and obtain a JWT
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid email or password
+
   /jobs:
     post:
       summary: Create a new cleaning job
       tags: [Jobs]
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -51,6 +93,8 @@ paths:
     post:
       summary: Allocate job to cleaners using AI scoring
       tags: [Jobs]
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/JobId'
       responses:
@@ -65,6 +109,8 @@ paths:
     post:
       summary: Register a new cleaner
       tags: [Cleaners]
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -97,6 +143,8 @@ paths:
     post:
       summary: Set cleaner coverage area (radius or polygon)
       tags: [Cleaners]
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -115,6 +163,8 @@ paths:
     post:
       summary: Activate subscription plan
       tags: [Subscriptions]
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -133,6 +183,8 @@ paths:
     post:
       summary: Add insurance add-on to subscription
       tags: [Subscriptions]
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -148,6 +200,12 @@ paths:
                 $ref: '#/components/schemas/Subscription'
 
 components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
 
   parameters:
     JobId:
@@ -165,6 +223,63 @@ components:
         type: string
 
   schemas:
+
+    RegisterRequest:
+      type: object
+      required:
+        - name
+        - email
+        - password
+        - role
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        role:
+          type: string
+          enum: [customer, cleaner, admin]
+        phone:
+          type: string
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [customer, cleaner, admin]
+        phone:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
 
     JobCreateRequest:
       type: object

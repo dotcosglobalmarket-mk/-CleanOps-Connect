@@ -105,22 +105,29 @@ npm run dev
 
 ## API Endpoints (Initial Set)
 
+### Auth
+
+- `POST /auth/register` – Register a customer, cleaner, or admin account
+- `POST /auth/login` – Log in and obtain a JWT
+
 ### Jobs
 
-- `POST /jobs` – Create a new job
-- `POST /jobs/:id/allocate` – Run AI allocation and send offers
+- `POST /jobs` 🔒 (customer) – Create a new job
+- `POST /jobs/:id/allocate` 🔒 (job owner or admin) – Run AI allocation and send offers
 - `GET /jobs/:id` – View job details
 
 ### Cleaners
 
-- `POST /cleaners` – Register cleaner
-- `POST /cleaners/coverage` – Set radius or polygon coverage
+- `POST /cleaners` 🔒 (cleaner) – Register cleaner
+- `POST /cleaners/coverage` 🔒 (cleaner or admin) – Set radius or polygon coverage
 - `GET /cleaners/:id` – View cleaner profile
 
 ### Subscriptions
 
-- `POST /subscriptions` – Activate plan
-- `POST /subscriptions/insurance` – Add insurance add‑on
+- `POST /subscriptions` 🔒 (cleaner or admin) – Activate plan
+- `POST /subscriptions/insurance` 🔒 (cleaner or admin) – Add insurance add‑on
+
+🔒 requires a `Authorization: Bearer <token>` header from `/auth/login`.
 
 ## Mapbox Integration
 

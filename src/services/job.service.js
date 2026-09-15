@@ -14,6 +14,12 @@ function notFound(message) {
   return error;
 }
 
+function forbidden(message) {
+  const error = new Error(message);
+  error.status = 403;
+  return error;
+}
+
 async function createJob(jobData) {
   const { lat, lng } = await mapboxService.geocodePostcode(jobData.postcode);
 
@@ -31,10 +37,14 @@ async function getJobById(jobId) {
   return Job.findById(jobId);
 }
 
-async function allocateJob(jobId) {
+async function allocateJob(jobId, requestingUser) {
   const job = await Job.findById(jobId);
   if (!job) {
     throw notFound('Job not found');
+  }
+
+  if (requestingUser.role !== 'admin' && job.customer.toString() !== requestingUser.id) {
+    throw forbidden('You do not have access to this job');
   }
 
   const candidates = await CleanerProfile.find({ services: job.serviceType });
