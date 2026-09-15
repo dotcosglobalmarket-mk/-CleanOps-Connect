@@ -1,0 +1,332 @@
+openapi: 3.0.3
+info:
+  title: CleanOps Connect API
+  version: 1.0.0
+  description: >
+    Backend API for CleanOps Connect — a UK domestic and industrial cleaning
+    lead allocation platform using AI scoring, Mapbox geolocation, cleaner
+    subscriptions, insurance add-ons, and compliance checks.
+
+servers:
+  - url: https://api.cleanopsconnect.com
+    description: Production server
+  - url: http://localhost:4000
+    description: Local development
+
+paths:
+
+  /jobs:
+    post:
+      summary: Create a new cleaning job
+      tags: [Jobs]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobCreateRequest'
+      responses:
+        '201':
+          description: Job created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+
+  /jobs/{id}:
+    get:
+      summary: Get job details
+      tags: [Jobs]
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+
+  /jobs/{id}/allocate:
+    post:
+      summary: Allocate job to cleaners using AI scoring
+      tags: [Jobs]
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Allocation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllocationResult'
+
+  /cleaners:
+    post:
+      summary: Register a new cleaner
+      tags: [Cleaners]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CleanerCreateRequest'
+      responses:
+        '201':
+          description: Cleaner created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanerProfile'
+
+  /cleaners/{id}:
+    get:
+      summary: Get cleaner profile
+      tags: [Cleaners]
+      parameters:
+        - $ref: '#/components/parameters/CleanerId'
+      responses:
+        '200':
+          description: Cleaner profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanerProfile'
+
+  /cleaners/coverage:
+    post:
+      summary: Set cleaner coverage area (radius or polygon)
+      tags: [Cleaners]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoverageRequest'
+      responses:
+        '200':
+          description: Coverage updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanerProfile'
+
+  /subscriptions:
+    post:
+      summary: Activate subscription plan
+      tags: [Subscriptions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionRequest'
+      responses:
+        '201':
+          description: Subscription activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  /subscriptions/insurance:
+    post:
+      summary: Add insurance add-on to subscription
+      tags: [Subscriptions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsuranceAddOnRequest'
+      responses:
+        '200':
+          description: Insurance added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+components:
+
+  parameters:
+    JobId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+
+    CleanerId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+
+  schemas:
+
+    JobCreateRequest:
+      type: object
+      required:
+        - serviceType
+        - postcode
+        - budgetMin
+        - budgetMax
+      properties:
+        serviceType:
+          type: string
+        category:
+          type: string
+          enum: [domestic, industrial]
+        postcode:
+          type: string
+        description:
+          type: string
+        estimatedHours:
+          type: number
+        frequency:
+          type: string
+          enum: [one_off, weekly, monthly, contract]
+        budgetMin:
+          type: number
+        budgetMax:
+          type: number
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+        serviceType:
+          type: string
+        category:
+          type: string
+        postcode:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        status:
+          type: string
+          enum: [open, allocated, in_progress, completed, cancelled]
+
+    AllocationResult:
+      type: object
+      properties:
+        jobId:
+          type: string
+        offers:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobOffer'
+
+    JobOffer:
+      type: object
+      properties:
+        cleanerId:
+          type: string
+        score:
+          type: number
+        status:
+          type: string
+          enum: [sent, accepted, declined, expired]
+
+    CleanerCreateRequest:
+      type: object
+      required:
+        - name
+        - basePostcode
+      properties:
+        name:
+          type: string
+        companyName:
+          type: string
+        basePostcode:
+          type: string
+        services:
+          type: array
+          items:
+            type: string
+        dbsVerified:
+          type: boolean
+        coshhTrained:
+          type: boolean
+
+    CleanerProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        companyName:
+          type: string
+        basePostcode:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        coverageType:
+          type: string
+          enum: [radius, polygon]
+        coverageRadiusKm:
+          type: number
+        coveragePolygon:
+          type: object
+        insuranceStatus:
+          type: string
+          enum: [none, own, platform]
+        ratingAverage:
+          type: number
+        ratingCount:
+          type: number
+
+    CoverageRequest:
+      type: object
+      properties:
+        cleanerId:
+          type: string
+        coverageType:
+          type: string
+          enum: [radius, polygon]
+        radiusKm:
+          type: number
+        polygon:
+          type: object
+
+    SubscriptionRequest:
+      type: object
+      required:
+        - cleanerId
+        - plan
+      properties:
+        cleanerId:
+          type: string
+        plan:
+          type: string
+          enum: [starter, pro, industrial_pro]
+
+    InsuranceAddOnRequest:
+      type: object
+      required:
+        - cleanerId
+      properties:
+        cleanerId:
+          type: string
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+        cleanerId:
+          type: string
+        plan:
+          type: string
+        isActive:
+          type: boolean
+        insuranceAddOn:
+          type: boolean
