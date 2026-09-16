@@ -73,9 +73,19 @@ jobs:
               200|201|202)
                 ;;
               409)
-                retry_status="$(curl --silent --show-error --output /tmp/cloudflare-pages-project.json --write-out '%{http_code}' \
-                  --header "${auth_prefix}${CLOUDFLARE_API_TOKEN}" \
-                  "${project_endpoint}")"
+                retry_status=""
+
+                for _ in 1 2 3 4 5; do
+                  retry_status="$(curl --silent --show-error --output /tmp/cloudflare-pages-project.json --write-out '%{http_code}' \
+                    --header "${auth_prefix}${CLOUDFLARE_API_TOKEN}" \
+                    "${project_endpoint}")"
+
+                  if [ "${retry_status}" = "200" ]; then
+                    break
+                  fi
+
+                  sleep 2
+                done
 
                 if [ "${retry_status}" != "200" ]; then
                   cat /tmp/cloudflare-pages-project-create.json
