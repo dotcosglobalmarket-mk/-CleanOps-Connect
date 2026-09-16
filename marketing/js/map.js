@@ -13,7 +13,7 @@ export const COVERAGE_CITIES = [
 
 // Builds a Mapbox Static Images API URL. Docs:
 // https://docs.mapbox.com/api/maps/static-images/
-export function buildStaticMapUrl({ cities, style = 'dark-v11', width = 640, height = 420, markerColor = '1d6fe0', padding = 60, retina = true }) {
+export function buildStaticMapUrl({ cities, style = 'light-v11', width = 640, height = 420, markerColor = '2d8cff', padding = 60, retina = true }) {
   if (!MAPBOX_TOKEN) return null;
 
   const overlay = cities

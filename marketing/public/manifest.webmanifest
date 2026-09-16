@@ -1,0 +1,14 @@
+{
+  "name": "CleanOps Connect",
+  "short_name": "CleanOps",
+  "description": "UK cleaning, powered by smart matching.",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0A1A2F",
+  "theme_color": "#0A1A2F",
+  "icons": [
+    { "src": "/icons/app-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/app-icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
