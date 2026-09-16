@@ -88,12 +88,10 @@ jobs:
               "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects")"
 
             case "${create_status}" in
-              200|201)
-                ;;
-              202|409)
+              200|201|202|409)
                 if ! wait_for_project; then
                   cat /tmp/cloudflare-pages-project-create.json
-                  echo "Cloudflare accepted or conflicted on creating '${CLOUDFLARE_PAGES_PROJECT}', but the project never became available afterwards." >&2
+                  echo "Cloudflare reported a successful, accepted, or conflicting create for '${CLOUDFLARE_PAGES_PROJECT}', but the project never became available afterwards." >&2
                   exit 1
                 fi
                 ;;
