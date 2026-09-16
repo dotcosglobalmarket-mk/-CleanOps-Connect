@@ -5,7 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CleanOps Connect — UK cleaning, powered by smart matching</title>
   <meta name="description" content="CleanOps Connect matches UK domestic and industrial cleaning jobs with verified, compliant cleaners using AI scoring and coverage matching." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧽</text></svg>" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate icon" href="/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -351,7 +357,7 @@
 
   <script type="module">
     import { BRAND_MARK } from './js/nav.js';
-    document.getElementById('footer-brand').innerHTML = `${BRAND_MARK}<span>CleanOps Connect</span>`;
+    document.getElementById('footer-brand').innerHTML = `${BRAND_MARK}<span class="brand-word"><strong>CleanOps</strong> Connect</span>`;
   </script>
   <script type="module">
     import { buildStaticMapUrl, COVERAGE_CITIES } from './js/map.js';
@@ -374,7 +380,7 @@
 
     const westYorkshireCities = COVERAGE_CITIES.filter((c) => c.name !== 'London');
     loadMap('hero-map-img', 'hero-map-fallback', { cities: westYorkshireCities, width: 240, height: 120, padding: 40 });
-    loadMap('coverage-map-img', 'coverage-map-fallback', { cities: COVERAGE_CITIES, width: 640, height: 420, padding: 60 });
+    loadMap('coverage-map-img', 'coverage-map-fallback', { cities: COVERAGE_CITIES, width: 640, height: 420, padding: 60, showRoute: true });
   </script>
   <script type="module" src="js/nav.js"></script>
 </body>

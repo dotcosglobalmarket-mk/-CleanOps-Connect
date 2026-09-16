@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 100" role="img" aria-label="CleanOps Connect logo, dark-mode variant">
+  <path d="M50 4 L90 20 V46 C90 70 73 88 50 96 C27 88 10 70 10 46 V20 Z" fill="#F5F8FF" />
+  <path d="M28 52 L45 68 L74 34" fill="none" stroke="#2D8CFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="112" y="63" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" font-size="42" letter-spacing="-0.5">
+    <tspan font-weight="700" fill="#F5F8FF">CleanOps</tspan><tspan font-weight="400" fill="#F5F8FF"> Connect</tspan>
+  </text>
+</svg>
