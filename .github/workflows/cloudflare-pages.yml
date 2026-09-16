@@ -88,10 +88,21 @@ jobs:
               "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects")"
 
             case "${create_status}" in
-              200|201|202|409)
+              200|201|202)
                 if ! wait_for_project; then
                   cat /tmp/cloudflare-pages-project-create.json
-                  echo "Cloudflare reported a successful, accepted, or conflicting create for '${CLOUDFLARE_PAGES_PROJECT}', but the project never became available afterwards." >&2
+                  echo "Cloudflare reported a successful or accepted create for '${CLOUDFLARE_PAGES_PROJECT}', but the project never became available afterwards." >&2
+                  exit 1
+                fi
+                ;;
+              409)
+                if wait_for_project; then
+                  :
+                elif grep -qi 'already exists' /tmp/cloudflare-pages-project-create.json; then
+                  echo "Cloudflare reported that '${CLOUDFLARE_PAGES_PROJECT}' already exists."
+                else
+                  cat /tmp/cloudflare-pages-project-create.json
+                  echo "Cloudflare reported a conflicting Pages project create for '${CLOUDFLARE_PAGES_PROJECT}'." >&2
                   exit 1
                 fi
                 ;;
