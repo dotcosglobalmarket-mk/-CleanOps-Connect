@@ -39,10 +39,17 @@ nav#site-nav {
 }
 
 nav .brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-weight: 700;
   font-size: 1.1rem;
   color: var(--color-primary-dark);
   text-decoration: none;
+}
+
+nav .brand .brand-mark {
+  flex-shrink: 0;
 }
 
 nav .nav-links {
@@ -62,14 +69,14 @@ nav .nav-links a:hover {
 }
 
 nav .button-link {
-  background: var(--color-primary);
+  background: #1d6fe0;
   color: #fff;
   padding: 0.4rem 0.9rem;
   border-radius: 6px;
 }
 
 nav .button-link:hover {
-  background: var(--color-primary-dark);
+  background: #1558b8;
   color: #fff;
 }
 
@@ -246,5 +253,513 @@ button.secondary:hover {
 
   .two-column {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Landing page ("lp-" prefixed) — scoped to index.html only, does not
+   touch the shared header/form/dashboard styles above.
+--------------------------------------------------------------------- */
+
+:root {
+  --lp-navy: #0b1f45;
+  --lp-blue: #1d6fe0;
+  --lp-blue-light: #5fa8ff;
+  --lp-bg: #f5f8ff;
+  --lp-surface: #ffffff;
+  --lp-border: #dbe6fb;
+  --lp-text: #0b1f45;
+  --lp-muted: #5c6b8a;
+  --lp-glow: rgba(29, 111, 224, 0.18);
+}
+
+body:has(.lp-page) {
+  background: var(--lp-bg);
+}
+
+.lp-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5rem;
+}
+
+.lp-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--lp-blue);
+  margin: 0 0 0.75rem;
+}
+
+/* Hero */
+.lp-hero {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 2.5rem;
+  align-items: center;
+  padding-top: 2rem;
+}
+
+.lp-hero h1 {
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  line-height: 1.15;
+  margin: 0 0 1rem;
+  color: var(--lp-navy);
+}
+
+.lp-hero p {
+  color: var(--lp-muted);
+  font-size: 1.05rem;
+  max-width: 44ch;
+  margin: 0 0 1.75rem;
+}
+
+.lp-hero-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.lp-btn {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.75rem 1.6rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lp-btn-primary {
+  background: var(--lp-blue);
+  color: #fff;
+  box-shadow: 0 8px 20px var(--lp-glow);
+}
+
+.lp-btn-primary:hover {
+  background: #1558b8;
+}
+
+.lp-btn-outline {
+  background: transparent;
+  color: var(--lp-navy);
+  border: 1.5px solid var(--lp-border);
+}
+
+.lp-btn-outline:hover {
+  border-color: var(--lp-blue);
+  color: var(--lp-blue);
+}
+
+/* Hero visual grid of glass tiles */
+.lp-tile-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.lp-tile {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--lp-border);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 12px 30px rgba(11, 31, 69, 0.08);
+}
+
+.lp-tile:nth-child(1) { transform: rotate(-2deg); }
+.lp-tile:nth-child(2) { transform: rotate(1.5deg); margin-top: 1.5rem; }
+.lp-tile:nth-child(3) { transform: rotate(1deg); margin-top: -1rem; }
+.lp-tile:nth-child(4) { transform: rotate(-1.5deg); }
+
+.lp-tile-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--lp-muted);
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.lp-tile-title {
+  font-weight: 700;
+  color: var(--lp-navy);
+  font-size: 0.95rem;
+}
+
+.lp-tile-sub {
+  font-size: 0.82rem;
+  color: var(--lp-muted);
+  margin-top: 0.25rem;
+}
+
+.lp-badge-row {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.lp-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #eaf2ff;
+  color: var(--lp-blue);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+}
+
+/* Section headings */
+.lp-section-head {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 2.5rem;
+}
+
+.lp-section-head h2 {
+  font-size: 1.9rem;
+  color: var(--lp-navy);
+  margin: 0 0 0.5rem;
+}
+
+.lp-section-head p {
+  color: var(--lp-muted);
+  margin: 0;
+}
+
+/* How it works */
+.lp-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.lp-step {
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.lp-step-icon {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 1rem;
+  border-radius: 12px;
+  background: #eaf2ff;
+  color: var(--lp-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+}
+
+.lp-step h3 {
+  margin: 0 0 0.4rem;
+  color: var(--lp-navy);
+  font-size: 1.05rem;
+}
+
+.lp-step p {
+  margin: 0;
+  color: var(--lp-muted);
+  font-size: 0.9rem;
+}
+
+/* Split feature sections (For customers / For cleaners) */
+.lp-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+  align-items: center;
+}
+
+.lp-split.lp-reverse .lp-split-visual {
+  order: 2;
+}
+
+.lp-split-text h2 {
+  font-size: 1.7rem;
+  color: var(--lp-navy);
+  margin: 0 0 0.75rem;
+}
+
+.lp-split-text ul {
+  list-style: none;
+  margin: 1.25rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.lp-split-text li {
+  color: var(--lp-text);
+  font-size: 0.95rem;
+  padding-left: 1.6rem;
+  position: relative;
+}
+
+.lp-split-text li::before {
+  content: "\2713";
+  position: absolute;
+  left: 0;
+  color: var(--lp-blue);
+  font-weight: 700;
+}
+
+.lp-split-visual {
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 12px 30px rgba(11, 31, 69, 0.06);
+}
+
+/* Coverage map */
+.lp-coverage {
+  background: var(--lp-navy);
+  border-radius: 24px;
+  padding: 3rem 2rem;
+  color: #fff;
+  text-align: center;
+}
+
+.lp-coverage h2 {
+  font-size: 1.8rem;
+  margin: 0 0 0.5rem;
+}
+
+.lp-coverage p {
+  color: #b8c6ea;
+  margin: 0 auto 2rem;
+  max-width: 480px;
+}
+
+.lp-map {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.lp-map-pin {
+  fill: var(--lp-blue-light);
+}
+
+.lp-map-city {
+  font-size: 9px;
+  fill: #d7e3ff;
+}
+
+/* Compliance badges */
+.lp-badge-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+}
+
+.lp-compliance-tile {
+  background: var(--lp-surface);
+  border: 1.5px solid var(--lp-border);
+  border-radius: 14px;
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.lp-compliance-tile .lp-step-icon {
+  background: #eaf2ff;
+}
+
+.lp-compliance-tile p {
+  margin: 0.5rem 0 0;
+  font-weight: 700;
+  color: var(--lp-navy);
+  font-size: 0.9rem;
+}
+
+/* Testimonials */
+.lp-testimonials {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.lp-testimonial {
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-border);
+  border-radius: 14px;
+  padding: 1.5rem;
+}
+
+.lp-testimonial-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.lp-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--lp-blue);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.lp-testimonial-name {
+  font-weight: 700;
+  color: var(--lp-navy);
+  font-size: 0.9rem;
+}
+
+.lp-testimonial-rating {
+  color: #f5b301;
+  font-size: 0.8rem;
+}
+
+.lp-testimonial p.lp-quote {
+  margin: 0;
+  color: var(--lp-text);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+/* FAQ accordion (native <details>) */
+.lp-faq {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.lp-faq details {
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-border);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+
+.lp-faq summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--lp-navy);
+  list-style: none;
+}
+
+.lp-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.lp-faq summary::after {
+  content: "+";
+  float: right;
+  color: var(--lp-blue);
+  font-weight: 700;
+}
+
+.lp-faq details[open] summary::after {
+  content: "\2212";
+}
+
+.lp-faq details p {
+  margin: 0.75rem 0 0;
+  color: var(--lp-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+/* Footer */
+.lp-footer {
+  border-top: 1px solid var(--lp-border);
+  padding: 3rem 0 2rem;
+}
+
+.lp-footer-top {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.lp-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  color: var(--lp-navy);
+  margin-bottom: 0.75rem;
+}
+
+.lp-footer-brand p {
+  margin: 0.5rem 0 0;
+  color: var(--lp-muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.lp-footer-col h4 {
+  font-size: 0.85rem;
+  color: var(--lp-navy);
+  margin: 0 0 0.75rem;
+}
+
+.lp-footer-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lp-footer-col a {
+  color: var(--lp-muted);
+  text-decoration: none;
+  font-size: 0.88rem;
+}
+
+.lp-footer-col a:hover {
+  color: var(--lp-blue);
+}
+
+.lp-footer-bottom {
+  text-align: center;
+  color: var(--lp-muted);
+  font-size: 0.82rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--lp-border);
+}
+
+@media (max-width: 860px) {
+  .lp-hero,
+  .lp-split,
+  .lp-split.lp-reverse .lp-split-visual {
+    grid-template-columns: 1fr;
+    order: initial;
+  }
+
+  .lp-steps,
+  .lp-testimonials {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-badge-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .lp-footer-top {
+    grid-template-columns: 1fr 1fr;
   }
 }
