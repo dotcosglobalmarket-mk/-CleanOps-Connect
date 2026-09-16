@@ -45,17 +45,26 @@
         </div>
         <div class="lp-tile">
           <div class="lp-tile-label">Coverage map</div>
-          <svg viewBox="0 0 120 90" width="100%" height="60" role="presentation">
-            <path d="M40 4 L70 10 L78 30 L66 46 L74 62 L54 84 L34 70 L18 74 L8 50 L22 34 L18 16 Z" fill="#eaf2ff" stroke="#1d6fe0" stroke-width="1.5" />
-            <circle cx="44" cy="28" r="3" fill="#1d6fe0" />
-            <circle cx="36" cy="42" r="3" fill="#1d6fe0" />
-            <circle cx="52" cy="52" r="3" fill="#1d6fe0" />
-          </svg>
+          <div class="lp-map-frame lp-map-frame-sm">
+            <img id="hero-map-img" class="lp-map-real" alt="Mapbox map showing CleanOps Connect coverage around Leeds, Bradford and Wakefield" hidden />
+            <svg id="hero-map-fallback" viewBox="0 0 120 90" width="100%" height="60" role="presentation">
+              <path d="M40 4 L70 10 L78 30 L66 46 L74 62 L54 84 L34 70 L18 74 L8 50 L22 34 L18 16 Z" fill="#eaf2ff" stroke="#1d6fe0" stroke-width="1.5" />
+              <circle cx="44" cy="28" r="3" fill="#1d6fe0" />
+              <circle cx="36" cy="42" r="3" fill="#1d6fe0" />
+              <circle cx="52" cy="52" r="3" fill="#1d6fe0" />
+            </svg>
+          </div>
           <div class="lp-tile-sub">Leeds · Bradford · Wakefield</div>
         </div>
         <div class="lp-tile">
           <div class="lp-tile-label">Compliance</div>
-          <div class="lp-tile-title">🛡️ Verified &amp; compliant</div>
+          <div class="lp-tile-title">
+            <svg class="lp-inline-icon" viewBox="0 0 24 24" fill="none" stroke="#1d6fe0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3 L19 6 V11 C19 15.5 16 19 12 20.5 C8 19 5 15.5 5 11 V6 Z" />
+              <path d="M9 11.5 L11 13.5 L15.5 9" />
+            </svg>
+            Verified &amp; compliant
+          </div>
         </div>
       </div>
     </section>
@@ -67,17 +76,35 @@
       </div>
       <div class="lp-steps">
         <div class="lp-step">
-          <div class="lp-step-icon">📍</div>
+          <div class="lp-step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 21 C12 21 19 14.6 19 10 A7 7 0 0 0 5 10 C5 14.6 12 21 12 21 Z" />
+              <circle cx="12" cy="10" r="2.5" />
+            </svg>
+          </div>
           <h3>1. Post a job</h3>
           <p>Enter your postcode, budget, and service type.</p>
         </div>
         <div class="lp-step">
-          <div class="lp-step-icon">🤖</div>
+          <div class="lp-step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="6" y="6" width="12" height="12" rx="2.5" />
+              <circle cx="9.5" cy="10" r="1" fill="currentColor" stroke="none" />
+              <circle cx="14.5" cy="10" r="1" fill="currentColor" stroke="none" />
+              <path d="M9 14 C10 15 14 15 15 14" />
+              <path d="M12 6 V3 M6 9 H3 M6 15 H3 M18 9 H21 M18 15 H21 M12 18 V21" />
+            </svg>
+          </div>
           <h3>2. Smart matching</h3>
           <p>AI filters cleaners by coverage, compliance, and availability.</p>
         </div>
         <div class="lp-step">
-          <div class="lp-step-icon">✅</div>
+          <div class="lp-step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M8 12.5 L11 15.5 L16 9" />
+            </svg>
+          </div>
           <h3>3. Get connected</h3>
           <p>A cleaner accepts — you get confirmation instantly.</p>
         </div>
@@ -143,24 +170,27 @@
     <section class="lp-coverage">
       <h2>Coverage across the UK</h2>
       <p>From Leeds to London — CleanOps Connect scales with you. Domestic, commercial, and industrial cleaning coverage.</p>
-      <svg class="lp-map" viewBox="0 0 200 220" role="img" aria-label="Map of UK coverage zones">
-        <path d="M90 6 L130 20 L140 55 L120 80 L135 110 L110 150 L120 180 L90 210 L60 190 L45 200 L28 165 L50 130 L30 100 L45 65 L35 35 L70 20 Z"
-          fill="#12306f" stroke="#5fa8ff" stroke-width="2" opacity="0.9" />
-        <circle class="lp-map-pin" cx="88" cy="70" r="4" />
-        <text class="lp-map-city" x="94" y="73">Leeds</text>
-        <circle class="lp-map-pin" cx="70" cy="82" r="4" />
-        <text class="lp-map-city" x="42" y="85">Bradford</text>
-        <circle class="lp-map-pin" cx="95" cy="95" r="4" />
-        <text class="lp-map-city" x="101" y="98">Wakefield</text>
-        <circle class="lp-map-pin" cx="80" cy="100" r="4" />
-        <text class="lp-map-city" x="44" y="112">Castleford</text>
-        <circle class="lp-map-pin" cx="80" cy="170" r="4" />
-        <text class="lp-map-city" x="86" y="173">London</text>
-        <line x1="88" y1="70" x2="70" y2="82" stroke="#5fa8ff" stroke-width="1" opacity="0.6" />
-        <line x1="88" y1="70" x2="95" y2="95" stroke="#5fa8ff" stroke-width="1" opacity="0.6" />
-        <line x1="80" y1="100" x2="95" y2="95" stroke="#5fa8ff" stroke-width="1" opacity="0.6" />
-        <line x1="80" y1="100" x2="80" y2="170" stroke="#5fa8ff" stroke-width="1" opacity="0.6" />
-      </svg>
+      <div class="lp-map-frame lp-map-frame-lg">
+        <img id="coverage-map-img" class="lp-map-real" alt="Mapbox map showing CleanOps Connect coverage across Leeds, Bradford, Wakefield, Castleford and London" hidden />
+        <svg id="coverage-map-fallback" class="lp-map" viewBox="0 0 200 220" role="img" aria-label="Map of UK coverage zones">
+          <path d="M90 6 L130 20 L140 55 L120 80 L135 110 L110 150 L120 180 L90 210 L60 190 L45 200 L28 165 L50 130 L30 100 L45 65 L35 35 L70 20 Z"
+            fill="#12306f" stroke="#5fa8ff" stroke-width="2" opacity="0.9" />
+          <circle class="lp-map-pin" cx="88" cy="70" r="4" />
+          <text class="lp-map-city" x="94" y="73">Leeds</text>
+          <circle class="lp-map-pin" cx="70" cy="82" r="4" />
+          <text class="lp-map-city" x="42" y="85">Bradford</text>
+          <circle class="lp-map-pin" cx="95" cy="95" r="4" />
+          <text class="lp-map-city" x="101" y="98">Wakefield</text>
+          <circle class="lp-map-pin" cx="80" cy="100" r="4" />
+          <text class="lp-map-city" x="44" y="112">Castleford</text>
+          <circle class="lp-map-pin" cx="80" cy="170" r="4" />
+          <text class="lp-map-city" x="86" y="173">London</text>
+          <line x1="88" y1="70" x2="70" y2="82" stroke="#5fa8ff" stroke-width="1" opacity="0.6" />
+          <line x1="88" y1="70" x2="95" y2="95" stroke="#5fa8ff" stroke-width="1" opacity="0.6" />
+          <line x1="80" y1="100" x2="95" y2="95" stroke="#5fa8ff" stroke-width="1" opacity="0.6" />
+          <line x1="80" y1="100" x2="80" y2="170" stroke="#5fa8ff" stroke-width="1" opacity="0.6" />
+        </svg>
+      </div>
     </section>
 
     <!-- 6. Compliance & trust -->
@@ -171,19 +201,42 @@
       </div>
       <div class="lp-badge-grid">
         <div class="lp-compliance-tile">
-          <div class="lp-step-icon">🪪</div>
+          <div class="lp-step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <circle cx="9" cy="11" r="2" />
+              <path d="M6 16 C6.5 14 7.6 13 9 13 C10.4 13 11.5 14 12 16" />
+              <path d="M15 10 H18 M15 13 H18" />
+            </svg>
+          </div>
           <p>DBS verified</p>
         </div>
         <div class="lp-compliance-tile">
-          <div class="lp-step-icon">🧪</div>
+          <div class="lp-step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10 3 H14 M10 3 V9.5 L5.5 18 A2 2 0 0 0 7.3 21 H16.7 A2 2 0 0 0 18.5 18 L14 9.5 V3" />
+              <path d="M7.5 15 H16.5" />
+            </svg>
+          </div>
           <p>COSHH compliant</p>
         </div>
         <div class="lp-compliance-tile">
-          <div class="lp-step-icon">🛡️</div>
+          <div class="lp-step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3 L19 6 V11 C19 15.5 16 19 12 20.5 C8 19 5 15.5 5 11 V6 Z" />
+              <path d="M9 11.5 L11 13.5 L15.5 9" />
+            </svg>
+          </div>
           <p>Insurance checked</p>
         </div>
         <div class="lp-compliance-tile">
-          <div class="lp-step-icon">🔒</div>
+          <div class="lp-step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="5" y="11" width="14" height="9" rx="2" />
+              <path d="M8 11 V7.5 A4 4 0 0 1 16 7.5 V11" />
+              <circle cx="12" cy="15.5" r="1.3" fill="currentColor" stroke="none" />
+            </svg>
+          </div>
           <p>Identity verified</p>
         </div>
       </div>
@@ -299,6 +352,29 @@
   <script type="module">
     import { BRAND_MARK } from './js/nav.js';
     document.getElementById('footer-brand').innerHTML = `${BRAND_MARK}<span>CleanOps Connect</span>`;
+  </script>
+  <script type="module">
+    import { buildStaticMapUrl, COVERAGE_CITIES } from './js/map.js';
+
+    function loadMap(imgId, fallbackId, opts) {
+      const img = document.getElementById(imgId);
+      const fallback = document.getElementById(fallbackId);
+      const url = buildStaticMapUrl(opts);
+      if (!img || !fallback || !url) return;
+
+      img.addEventListener('load', () => {
+        fallback.setAttribute('hidden', '');
+        img.removeAttribute('hidden');
+      });
+      img.addEventListener('error', () => {
+        img.setAttribute('hidden', '');
+      });
+      img.src = url;
+    }
+
+    const westYorkshireCities = COVERAGE_CITIES.filter((c) => c.name !== 'London');
+    loadMap('hero-map-img', 'hero-map-fallback', { cities: westYorkshireCities, width: 240, height: 120, padding: 40 });
+    loadMap('coverage-map-img', 'coverage-map-fallback', { cities: COVERAGE_CITIES, width: 640, height: 420, padding: 60 });
   </script>
   <script type="module" src="js/nav.js"></script>
 </body>

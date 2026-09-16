@@ -763,3 +763,35 @@ body:has(.lp-page) {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* Real Mapbox tiles + inline icon sizing, added alongside the illustrative
+   SVG fallbacks in the hero tile and the coverage section. */
+.lp-map-frame {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.lp-map-frame-sm {
+  height: 60px;
+}
+
+.lp-map-frame-lg {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.lp-map-real {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.lp-inline-icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: -2px;
+  margin-right: 0.3rem;
+}
