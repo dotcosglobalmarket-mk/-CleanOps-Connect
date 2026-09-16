@@ -210,13 +210,12 @@ Set in `frontend/.env.production` for local builds, or as the `VITE_API_URL` Git
 
 #### CI/CD
 
-`.github/workflows/cloudflare-pages.yml` builds `frontend/` with Node 18 on every push to `main` that touches `frontend/**`, then deploys `frontend/dist` to Cloudflare Pages via the official `cloudflare/pages-action`. It requires these repository secrets:
+`.github/workflows/cloudflare-pages.yml` builds `frontend/` with Node 18 on every push to `main` that touches `frontend/**`, ensures the `cleanops-connect` Pages project exists, then deploys `frontend/dist` via the official `cloudflare/pages-action`. It requires these repository secrets:
 
 | Secret | Where to get it |
 | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → create a token with **Cloudflare Pages: Edit** permission |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → right sidebar of any domain/account overview page |
-| `CLOUDFLARE_PROJECT_NAME` | The Pages project name (create it once in the dashboard, or let the first deploy create it) |
 | `VITE_API_URL` | Your deployed backend URL, injected at build time |
 | `VITE_MAPBOX_TOKEN` | Mapbox public access token, injected at build time (see the environment variables table above) |
 
