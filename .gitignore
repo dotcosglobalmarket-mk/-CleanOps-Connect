@@ -158,6 +158,11 @@ activemq-data/
 .env.production
 .env.development
 !.env.production.example
+# marketing/.env.production is committed intentionally: Cloudflare Workers
+# Builds (assets-only projects) has no build-time variables UI, so this is
+# how Vite picks up VITE_API_URL/VITE_MAPBOX_TOKEN during `npm run build`
+# in Cloudflare's Git integration. See the file's own header comment.
+!marketing/.env.production
 .envrc
 .venv
 env/
