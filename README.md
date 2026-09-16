@@ -206,7 +206,7 @@ Set in `frontend/.env.production` for local builds, or as the `VITE_API_URL` Git
 | Variable | Purpose |
 | --- | --- |
 | `VITE_API_URL` | Backend base URL (e.g. the DigitalOcean App Platform URL), no trailing slash |
-| `PUBLIC_MAPBOX_KEY` | Reserved for a future client-side map feature — not read by any frontend code today (geocoding happens server-side) |
+| `VITE_MAPBOX_TOKEN` | Mapbox **public** access token (starts with `pk.`), used client-side to render the real coverage map on the landing page via the Static Images API. Create one at [account.mapbox.com/access-tokens](https://account.mapbox.com/access-tokens/) and restrict it to your production domain(s). This is distinct from the backend's `MAPBOX_API_KEY`, which is a private key used server-side for geocoding and must never be reused here. |
 
 #### CI/CD
 
@@ -218,6 +218,7 @@ Set in `frontend/.env.production` for local builds, or as the `VITE_API_URL` Git
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → right sidebar of any domain/account overview page |
 | `CLOUDFLARE_PROJECT_NAME` | The Pages project name (create it once in the dashboard, or let the first deploy create it) |
 | `VITE_API_URL` | Your deployed backend URL, injected at build time |
+| `VITE_MAPBOX_TOKEN` | Mapbox public access token, injected at build time (see the environment variables table above) |
 
 #### Custom domain: cleanop-connect.co.uk
 
