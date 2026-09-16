@@ -70,7 +70,7 @@ jobs:
               "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects")"
 
             case "${create_status}" in
-              200|201)
+              200|201|202)
                 ;;
               409)
                 retry_status="$(curl --silent --show-error --output /tmp/cloudflare-pages-project.json --write-out '%{http_code}' \
