@@ -164,8 +164,8 @@ env/
 venv/
 
 # Frontend build output
-frontend/dist/
-frontend/node_modules/
+marketing/dist/
+marketing/node_modules/
 ENV/
 env.bak/
 venv.bak/

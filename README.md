@@ -185,47 +185,45 @@ MongoDB can be hosted on:
 - MongoDB Atlas (free tier available)
 - DigitalOcean Managed MongoDB
 
-### Frontend (Cloudflare Pages)
+### Frontend (Cloudflare Workers)
 
-`frontend/` is a Vite-built static site covering registration, login, a customer dashboard (post a job, view it, run allocation), and a cleaner dashboard (register profile, set coverage, manage subscription/insurance). It talks directly to the backend's REST API over `fetch`; CORS is already open on the backend, so cross-origin requests from the Cloudflare-hosted frontend work out of the box.
+`marketing/` is a Vite-built static site covering registration, login, a customer dashboard (post a job, view it, run allocation), and a cleaner dashboard (register profile, set coverage, manage subscription/insurance). It talks directly to the backend's REST API over `fetch`; CORS is already open on the backend, so cross-origin requests from the Cloudflare-hosted frontend work out of the box.
+
+It's deployed as a Cloudflare **Worker serving static assets** (not Cloudflare Pages), via Cloudflare's own Git integration — there is no GitHub Actions workflow for this; Cloudflare builds and deploys directly from the repo.
 
 #### Local development
 
 ```
-cd frontend
+cd marketing
 npm install
 cp .env.production.example .env.production   # then edit VITE_API_URL
 npm run dev       # dev server
-npm run build     # production build -> frontend/dist
+npm run build     # production build -> marketing/dist
 ```
 
 #### Environment variables
 
-Set in `frontend/.env.production` for local builds, or as the `VITE_API_URL` GitHub Actions secret for CI builds (see `.github/workflows/cloudflare-pages.yml`):
+Set in `marketing/.env.production` for local builds, or as build-time environment variables in the Cloudflare dashboard for the Worker's Git integration (Workers & Pages → `cleanops-connect` → Settings → Environment variables):
 
 | Variable | Purpose |
 | --- | --- |
 | `VITE_API_URL` | Backend base URL (e.g. the DigitalOcean App Platform URL), no trailing slash |
 | `VITE_MAPBOX_TOKEN` | Mapbox **public** access token (starts with `pk.`), used client-side to render the real coverage map on the landing page via the Static Images API. Create one at [account.mapbox.com/access-tokens](https://account.mapbox.com/access-tokens/) and restrict it to your production domain(s). This is distinct from the backend's `MAPBOX_API_KEY`, which is a private key used server-side for geocoding and must never be reused here. |
 
-#### CI/CD
+#### CI/CD (Cloudflare Workers Git integration)
 
-`.github/workflows/cloudflare-pages.yml` builds `frontend/` with Node 18 on every push to `main` that touches `frontend/**`, ensures the `cleanops-connect` Pages project exists, then deploys `frontend/dist` via the official `cloudflare/pages-action`. It requires these repository secrets:
+Cloudflare's own Git integration on the `cleanops-connect` Workers project watches this repo and, on every push to `main`, runs from the project's configured root directory (`/marketing`):
 
-| Secret | Where to get it |
-| --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → create a token with **Cloudflare Pages: Edit** permission |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → right sidebar of any domain/account overview page |
-| `VITE_API_URL` | Your deployed backend URL, injected at build time |
-| `VITE_MAPBOX_TOKEN` | Mapbox public access token, injected at build time (see the environment variables table above) |
+1. **Build command**: `npm install && npm run build` — produces `marketing/dist`.
+2. **Deploy command**: `npx wrangler deploy` — reads `marketing/wrangler.toml`, which points its `[assets]` binding at `./dist`, and publishes the Worker.
+
+No GitHub secrets are required for this deploy path; environment variables are configured directly on the Cloudflare dashboard as described above. Configure the Git integration under Workers & Pages → `cleanops-connect` → Settings → Builds, with **Root directory** set to `/marketing`.
 
 #### Custom domain: cleanop-connect.co.uk
 
-1. **Add the domain to the Pages project**: Cloudflare dashboard → Workers & Pages → your Pages project → **Custom domains** → **Set up a custom domain** → enter `cleanop-connect.co.uk` → follow the prompt to also add `www.cleanop-connect.co.uk`.
-2. **DNS records** (Cloudflare dashboard → your zone → DNS → Records) — if the domain's nameservers are already on Cloudflare, adding the custom domain in step 1 creates these automatically; otherwise add manually:
-   - `CNAME` — Name: `www` → Target: `cleanop-connect.co.uk.pages.dev` (or your project's `*.pages.dev` hostname), Proxy status: Proxied.
-   - Root domain (`cleanop-connect.co.uk`): Cloudflare Pages custom domains use a `CNAME` at the apex via Cloudflare's CNAME flattening — add `CNAME` — Name: `@` → Target: the same `*.pages.dev` hostname, Proxy status: Proxied. (Only add an `A`/`AAAA` record instead if you have a specific reason not to proxy through Cloudflare — Pages doesn't publish static IPs to point an unproxied `A` record at.)
-3. **SSL**: Cloudflare dashboard → your zone → SSL/TLS → set encryption mode to **Full** (or **Full (strict)**). Cloudflare issues and manages the edge certificate for both `cleanop-connect.co.uk` and `www.cleanop-connect.co.uk` automatically once the custom domains are active — no manual certificate upload needed.
+1. **Add a custom domain to the Worker**: Cloudflare dashboard → Workers & Pages → `cleanops-connect` → **Settings** → **Domains & Routes** → **Add** → **Custom Domain** → enter `cleanop-connect.co.uk` → repeat for `www.cleanop-connect.co.uk`.
+2. **DNS records** (Cloudflare dashboard → your zone → DNS → Records) — adding a custom domain to a Worker creates the required `CNAME`/`AAAA` records automatically when the zone's nameservers are on Cloudflare.
+3. **SSL**: Cloudflare dashboard → your zone → SSL/TLS → set encryption mode to **Full** (or **Full (strict)**). Cloudflare issues and manages the edge certificate for both hostnames automatically once the custom domains are active.
 4. **Redirect `www` → apex**: Cloudflare dashboard → your zone → Rules → Redirect Rules → create a rule: When incoming requests match hostname equals `www.cleanop-connect.co.uk`, then redirect to `https://cleanop-connect.co.uk/${uri}` (Type: Dynamic, Status code: 301).
 
 ## Future Roadmap
