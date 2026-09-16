@@ -46,7 +46,7 @@ jobs:
         run: |
           auth_prefix="Authorization: Bearer "
           encoded_project_name="$(node -p 'encodeURIComponent(process.env.CLOUDFLARE_PAGES_PROJECT)')"
-          create_payload="$(node -p 'JSON.stringify({ name: process.env.CLOUDFLARE_PAGES_PROJECT, production_branch: \"main\", source: { type: \"direct_upload\" } })')"
+          create_payload="$(node -p 'JSON.stringify({ name: process.env.CLOUDFLARE_PAGES_PROJECT, production_branch: "main", source: { type: "direct_upload" } })')"
           project_endpoint="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${encoded_project_name}"
 
           status_code="$(curl --silent --show-error --output /tmp/cloudflare-pages-project.json --write-out '%{http_code}' \
