@@ -1,3 +1,5 @@
+import { apiRequest, setSession } from './api.js';
+
 document.getElementById('register-form').addEventListener('submit', async (event) => {
   event.preventDefault();
 
