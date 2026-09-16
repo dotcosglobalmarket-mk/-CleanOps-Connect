@@ -21,6 +21,27 @@ async function getById(req, res, next) {
   }
 }
 
+async function getMe(req, res, next) {
+  try {
+    const cleaner = await cleanerService.getMyProfile(req.user.id);
+    if (!cleaner) {
+      return res.status(404).json({ message: 'Cleaner profile not found — register as a cleaner first' });
+    }
+    res.status(200).json(cleaner);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function updateMe(req, res, next) {
+  try {
+    const cleaner = await cleanerService.updateMyProfile(req.user.id, req.body);
+    res.status(200).json(cleaner);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function setCoverage(req, res, next) {
   try {
     const { cleanerId } = req.body;
@@ -34,5 +55,7 @@ async function setCoverage(req, res, next) {
 module.exports = {
   create,
   getById,
+  getMe,
+  updateMe,
   setCoverage,
 };

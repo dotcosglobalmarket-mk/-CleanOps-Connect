@@ -30,6 +30,21 @@ async function getCleanerById(cleanerId) {
   return CleanerProfile.findById(cleanerId);
 }
 
+async function getMyProfile(userId) {
+  return CleanerProfile.findOne({ user: userId });
+}
+
+async function updateMyProfile(userId, updates) {
+  const cleaner = await CleanerProfile.findOne({ user: userId });
+  if (!cleaner) {
+    throw notFound('Cleaner profile not found — register as a cleaner first');
+  }
+
+  Object.assign(cleaner, updates);
+  await cleaner.save();
+  return cleaner;
+}
+
 async function setCoverage(cleanerId, coverageData, requestingUser) {
   const cleaner = await CleanerProfile.findById(cleanerId);
   if (!cleaner) {
@@ -56,5 +71,7 @@ async function setCoverage(cleanerId, coverageData, requestingUser) {
 module.exports = {
   createCleaner,
   getCleanerById,
+  getMyProfile,
+  updateMyProfile,
   setCoverage,
 };

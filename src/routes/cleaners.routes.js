@@ -6,6 +6,7 @@ const {
   createCleanerSchema,
   coverageSchema,
   cleanerIdParamSchema,
+  updateMyProfileSchema,
 } = require('../validation/cleaner.validation');
 
 const router = express.Router();
@@ -23,6 +24,14 @@ router.post(
   requireRole('cleaner', 'admin'),
   validateBody(coverageSchema),
   CleanerController.setCoverage
+);
+router.get('/me', requireAuth, requireRole('cleaner'), CleanerController.getMe);
+router.patch(
+  '/me',
+  requireAuth,
+  requireRole('cleaner'),
+  validateBody(updateMyProfileSchema),
+  CleanerController.updateMe
 );
 router.get('/:id', validateParams(cleanerIdParamSchema), CleanerController.getById);
 

@@ -1,6 +1,7 @@
 jest.mock('../../src/models/CleanerProfile', () => {
   const CleanerProfileMock = jest.fn();
   CleanerProfileMock.findById = jest.fn();
+  CleanerProfileMock.findOne = jest.fn();
   return CleanerProfileMock;
 });
 jest.mock('../../src/services/mapbox.service', () => ({ geocodePostcode: jest.fn() }));
@@ -109,6 +110,73 @@ describe('Cleaners routes', () => {
         .send({ cleanerId, coverageType: 'radius', radiusKm: 15 });
 
       expect(res.status).toBe(200);
+    });
+  });
+
+  describe('GET /cleaners/me', () => {
+    it('returns 401 without auth', async () => {
+      const res = await request(app).get('/cleaners/me');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for a non-cleaner role', async () => {
+      const res = await request(app).get('/cleaners/me').set('Authorization', authHeaderFor('customer'));
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 404 when the cleaner has not registered a profile', async () => {
+      CleanerProfile.findOne.mockResolvedValue(null);
+      const res = await request(app).get('/cleaners/me').set('Authorization', authHeaderFor('cleaner', 'user1'));
+      expect(res.status).toBe(404);
+    });
+
+    it("returns the authenticated cleaner's own profile", async () => {
+      CleanerProfile.findOne.mockResolvedValue({ user: 'user1', name: 'Bob', bio: 'Experienced cleaner' });
+      const res = await request(app).get('/cleaners/me').set('Authorization', authHeaderFor('cleaner', 'user1'));
+      expect(res.status).toBe(200);
+      expect(CleanerProfile.findOne).toHaveBeenCalledWith({ user: 'user1' });
+      expect(res.body.bio).toBe('Experienced cleaner');
+    });
+  });
+
+  describe('PATCH /cleaners/me', () => {
+    it('returns 401 without auth', async () => {
+      const res = await request(app).patch('/cleaners/me').send({ bio: 'Hello' });
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 400 for an invalid body', async () => {
+      const res = await request(app)
+        .patch('/cleaners/me')
+        .set('Authorization', authHeaderFor('cleaner', 'user1'))
+        .send({ startTime: 'not-a-time' });
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 404 when the cleaner has not registered a profile', async () => {
+      CleanerProfile.findOne.mockResolvedValue(null);
+      const res = await request(app)
+        .patch('/cleaners/me')
+        .set('Authorization', authHeaderFor('cleaner', 'user1'))
+        .send({ bio: 'Hello' });
+      expect(res.status).toBe(404);
+    });
+
+    it("updates the authenticated cleaner's own profile", async () => {
+      const saveMock = jest.fn().mockResolvedValue(undefined);
+      const cleaner = { user: 'user1', bio: 'Old bio', save: saveMock };
+      CleanerProfile.findOne.mockResolvedValue(cleaner);
+
+      const res = await request(app)
+        .patch('/cleaners/me')
+        .set('Authorization', authHeaderFor('cleaner', 'user1'))
+        .send({ bio: 'New bio', hourlyRate: 25, workingDays: ['mon', 'tue'] });
+
+      expect(res.status).toBe(200);
+      expect(saveMock).toHaveBeenCalledTimes(1);
+      expect(res.body.bio).toBe('New bio');
+      expect(res.body.hourlyRate).toBe(25);
+      expect(res.body.workingDays).toEqual(['mon', 'tue']);
     });
   });
 
