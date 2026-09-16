@@ -30,7 +30,19 @@ function validateParams(schema) {
   };
 }
 
+function validateQuery(schema) {
+  return (req, res, next) => {
+    const result = schema.safeParse(req.query);
+    if (!result.success) {
+      return next(formatZodError(result.error));
+    }
+    req.query = result.data;
+    next();
+  };
+}
+
 module.exports = {
   validateBody,
   validateParams,
+  validateQuery,
 };
