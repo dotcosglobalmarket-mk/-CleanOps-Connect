@@ -380,7 +380,7 @@
 
     const westYorkshireCities = COVERAGE_CITIES.filter((c) => c.name !== 'London');
     loadMap('hero-map-img', 'hero-map-fallback', { cities: westYorkshireCities, width: 240, height: 120, padding: 40 });
-    loadMap('coverage-map-img', 'coverage-map-fallback', { cities: COVERAGE_CITIES, width: 640, height: 420, padding: 60 });
+    loadMap('coverage-map-img', 'coverage-map-fallback', { cities: COVERAGE_CITIES, width: 640, height: 420, padding: 60, showRoute: true });
   </script>
   <script type="module" src="js/nav.js"></script>
 </body>
