@@ -123,6 +123,8 @@ npm run dev
 
 - `POST /cleaners` 🔒 (cleaner) – Register cleaner
 - `POST /cleaners/coverage` 🔒 (cleaner or admin) – Set radius or polygon coverage
+- `GET /cleaners/me` 🔒 (cleaner) – View your own profile, including dashboard fields (bio, hourly rate, working hours, contact details, custom services)
+- `PATCH /cleaners/me` 🔒 (cleaner) – Update your own profile
 - `GET /cleaners/:id` – View cleaner profile
 
 ### Subscriptions

@@ -76,6 +76,53 @@ const cleanerProfileSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    available: {
+      type: Boolean,
+      default: true,
+    },
+    bio: {
+      type: String,
+    },
+    hourlyRate: {
+      type: Number,
+    },
+    responseTime: {
+      type: String,
+    },
+    travelDistanceMiles: {
+      type: Number,
+    },
+    phoneNumber: {
+      type: String,
+    },
+    contactEmail: {
+      type: String,
+    },
+    website: {
+      type: String,
+    },
+    instagram: {
+      type: String,
+    },
+    workingDays: {
+      type: [String],
+      enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+      default: [],
+    },
+    startTime: {
+      type: String,
+    },
+    endTime: {
+      type: String,
+    },
+    acceptEmergencyBookings: {
+      type: Boolean,
+      default: false,
+    },
+    customServices: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );
