@@ -72,6 +72,17 @@ jobs:
             case "${create_status}" in
               200|201)
                 ;;
+              409)
+                retry_status="$(curl --silent --show-error --output /tmp/cloudflare-pages-project.json --write-out '%{http_code}' \
+                  --header "${auth_prefix}${CLOUDFLARE_API_TOKEN}" \
+                  "${project_endpoint}")"
+
+                if [ "${retry_status}" != "200" ]; then
+                  cat /tmp/cloudflare-pages-project-create.json
+                  echo "Cloudflare reported a conflicting Pages project create, but '${CLOUDFLARE_PAGES_PROJECT}' was still unavailable afterwards." >&2
+                  exit 1
+                fi
+                ;;
               *)
                 cat /tmp/cloudflare-pages-project-create.json
                 echo "Failed to create Cloudflare Pages project '${CLOUDFLARE_PAGES_PROJECT}'." >&2
