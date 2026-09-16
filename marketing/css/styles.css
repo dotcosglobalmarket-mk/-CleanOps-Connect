@@ -803,3 +803,46 @@ body:has(.lp-page) {
   vertical-align: -2px;
   margin-right: 0.3rem;
 }
+
+/* Hero trust pill */
+.lp-trust-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #eaf2ff;
+  color: var(--lp-blue);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+/* Dual CTA banner */
+.lp-dual-cta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  background: var(--lp-bg);
+  border: 1px solid var(--lp-border);
+  border-radius: 20px;
+  padding: 2.5rem;
+}
+
+.lp-dual-cta-panel h3 {
+  font-size: 1.3rem;
+  color: var(--lp-navy);
+  margin: 0 0 0.5rem;
+}
+
+.lp-dual-cta-panel p {
+  color: var(--lp-muted);
+  margin: 0 0 1.25rem;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 860px) {
+  .lp-dual-cta {
+    grid-template-columns: 1fr;
+  }
+}
