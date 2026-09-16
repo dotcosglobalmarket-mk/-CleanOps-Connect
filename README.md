@@ -108,6 +108,11 @@ npm run dev
 - `POST /auth/register` – Register a customer, cleaner, or admin account
 - `POST /auth/login` – Log in and obtain a JWT
 
+### Service Types
+
+- `GET /service-types` – List service types, optionally `?category=domestic|industrial`. No auth required — the frontend uses this to populate the "service type" dropdown when a customer posts a job, since a raw ObjectId isn't something a customer can be expected to know. A default catalogue is seeded automatically on server start (see `src/services/service-type-seed.service.js`).
+- `POST /service-types` 🔒 (admin) – Add a new service type
+
 ### Jobs
 
 - `POST /jobs` 🔒 (customer) – Create a new job

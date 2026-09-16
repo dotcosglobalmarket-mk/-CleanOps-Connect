@@ -28,9 +28,13 @@
 
       <form id="create-job-form">
         <div class="form-row">
-          <label for="serviceType">Service type ID</label>
-          <input id="serviceType" type="text" placeholder="507f1f77bcf86cd799439011" required />
-          <span class="field-help">Ask your administrator for a valid service type ID.</span>
+          <label for="serviceType">Service type</label>
+          <select id="serviceType" required>
+            <option value="" disabled selected>Loading service types…</option>
+          </select>
+          <span id="serviceType-help" class="field-help" hidden>
+            Couldn't load service types from the API — check VITE_API_URL.
+          </span>
         </div>
 
         <div class="form-row">

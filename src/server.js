@@ -3,6 +3,7 @@ require('dotenv').config();
 const createApp = require('./app');
 const connectDB = require('./config/db');
 const logger = require('./utils/logger');
+const { seedDefaultServiceTypes } = require('./services/service-type-seed.service');
 
 const PORT = process.env.PORT || 4000;
 
@@ -13,6 +14,7 @@ async function start() {
   }
 
   await connectDB();
+  await seedDefaultServiceTypes();
 
   const app = createApp();
 

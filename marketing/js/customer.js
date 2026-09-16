@@ -12,6 +12,32 @@ function hideAlert(id) {
   document.getElementById(id).hidden = true;
 }
 
+let serviceTypes = [];
+
+function renderServiceTypeOptions() {
+  const select = document.getElementById('serviceType');
+  const category = document.getElementById('category').value;
+  const matching = serviceTypes.filter((s) => s.category === category);
+
+  select.innerHTML = matching.length
+    ? matching.map((s) => `<option value="${s._id}">${s.name}</option>`).join('')
+    : `<option value="" disabled selected>No ${category} service types available</option>`;
+}
+
+async function loadServiceTypes() {
+  try {
+    serviceTypes = await apiRequest('/service-types');
+    renderServiceTypeOptions();
+  } catch (err) {
+    document.getElementById('serviceType-help').hidden = false;
+    document.getElementById('serviceType').innerHTML =
+      '<option value="" disabled selected>Could not load service types</option>';
+  }
+}
+
+document.getElementById('category').addEventListener('change', renderServiceTypeOptions);
+loadServiceTypes();
+
 document.getElementById('create-job-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   hideAlert('create-alert');
