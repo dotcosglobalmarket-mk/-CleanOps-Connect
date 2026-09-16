@@ -153,10 +153,19 @@ activemq-data/
 
 # Environments
 .env
+.env.local
+.env.*.local
+.env.production
+.env.development
+!.env.production.example
 .envrc
 .venv
 env/
 venv/
+
+# Frontend build output
+frontend/dist/
+frontend/node_modules/
 ENV/
 env.bak/
 venv.bak/

@@ -1,5 +1,3 @@
-// Point this at your deployed CleanOps Connect backend.
-// Local development default: http://localhost:4000
-// Production: replace with your DigitalOcean App Platform URL,
-// e.g. https://cleanops-connect-xxxxx.ondigitalocean.app
-window.API_BASE_URL = 'http://localhost:4000';
+// Backend API base URL. Injected at build time from VITE_API_URL
+// (see .env.production.example). Falls back to local dev default.
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';

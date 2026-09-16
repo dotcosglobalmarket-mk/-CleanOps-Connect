@@ -1,42 +1,44 @@
+import { API_BASE_URL } from './config.js';
+
 const SESSION_TOKEN_KEY = 'cleanops_token';
 const SESSION_ROLE_KEY = 'cleanops_role';
 const SESSION_USER_KEY = 'cleanops_user';
 
-function getToken() {
+export function getToken() {
   return localStorage.getItem(SESSION_TOKEN_KEY);
 }
 
-function getRole() {
+export function getRole() {
   return localStorage.getItem(SESSION_ROLE_KEY);
 }
 
-function getUser() {
+export function getUser() {
   const raw = localStorage.getItem(SESSION_USER_KEY);
   return raw ? JSON.parse(raw) : null;
 }
 
-function setSession(token, user) {
+export function setSession(token, user) {
   localStorage.setItem(SESSION_TOKEN_KEY, token);
   localStorage.setItem(SESSION_ROLE_KEY, user.role);
   localStorage.setItem(SESSION_USER_KEY, JSON.stringify(user));
 }
 
-function clearSession() {
+export function clearSession() {
   localStorage.removeItem(SESSION_TOKEN_KEY);
   localStorage.removeItem(SESSION_ROLE_KEY);
   localStorage.removeItem(SESSION_USER_KEY);
 }
 
-function isLoggedIn() {
+export function isLoggedIn() {
   return Boolean(getToken());
 }
 
-function requireRole(role) {
+export function requireRole(role) {
   if (getToken() && getRole() === role) return;
   window.location.href = 'login.html';
 }
 
-async function apiRequest(path, { method = 'GET', body, auth = false } = {}) {
+export async function apiRequest(path, { method = 'GET', body, auth = false } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (auth) {
     const token = getToken();
@@ -46,14 +48,14 @@ async function apiRequest(path, { method = 'GET', body, auth = false } = {}) {
 
   let response;
   try {
-    response = await fetch(`${window.API_BASE_URL}${path}`, {
+    response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch (networkErr) {
     throw new Error(
-      `Could not reach the API at ${window.API_BASE_URL}. Check API_BASE_URL in js/config.js and that the backend is running.`
+      `Could not reach the API at ${API_BASE_URL}. Check VITE_API_URL and that the backend is running.`
     );
   }
 

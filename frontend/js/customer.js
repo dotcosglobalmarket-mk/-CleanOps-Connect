@@ -1,3 +1,5 @@
+import { apiRequest, requireRole } from './api.js';
+
 requireRole('customer');
 
 function showAlert(id, message) {

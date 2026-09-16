@@ -1,3 +1,5 @@
+import { isLoggedIn, getRole, getUser, clearSession } from './api.js';
+
 function renderNav() {
   const nav = document.getElementById('site-nav');
   if (!nav) return;
