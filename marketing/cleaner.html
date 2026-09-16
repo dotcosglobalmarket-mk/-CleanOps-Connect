@@ -18,90 +18,228 @@
     <nav id="site-nav"></nav>
   </header>
 
-  <main>
-    <h1>Cleaner dashboard</h1>
+  <main class="dash-layout">
+    <aside class="dash-sidebar">
+      <button type="button" class="dash-nav-item is-active" data-panel="overview">Overview</button>
+      <button type="button" class="dash-nav-item" data-panel="profile">My Profile</button>
+      <button type="button" class="dash-nav-item" data-panel="coverage">Coverage &amp; Subscription</button>
+    </aside>
 
-    <div class="card">
-      <h2>1. Register your profile</h2>
-      <div id="profile-alert" class="alert alert-error" hidden></div>
-      <div id="profile-success" class="alert alert-success" hidden></div>
+    <div class="dash-content">
+      <div id="not-registered-banner" class="alert alert-error" hidden>
+        You haven't registered a cleaner profile yet. Go to <strong>Coverage &amp; Subscription</strong> to create one — the rest of the dashboard unlocks once you have.
+      </div>
 
-      <form id="profile-form">
-        <div class="form-row">
-          <label for="name">Your name</label>
-          <input id="name" type="text" required />
+      <!-- Overview -->
+      <section id="panel-overview" class="dash-panel is-active">
+        <div class="dash-banner">
+          <h1 id="overview-welcome">Welcome back!</h1>
+          <p>Here's an overview of your profile and activity.</p>
         </div>
 
-        <div class="form-row">
-          <label for="companyName">Company name (optional)</label>
-          <input id="companyName" type="text" />
-        </div>
-
-        <div class="form-row">
-          <label for="basePostcode">Base postcode</label>
-          <input id="basePostcode" type="text" placeholder="SW1A 1AA" required />
-        </div>
-
-        <div class="two-column">
-          <div class="form-row">
-            <label><input id="dbsVerified" type="checkbox" /> DBS verified</label>
+        <div class="stat-grid">
+          <div class="stat-tile">
+            <div class="stat-tile-head">
+              <span class="stat-tile-icon">✓</span>
+              <label class="toggle-switch">
+                <input id="available-toggle" type="checkbox" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
+            <div class="stat-tile-label">Status</div>
+            <div id="status-value" class="stat-tile-value">—</div>
           </div>
-          <div class="form-row">
-            <label><input id="coshhTrained" type="checkbox" /> COSHH trained</label>
+          <div class="stat-tile">
+            <span class="stat-tile-icon">★</span>
+            <div class="stat-tile-label">Average Rating</div>
+            <div id="rating-value" class="stat-tile-value">— / 5</div>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-tile-icon">🧰</span>
+            <div class="stat-tile-label">Services Offered</div>
+            <div id="services-value" class="stat-tile-value">0</div>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-tile-icon">🛡️</span>
+            <div class="stat-tile-label">Compliance</div>
+            <div id="compliance-value" class="stat-tile-value">—</div>
           </div>
         </div>
+      </section>
 
-        <button type="submit">Register profile</button>
-      </form>
-    </div>
+      <!-- My Profile -->
+      <section id="panel-profile" class="dash-panel">
+        <h1>My Profile</h1>
+        <div id="profile-alert" class="alert alert-error" hidden></div>
+        <div id="profile-success" class="alert alert-success" hidden></div>
 
-    <div class="card">
-      <h2>2. Set your coverage area</h2>
-      <div id="coverage-alert" class="alert alert-error" hidden></div>
-      <div id="coverage-success" class="alert alert-success" hidden></div>
+        <form id="profile-form">
+          <div class="card">
+            <h2>Basic Information</h2>
+            <div class="two-column">
+              <div class="form-row">
+                <label for="name">Full name</label>
+                <input id="name" type="text" required />
+              </div>
+              <div class="form-row">
+                <label for="basePostcode">Base postcode</label>
+                <input id="basePostcode" type="text" placeholder="SW1A 1AA" required />
+              </div>
+            </div>
+            <div class="form-row">
+              <label for="companyName">Company name (optional)</label>
+              <input id="companyName" type="text" />
+            </div>
+            <div class="form-row">
+              <label for="bio">Bio</label>
+              <textarea id="bio" rows="3" placeholder="Tell customers about your experience and specialties…"></textarea>
+            </div>
+            <div class="two-column">
+              <div class="form-row">
+                <label for="hourlyRate">Hourly rate (£)</label>
+                <input id="hourlyRate" type="number" min="0" step="0.5" />
+              </div>
+              <div class="form-row">
+                <label for="responseTime">Response time</label>
+                <input id="responseTime" type="text" placeholder="Usually responds within 24 hours" />
+              </div>
+            </div>
+            <div class="form-row">
+              <label for="travelDistanceMiles">Distance willing to travel (miles)</label>
+              <input id="travelDistanceMiles" type="number" min="0" step="1" placeholder="e.g. 15" />
+            </div>
+          </div>
 
-      <div class="form-row">
-        <label for="cleanerId">Cleaner profile ID</label>
-        <input id="cleanerId" type="text" />
-        <span class="field-help">Filled in automatically after you register above.</span>
-      </div>
+          <div class="card">
+            <h2>Contact Details</h2>
+            <div class="two-column">
+              <div class="form-row">
+                <label for="phoneNumber">Phone number</label>
+                <input id="phoneNumber" type="tel" placeholder="+44 7XXX XXX XXX" />
+              </div>
+              <div class="form-row">
+                <label for="contactEmail">Contact email</label>
+                <input id="contactEmail" type="email" />
+              </div>
+            </div>
+            <div class="two-column">
+              <div class="form-row">
+                <label for="website">Website</label>
+                <input id="website" type="url" placeholder="https://yourwebsite.com" />
+              </div>
+              <div class="form-row">
+                <label for="instagram">Instagram</label>
+                <input id="instagram" type="text" placeholder="@yourusername" />
+              </div>
+            </div>
+          </div>
 
-      <form id="coverage-form">
-        <div class="form-row">
-          <label for="coverageType">Coverage type</label>
-          <select id="coverageType">
-            <option value="radius">Radius</option>
-          </select>
-          <span class="field-help">Polygon coverage is supported by the API but not this simple form.</span>
+          <div class="card">
+            <h2>Working Days &amp; Hours</h2>
+            <div class="form-row">
+              <label>Working days</label>
+              <div id="working-days" class="chip-row"></div>
+            </div>
+            <div class="two-column">
+              <div class="form-row">
+                <label for="startTime">Start time</label>
+                <input id="startTime" type="time" />
+              </div>
+              <div class="form-row">
+                <label for="endTime">End time</label>
+                <input id="endTime" type="time" />
+              </div>
+            </div>
+            <div class="form-row">
+              <label><input id="acceptEmergencyBookings" type="checkbox" /> Accept emergency/last-minute bookings</label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Services Offered</h2>
+            <p class="field-help">Select all the service types you offer.</p>
+            <div id="service-type-checkboxes" class="chip-row"></div>
+
+            <div class="form-row" style="margin-top: 1rem">
+              <label for="customServiceInput">Custom services</label>
+              <div style="display: flex; gap: 0.5rem">
+                <input id="customServiceInput" type="text" placeholder="Add a custom service…" />
+                <button id="add-custom-service" type="button" class="secondary">Add</button>
+              </div>
+            </div>
+            <div id="custom-services-list" class="chip-row" style="margin-top: 0.5rem"></div>
+          </div>
+
+          <div class="two-column">
+            <div class="form-row">
+              <label><input id="dbsVerified" type="checkbox" /> DBS verified</label>
+            </div>
+            <div class="form-row">
+              <label><input id="coshhTrained" type="checkbox" /> COSHH trained</label>
+            </div>
+          </div>
+
+          <button type="submit">Save changes</button>
+        </form>
+      </section>
+
+      <!-- Coverage & Subscription -->
+      <section id="panel-coverage" class="dash-panel">
+        <h1>Coverage &amp; Subscription</h1>
+
+        <div class="card">
+          <h2>1. Register your profile</h2>
+          <p class="field-help">Already registered? This step is done — edit details under My Profile instead.</p>
+          <div id="register-alert" class="alert alert-error" hidden></div>
+          <div id="register-success" class="alert alert-success" hidden></div>
+
+          <form id="register-form">
+            <div class="form-row">
+              <label for="reg-name">Your name</label>
+              <input id="reg-name" type="text" required />
+            </div>
+            <div class="form-row">
+              <label for="reg-basePostcode">Base postcode</label>
+              <input id="reg-basePostcode" type="text" placeholder="SW1A 1AA" required />
+            </div>
+            <button type="submit">Register profile</button>
+          </form>
         </div>
 
-        <div class="form-row">
-          <label for="radiusKm">Radius (km)</label>
-          <input id="radiusKm" type="number" min="0" step="0.5" required />
+        <div class="card">
+          <h2>2. Set your coverage area</h2>
+          <div id="coverage-alert" class="alert alert-error" hidden></div>
+          <div id="coverage-success" class="alert alert-success" hidden></div>
+
+          <form id="coverage-form">
+            <div class="form-row">
+              <label for="radiusKm">Radius (km)</label>
+              <input id="radiusKm" type="number" min="0" step="0.5" required />
+            </div>
+            <button type="submit">Set coverage</button>
+          </form>
         </div>
 
-        <button type="submit">Set coverage</button>
-      </form>
-    </div>
+        <div class="card">
+          <h2>3. Subscription &amp; insurance</h2>
+          <div id="subscription-alert" class="alert alert-error" hidden></div>
+          <div id="subscription-success" class="alert alert-success" hidden></div>
 
-    <div class="card">
-      <h2>3. Subscription &amp; insurance</h2>
-      <div id="subscription-alert" class="alert alert-error" hidden></div>
-      <div id="subscription-success" class="alert alert-success" hidden></div>
+          <div class="form-row">
+            <label for="plan">Plan</label>
+            <select id="plan">
+              <option value="starter">Starter</option>
+              <option value="pro">Pro</option>
+              <option value="industrial_pro">Industrial Pro</option>
+            </select>
+          </div>
 
-      <div class="form-row">
-        <label for="plan">Plan</label>
-        <select id="plan">
-          <option value="starter">Starter</option>
-          <option value="pro">Pro</option>
-          <option value="industrial_pro">Industrial Pro</option>
-        </select>
-      </div>
-
-      <div style="display: flex; gap: 0.75rem;">
-        <button id="activate-subscription-button" type="button">Activate subscription</button>
-        <button id="add-insurance-button" type="button" class="secondary">Add insurance add-on</button>
-      </div>
+          <div style="display: flex; gap: 0.75rem;">
+            <button id="activate-subscription-button" type="button">Activate subscription</button>
+            <button id="add-insurance-button" type="button" class="secondary">Add insurance add-on</button>
+          </div>
+        </div>
+      </section>
     </div>
   </main>
 

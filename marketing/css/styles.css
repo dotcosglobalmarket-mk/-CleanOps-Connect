@@ -846,3 +846,190 @@ body:has(.lp-page) {
     grid-template-columns: 1fr;
   }
 }
+
+/* Cleaner dashboard layout */
+.dash-layout {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.dash-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  position: sticky;
+  top: 1.5rem;
+}
+
+.dash-nav-item {
+  text-align: left;
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 8px;
+  border: none;
+}
+
+.dash-nav-item:hover {
+  background: var(--color-bg);
+}
+
+.dash-nav-item.is-active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.dash-panel {
+  display: none;
+}
+
+.dash-panel.is-active {
+  display: block;
+}
+
+.dash-panel h1 {
+  font-size: 1.6rem;
+  margin: 0 0 1.25rem;
+}
+
+.dash-banner {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color: #fff;
+  border-radius: 12px;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.dash-banner h1 {
+  margin: 0 0 0.35rem;
+  color: #fff;
+}
+
+.dash-banner p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.stat-tile {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.stat-tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stat-tile-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--color-success-bg);
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.stat-tile-label {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.stat-tile-value {
+  font-weight: 700;
+  font-size: 1.15rem;
+  margin-top: 0.15rem;
+}
+
+/* Toggle switch */
+.toggle-switch input {
+  display: none;
+}
+
+.toggle-track {
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  background: var(--color-border);
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.toggle-switch input:checked + .toggle-track {
+  background: var(--color-primary);
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+
+.toggle-switch input:checked + .toggle-track .toggle-thumb {
+  transform: translateX(18px);
+}
+
+/* Chip selectors (working days, services) */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.chip-selected {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+@media (max-width: 760px) {
+  .dash-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-sidebar {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .stat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
