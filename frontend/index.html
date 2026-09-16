@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CleanOps Connect</title>
+  <title>CleanOps Connect — UK cleaning, powered by smart matching</title>
+  <meta name="description" content="CleanOps Connect matches UK domestic and industrial cleaning jobs with verified, compliant cleaners using AI scoring and coverage matching." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧽</text></svg>" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
@@ -12,34 +13,293 @@
     <nav id="site-nav"></nav>
   </header>
 
-  <main>
-    <section class="hero">
-      <h1>UK cleaning, matched intelligently.</h1>
-      <p>
-        CleanOps Connect matches domestic and industrial cleaning jobs with verified,
-        compliant cleaners using AI scoring, Mapbox coverage matching, and DBS/COSHH
-        compliance checks.
-      </p>
-      <div class="hero-actions">
-        <a href="register.html"><button>Get started</button></a>
-        <a href="login.html"><button class="secondary">Log in</button></a>
+  <main class="lp-page">
+
+    <!-- 1. Hero -->
+    <section class="lp-hero">
+      <div class="lp-hero-copy">
+        <p class="lp-eyebrow">CleanOps Connect</p>
+        <h1>UK cleaning, powered by smart matching.</h1>
+        <p>AI scoring, coverage matching, and compliance checks — all automated.</p>
+        <div class="lp-hero-actions">
+          <a href="register.html" class="lp-btn lp-btn-primary">Get started</a>
+          <a href="login.html" class="lp-btn lp-btn-outline">Log in</a>
+        </div>
+      </div>
+
+      <div class="lp-tile-grid" aria-hidden="true">
+        <div class="lp-tile">
+          <div class="lp-tile-label">Job card</div>
+          <div class="lp-tile-title">Deep Clean — LS12</div>
+          <div class="lp-tile-sub">Budget £85 · Matching…</div>
+        </div>
+        <div class="lp-tile">
+          <div class="lp-tile-label">Cleaner profile</div>
+          <div class="lp-tile-title">Sarah K.</div>
+          <div class="lp-tile-sub">Coverage radius 12 km</div>
+          <div class="lp-badge-row">
+            <span class="lp-badge">DBS ✓</span>
+            <span class="lp-badge">COSHH ✓</span>
+            <span class="lp-badge">Insured ✓</span>
+          </div>
+        </div>
+        <div class="lp-tile">
+          <div class="lp-tile-label">Coverage map</div>
+          <svg viewBox="0 0 120 90" width="100%" height="60" role="presentation">
+            <path d="M40 4 L70 10 L78 30 L66 46 L74 62 L54 84 L34 70 L18 74 L8 50 L22 34 L18 16 Z" fill="#eaf2ff" stroke="#1d6fe0" stroke-width="1.5" />
+            <circle cx="44" cy="28" r="3" fill="#1d6fe0" />
+            <circle cx="36" cy="42" r="3" fill="#1d6fe0" />
+            <circle cx="52" cy="52" r="3" fill="#1d6fe0" />
+          </svg>
+          <div class="lp-tile-sub">Leeds · Bradford · Wakefield</div>
+        </div>
+        <div class="lp-tile">
+          <div class="lp-tile-label">Compliance</div>
+          <div class="lp-tile-title">🛡️ Verified &amp; compliant</div>
+        </div>
       </div>
     </section>
 
-    <div class="two-column">
-      <div class="card">
-        <h2>For customers</h2>
-        <p>Post a job with your postcode, budget, and service type. We'll find and rank
-        eligible cleaners for you automatically.</p>
+    <!-- 2. How it works -->
+    <section>
+      <div class="lp-section-head">
+        <h2>How CleanOps Connect works</h2>
       </div>
-      <div class="card">
-        <h2>For cleaners</h2>
-        <p>Register your profile, set your coverage area, and get matched to jobs that
-        fit your compliance status and location.</p>
+      <div class="lp-steps">
+        <div class="lp-step">
+          <div class="lp-step-icon">📍</div>
+          <h3>1. Post a job</h3>
+          <p>Enter your postcode, budget, and service type.</p>
+        </div>
+        <div class="lp-step">
+          <div class="lp-step-icon">🤖</div>
+          <h3>2. Smart matching</h3>
+          <p>AI filters cleaners by coverage, compliance, and availability.</p>
+        </div>
+        <div class="lp-step">
+          <div class="lp-step-icon">✅</div>
+          <h3>3. Get connected</h3>
+          <p>A cleaner accepts — you get confirmation instantly.</p>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <!-- 3. For customers -->
+    <section class="lp-split">
+      <div class="lp-split-text">
+        <p class="lp-eyebrow">For customers</p>
+        <h2>Find trusted cleaners instantly.</h2>
+        <p>Post a job with postcode, budget, and service type — CleanOps Connect handles the matching.</p>
+        <ul>
+          <li>Verified cleaners only</li>
+          <li>AI scoring for reliability</li>
+          <li>Coverage-based matching</li>
+          <li>Instant notifications</li>
+        </ul>
+        <a href="register.html" class="lp-btn lp-btn-primary">Post a job</a>
+      </div>
+      <div class="lp-split-visual">
+        <div class="form-row">
+          <label>Postcode</label>
+          <input type="text" placeholder="LS1 4DY" disabled />
+        </div>
+        <div class="form-row">
+          <label>Budget</label>
+          <input type="range" min="20" max="200" value="85" disabled />
+        </div>
+        <div class="form-row">
+          <label>Service type</label>
+          <select disabled><option>Domestic deep clean</option></select>
+        </div>
+        <button type="button" disabled>Find cleaners</button>
+      </div>
+    </section>
+
+    <!-- 4. For cleaners -->
+    <section class="lp-split lp-reverse">
+      <div class="lp-split-visual">
+        <div class="lp-tile-label">Cleaner dashboard</div>
+        <div class="lp-tile-title">Sarah K. · 4.9★</div>
+        <div class="lp-badge-row">
+          <span class="lp-badge">DBS ✓</span>
+          <span class="lp-badge">COSHH ✓</span>
+        </div>
+        <div class="lp-tile-sub" style="margin-top:0.75rem">New job offer: Office clean — WF1, £120</div>
+      </div>
+      <div class="lp-split-text">
+        <p class="lp-eyebrow">For cleaners</p>
+        <h2>Grow your cleaning business with smart job matching.</h2>
+        <ul>
+          <li>Set your coverage area</li>
+          <li>Only receive jobs you qualify for</li>
+          <li>Compliance badges boost visibility</li>
+          <li>Real-time job notifications</li>
+        </ul>
+        <a href="register.html" class="lp-btn lp-btn-primary">Register as a cleaner</a>
+      </div>
+    </section>
+
+    <!-- 5. Coverage across the UK -->
+    <section class="lp-coverage">
+      <h2>Coverage across the UK</h2>
+      <p>From Leeds to London — CleanOps Connect scales with you. Domestic, commercial, and industrial cleaning coverage.</p>
+      <svg class="lp-map" viewBox="0 0 200 220" role="img" aria-label="Map of UK coverage zones">
+        <path d="M90 6 L130 20 L140 55 L120 80 L135 110 L110 150 L120 180 L90 210 L60 190 L45 200 L28 165 L50 130 L30 100 L45 65 L35 35 L70 20 Z"
+          fill="#12306f" stroke="#5fa8ff" stroke-width="2" opacity="0.9" />
+        <circle class="lp-map-pin" cx="88" cy="70" r="4" />
+        <text class="lp-map-city" x="94" y="73">Leeds</text>
+        <circle class="lp-map-pin" cx="70" cy="82" r="4" />
+        <text class="lp-map-city" x="42" y="85">Bradford</text>
+        <circle class="lp-map-pin" cx="95" cy="95" r="4" />
+        <text class="lp-map-city" x="101" y="98">Wakefield</text>
+        <circle class="lp-map-pin" cx="80" cy="100" r="4" />
+        <text class="lp-map-city" x="44" y="112">Castleford</text>
+        <circle class="lp-map-pin" cx="80" cy="170" r="4" />
+        <text class="lp-map-city" x="86" y="173">London</text>
+        <line x1="88" y1="70" x2="70" y2="82" stroke="#5fa8ff" stroke-width="1" opacity="0.6" />
+        <line x1="88" y1="70" x2="95" y2="95" stroke="#5fa8ff" stroke-width="1" opacity="0.6" />
+        <line x1="80" y1="100" x2="95" y2="95" stroke="#5fa8ff" stroke-width="1" opacity="0.6" />
+        <line x1="80" y1="100" x2="80" y2="170" stroke="#5fa8ff" stroke-width="1" opacity="0.6" />
+      </svg>
+    </section>
+
+    <!-- 6. Compliance & trust -->
+    <section>
+      <div class="lp-section-head">
+        <h2>Compliance &amp; trust</h2>
+        <p>CleanOps Connect ensures every cleaner meets strict UK compliance standards.</p>
+      </div>
+      <div class="lp-badge-grid">
+        <div class="lp-compliance-tile">
+          <div class="lp-step-icon">🪪</div>
+          <p>DBS verified</p>
+        </div>
+        <div class="lp-compliance-tile">
+          <div class="lp-step-icon">🧪</div>
+          <p>COSHH compliant</p>
+        </div>
+        <div class="lp-compliance-tile">
+          <div class="lp-step-icon">🛡️</div>
+          <p>Insurance checked</p>
+        </div>
+        <div class="lp-compliance-tile">
+          <div class="lp-step-icon">🔒</div>
+          <p>Identity verified</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Testimonials -->
+    <section>
+      <div class="lp-section-head">
+        <h2>What people are saying</h2>
+      </div>
+      <div class="lp-testimonials">
+        <div class="lp-testimonial">
+          <div class="lp-testimonial-head">
+            <div class="lp-avatar">RH</div>
+            <div>
+              <div class="lp-testimonial-name">Rachel H.</div>
+              <div class="lp-testimonial-rating">★★★★★</div>
+            </div>
+          </div>
+          <p class="lp-quote">"Posted a job in the morning, had a verified cleaner confirmed by lunchtime."</p>
+        </div>
+        <div class="lp-testimonial">
+          <div class="lp-testimonial-head">
+            <div class="lp-avatar">MT</div>
+            <div>
+              <div class="lp-testimonial-name">Marcus T.</div>
+              <div class="lp-testimonial-rating">★★★★★</div>
+            </div>
+          </div>
+          <p class="lp-quote">"The coverage-based matching means I only see jobs I can actually reach."</p>
+        </div>
+        <div class="lp-testimonial">
+          <div class="lp-testimonial-head">
+            <div class="lp-avatar">JP</div>
+            <div>
+              <div class="lp-testimonial-name">Jade P.</div>
+              <div class="lp-testimonial-rating">★★★★★</div>
+            </div>
+          </div>
+          <p class="lp-quote">"Compliance badges gave me confidence before the cleaner even arrived."</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. FAQ -->
+    <section>
+      <div class="lp-section-head">
+        <h2>Frequently asked questions</h2>
+      </div>
+      <div class="lp-faq">
+        <details>
+          <summary>How does matching work?</summary>
+          <p>CleanOps Connect converts your postcode to coordinates, filters cleaners by coverage area and compliance, then ranks the remaining candidates with a weighted AI score (distance, experience, rating, price fit, insurance, and compliance).</p>
+        </details>
+        <details>
+          <summary>Are cleaners verified?</summary>
+          <p>Domestic cleaners are DBS-checked and industrial cleaners carry COSHH training flags. Insurance status is validated before high-risk jobs are offered.</p>
+        </details>
+        <details>
+          <summary>How do I post a job?</summary>
+          <p>Register as a customer, then create a job with your postcode, budget, frequency, and service type. We'll run allocation and send offers to matching cleaners.</p>
+        </details>
+        <details>
+          <summary>How do cleaners get paid?</summary>
+          <p>Cleaners run monthly subscription tiers (Starter, Pro, Industrial Pro) with an optional insurance add-on, billed independently of individual jobs.</p>
+        </details>
+        <details>
+          <summary>Is CleanOps Connect free?</summary>
+          <p>Posting a job as a customer is free. Cleaners subscribe to a plan to receive job offers.</p>
+        </details>
+      </div>
+    </section>
+
   </main>
 
+  <footer class="lp-footer">
+    <div class="lp-page" style="gap: 0; padding: 0 1.5rem;">
+      <div class="lp-footer-top">
+        <div class="lp-footer-brand-col">
+          <div class="lp-footer-brand" id="footer-brand"></div>
+          <p>UK cleaning, matched intelligently.</p>
+        </div>
+        <div class="lp-footer-col">
+          <h4>Product</h4>
+          <ul>
+            <li><a href="#">How it works</a></li>
+            <li><a href="#">Pricing</a></li>
+            <li><a href="#">Coverage</a></li>
+            <li><a href="#">Compliance</a></li>
+          </ul>
+        </div>
+        <div class="lp-footer-col">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Careers</a></li>
+            <li><a href="#">Contact</a></li>
+          </ul>
+        </div>
+        <div class="lp-footer-col">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="#">Terms</a></li>
+            <li><a href="#">Privacy</a></li>
+            <li><a href="#">Cookies</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="lp-footer-bottom">© 2026 CleanOps Connect — All rights reserved.</div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { BRAND_MARK } from './js/nav.js';
+    document.getElementById('footer-brand').innerHTML = `${BRAND_MARK}<span>CleanOps Connect</span>`;
+  </script>
   <script type="module" src="js/nav.js"></script>
 </body>
 </html>
