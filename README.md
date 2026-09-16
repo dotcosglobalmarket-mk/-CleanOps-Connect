@@ -4,8 +4,6 @@ A UK‑focused domestic and industrial cleaning lead‑allocation platform. Clea
 
 This repository contains the backend service powering the CleanOps Connect platform.
 
-> **Note:** This repository currently contains two parallel backend scaffolds: the Node.js/Express service documented below (`src/`), and an earlier lightweight Python scaffold in `cleanops_connect/` (see [Python backend scaffold](#python-backend-scaffold)). Consolidating on one is a follow-up.
-
 ## Features
 
 ### AI‑Driven Lead Allocation
@@ -187,6 +185,20 @@ MongoDB can be hosted on:
 - MongoDB Atlas (free tier available)
 - DigitalOcean Managed MongoDB
 
+### Frontend (Cloudflare)
+
+`frontend/` is a plain HTML/CSS/JS static site (no build step) covering registration, login, a customer dashboard (post a job, view it, run allocation), and a cleaner dashboard (register profile, set coverage, manage subscription/insurance). It talks directly to the backend's REST API over `fetch`.
+
+Before deploying, set `window.API_BASE_URL` in `frontend/js/config.js` to your deployed backend's URL (e.g. the DigitalOcean App Platform URL) — CORS is already open on the backend, so cross-origin requests from the Cloudflare-hosted frontend work out of the box.
+
+Deploy with Wrangler (config already in `wrangler.toml` at the repo root, using Cloudflare's Workers Static Assets):
+
+```
+npx wrangler deploy
+```
+
+Or connect this repo to a Cloudflare Pages project with build output directory set to `frontend/` and no build command.
+
 ## Future Roadmap
 
 - Customer mobile app
@@ -199,21 +211,6 @@ MongoDB can be hosted on:
 ## License
 
 MIT License
-
-## Python backend scaffold
-
-This repository also includes an earlier, lightweight Python backend scaffold in `cleanops_connect/` with:
-
-- data models for `User`, `CleanerProfile`, `Job`, `JobOffer`, `ServiceType`, and `Subscription`
-- modular `controllers`, `services`, `repositories`, and `middleware`
-- placeholder services for Mapbox postcode geocoding, AI lead scoring, spatial filtering, cleaner onboarding, job creation, subscription billing, and insurance add-on logic
-- in-memory repositories to support future API and persistence work
-
-Run its tests with:
-
-```bash
-python -m unittest discover -s tests
-```
 
 ## Author
 

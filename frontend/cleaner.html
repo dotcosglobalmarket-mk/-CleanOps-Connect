@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cleaner dashboard — CleanOps Connect</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧽</text></svg>" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav id="site-nav"></nav>
+  </header>
+
+  <main>
+    <h1>Cleaner dashboard</h1>
+
+    <div class="card">
+      <h2>1. Register your profile</h2>
+      <div id="profile-alert" class="alert alert-error" hidden></div>
+      <div id="profile-success" class="alert alert-success" hidden></div>
+
+      <form id="profile-form">
+        <div class="form-row">
+          <label for="name">Your name</label>
+          <input id="name" type="text" required />
+        </div>
+
+        <div class="form-row">
+          <label for="companyName">Company name (optional)</label>
+          <input id="companyName" type="text" />
+        </div>
+
+        <div class="form-row">
+          <label for="basePostcode">Base postcode</label>
+          <input id="basePostcode" type="text" placeholder="SW1A 1AA" required />
+        </div>
+
+        <div class="two-column">
+          <div class="form-row">
+            <label><input id="dbsVerified" type="checkbox" /> DBS verified</label>
+          </div>
+          <div class="form-row">
+            <label><input id="coshhTrained" type="checkbox" /> COSHH trained</label>
+          </div>
+        </div>
+
+        <button type="submit">Register profile</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>2. Set your coverage area</h2>
+      <div id="coverage-alert" class="alert alert-error" hidden></div>
+      <div id="coverage-success" class="alert alert-success" hidden></div>
+
+      <div class="form-row">
+        <label for="cleanerId">Cleaner profile ID</label>
+        <input id="cleanerId" type="text" />
+        <span class="field-help">Filled in automatically after you register above.</span>
+      </div>
+
+      <form id="coverage-form">
+        <div class="form-row">
+          <label for="coverageType">Coverage type</label>
+          <select id="coverageType">
+            <option value="radius">Radius</option>
+          </select>
+          <span class="field-help">Polygon coverage is supported by the API but not this simple form.</span>
+        </div>
+
+        <div class="form-row">
+          <label for="radiusKm">Radius (km)</label>
+          <input id="radiusKm" type="number" min="0" step="0.5" required />
+        </div>
+
+        <button type="submit">Set coverage</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>3. Subscription &amp; insurance</h2>
+      <div id="subscription-alert" class="alert alert-error" hidden></div>
+      <div id="subscription-success" class="alert alert-success" hidden></div>
+
+      <div class="form-row">
+        <label for="plan">Plan</label>
+        <select id="plan">
+          <option value="starter">Starter</option>
+          <option value="pro">Pro</option>
+          <option value="industrial_pro">Industrial Pro</option>
+        </select>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem;">
+        <button id="activate-subscription-button" type="button">Activate subscription</button>
+        <button id="add-insurance-button" type="button" class="secondary">Add insurance add-on</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/cleaner.js"></script>
+</body>
+</html>
