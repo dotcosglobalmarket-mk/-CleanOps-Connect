@@ -49,6 +49,24 @@ jobs:
           create_payload="$(node -p 'JSON.stringify({ name: process.env.CLOUDFLARE_PAGES_PROJECT, production_branch: "main", source: { type: "direct_upload" } })')"
           project_endpoint="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${encoded_project_name}"
 
+          wait_for_project() {
+            local lookup_status=""
+
+            for _ in 1 2 3 4 5; do
+              lookup_status="$(curl --silent --show-error --output /tmp/cloudflare-pages-project.json --write-out '%{http_code}' \
+                --header "${auth_prefix}${CLOUDFLARE_API_TOKEN}" \
+                "${project_endpoint}")"
+
+              if [ "${lookup_status}" = "200" ]; then
+                return 0
+              fi
+
+              sleep 2
+            done
+
+            return 1
+          }
+
           status_code="$(curl --silent --show-error --output /tmp/cloudflare-pages-project.json --write-out '%{http_code}' \
             --header "${auth_prefix}${CLOUDFLARE_API_TOKEN}" \
             "${project_endpoint}")"
@@ -70,26 +88,12 @@ jobs:
               "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects")"
 
             case "${create_status}" in
-              200|201|202)
+              200|201)
                 ;;
-              409)
-                retry_status=""
-
-                for _ in 1 2 3 4 5; do
-                  retry_status="$(curl --silent --show-error --output /tmp/cloudflare-pages-project.json --write-out '%{http_code}' \
-                    --header "${auth_prefix}${CLOUDFLARE_API_TOKEN}" \
-                    "${project_endpoint}")"
-
-                  if [ "${retry_status}" = "200" ]; then
-                    break
-                  fi
-
-                  sleep 2
-                done
-
-                if [ "${retry_status}" != "200" ]; then
+              202|409)
+                if ! wait_for_project; then
                   cat /tmp/cloudflare-pages-project-create.json
-                  echo "Cloudflare reported a conflicting Pages project create, but '${CLOUDFLARE_PAGES_PROJECT}' was still unavailable afterwards." >&2
+                  echo "Cloudflare accepted or conflicted on creating '${CLOUDFLARE_PAGES_PROJECT}', but the project never became available afterwards." >&2
                   exit 1
                 fi
                 ;;
