@@ -54,31 +54,31 @@ jobs:
             "${project_endpoint}")"
 
           if [ "${status_code}" = "200" ]; then
-            exit 0
-          fi
-
-          if [ "${status_code}" != "404" ]; then
-            cat /tmp/cloudflare-pages-project.json
-            echo "Failed to look up Cloudflare Pages project '${CLOUDFLARE_PAGES_PROJECT}'." >&2
-            exit 1
-          fi
-
-          create_status="$(curl --silent --show-error --output /tmp/cloudflare-pages-project-create.json --write-out '%{http_code}' \
-            --request POST \
-            --header "${auth_prefix}${CLOUDFLARE_API_TOKEN}" \
-            --header 'Content-Type: application/json' \
-            --data "${create_payload}" \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects")"
-
-          case "${create_status}" in
-            200|201)
-              ;;
-            *)
-              cat /tmp/cloudflare-pages-project-create.json
-              echo "Failed to create Cloudflare Pages project '${CLOUDFLARE_PAGES_PROJECT}'." >&2
+            echo "Cloudflare Pages project '${CLOUDFLARE_PAGES_PROJECT}' already exists."
+          else
+            if [ "${status_code}" != "404" ]; then
+              cat /tmp/cloudflare-pages-project.json
+              echo "Failed to look up Cloudflare Pages project '${CLOUDFLARE_PAGES_PROJECT}'." >&2
               exit 1
-              ;;
-          esac
+            fi
+
+            create_status="$(curl --silent --show-error --output /tmp/cloudflare-pages-project-create.json --write-out '%{http_code}' \
+              --request POST \
+              --header "${auth_prefix}${CLOUDFLARE_API_TOKEN}" \
+              --header 'Content-Type: application/json' \
+              --data "${create_payload}" \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects")"
+
+            case "${create_status}" in
+              200|201)
+                ;;
+              *)
+                cat /tmp/cloudflare-pages-project-create.json
+                echo "Failed to create Cloudflare Pages project '${CLOUDFLARE_PAGES_PROJECT}'." >&2
+                exit 1
+                ;;
+            esac
+          fi
 
       # Uploads frontend/dist to Cloudflare Pages via the official action, which
       # calls the same Direct Upload API documented at
