@@ -123,6 +123,45 @@ const cleanerProfileSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+
+    // --- Payment / Stripe Connect (see src/services/payment-state-machine.js) ---
+    stripeConnectedAccountId: {
+      type: String,
+    },
+    payoutsEnabled: {
+      // Synced from the account.updated webhook. A Transfer must never be
+      // attempted while this is false.
+      type: Boolean,
+      default: false,
+    },
+    commissionTier: {
+      type: String,
+      enum: ['standard', 'premium'],
+      default: 'standard',
+    },
+    commissionTierRate: {
+      // Deductive commission: subtracted from the cleaner's own price,
+      // never added to what the customer pays. Read live at CONFIRMED,
+      // never cached at booking time.
+      type: Number,
+      default: 0.15,
+    },
+    // dbsVerified / coshhTrained / insuranceStatus above already cover
+    // "dbs_verified" / "coshh_verified" / "insurance_verified" from the
+    // spec's data model — not duplicated here to avoid two fields drifting
+    // out of sync.
+    selfEmploymentEvidenceRef: {
+      // Pointer to stored UTR/insurance doc, not the raw document inline.
+      type: String,
+    },
+    deactivationStatus: {
+      // Any suspension triggered by ratings/algorithmic scoring must route
+      // here as "under_review" first — never straight to "suspended"
+      // without a human review step.
+      type: String,
+      enum: ['active', 'under_review', 'suspended'],
+      default: 'active',
+    },
   },
   { timestamps: true }
 );

@@ -4,6 +4,7 @@ const createApp = require('./app');
 const connectDB = require('./config/db');
 const logger = require('./utils/logger');
 const { seedDefaultServiceTypes } = require('./services/service-type-seed.service');
+const { startPaymentWorkers } = require('./workers/transfer-retry.worker');
 
 const PORT = process.env.PORT || 4000;
 
@@ -21,6 +22,8 @@ async function start() {
   app.listen(PORT, () => {
     logger.info(`CleanOps Connect API listening on port ${PORT}`);
   });
+
+  startPaymentWorkers();
 }
 
 start().catch((err) => {
