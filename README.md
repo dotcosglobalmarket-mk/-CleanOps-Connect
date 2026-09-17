@@ -69,7 +69,13 @@ PORT=4000
 MONGO_URI=
 MAPBOX_API_KEY=
 JWT_SECRET=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
 ```
+
+`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` are placeholders — no live Stripe
+account is connected yet. See the Payments section below for the escrow model
+this key pair supports.
 
 ## Installation
 
@@ -131,6 +137,56 @@ npm run dev
 
 - `POST /subscriptions` 🔒 (cleaner or admin) – Activate plan
 - `POST /subscriptions/insurance` 🔒 (cleaner or admin) – Add insurance add‑on
+
+### Payments (Escrow & Commission)
+
+Uses Stripe's **Separate Charges and Transfers** pattern: a customer's payment
+lands in the platform's own Stripe balance first, and is only moved to the
+cleaner via a later, explicit `Transfer.create()` call — this gap is the
+escrow window. Commission is **deductive**: the cleaner sets their own price
+(`pricePence`), the customer is charged exactly that amount, and commission is
+only ever subtracted from what the cleaner receives, never added on top. The
+full lifecycle (booking → payment held → in progress → confirmation/dispute →
+payout) is governed by a single state machine in
+`src/services/payment-state-machine.js`; `paymentStatus` on a `Job` is never
+written anywhere else.
+
+- `POST /payments/jobs/:id/book` 🔒 (customer or admin) – Book a job at the
+  cleaner's price and create the Stripe PaymentIntent
+- `POST /payments/jobs/:id/cancel` 🔒 (job's own customer or cleaner, or admin)
+  – Cancel a job before it starts and issue the appropriate refund
+- `POST /payments/jobs/:id/check-in` 🔒 (assigned cleaner) – Mark the job as
+  started
+- `POST /payments/jobs/:id/complete` 🔒 (assigned cleaner) – Mark the job
+  complete and start the 48hr auto-confirm window
+- `POST /payments/jobs/:id/confirm` 🔒 (job's own customer or admin) – Confirm
+  completion and trigger commission calculation + payout
+- `POST /payments/jobs/:id/dispute` 🔒 (job's own customer or admin) – Raise a
+  dispute with a reason code before the auto-confirm window closes
+- `POST /payments/jobs/:id/resolve/refund` 🔒 (admin) – Resolve a dispute in
+  the customer's favour (full refund)
+- `POST /payments/jobs/:id/resolve/partial` 🔒 (admin) – Split the outcome
+  between a partial refund and a reduced cleaner payout
+- `POST /payments/jobs/:id/resolve/payout` 🔒 (admin) – Resolve a dispute in
+  the cleaner's favour and proceed to payout
+- `GET /payments/ops/queue` 🔒 (admin) – List jobs stuck in
+  `MANUAL_REVIEW_HOLD` or `PAYOUT_BLOCKED` for ops follow-up
+- `POST /payments/ops/jobs/:id/manual-retry` 🔒 (admin) – Manually retry a
+  transfer that exhausted its automatic retry attempts
+- `POST /webhooks/stripe` – Stripe webhook endpoint (signature-verified,
+  deduplicated). Subscribes to `payment_intent.succeeded`,
+  `transfer.created`, `transfer.paid`, `transfer.failed`, `payout.failed`,
+  `account.updated`, `charge.dispute.created`.
+
+A background worker (`src/workers/transfer-retry.worker.js`, started from
+`src/server.js`) periodically retries `TRANSFER_FAILED` payouts on an
+exponential backoff (5min → 30min → 2hr, capped at 3 attempts before
+escalating to `MANUAL_REVIEW_HOLD`), and auto-confirms jobs whose 48hr
+customer-confirmation window has elapsed with no dispute raised.
+
+Cancellation-policy numbers (`24hr` full-refund window, `50%` partial refund
+after that) are placeholder defaults pending a real business decision — see
+the comment above them in `src/services/payment.service.js`.
 
 🔒 requires a `Authorization: Bearer <token>` header from `/auth/login`.
 

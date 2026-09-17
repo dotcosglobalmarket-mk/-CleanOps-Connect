@@ -1,0 +1,163 @@
+// Single source of truth for the payment/escrow lifecycle (see
+// docs/payments.md for the full spec this implements). `transition()` is
+// the ONLY function permitted to write `job.paymentStatus` — every other
+// module must call it rather than assigning the field directly.
+
+const STATES = Object.freeze({
+  BOOKED: 'BOOKED',
+  PAID_HELD: 'PAID_HELD',
+  CANCELLED: 'CANCELLED',
+  CANCELLED_BY_CLEANER: 'CANCELLED_BY_CLEANER',
+  CANCELLED_BY_CUSTOMER: 'CANCELLED_BY_CUSTOMER',
+  IN_PROGRESS: 'IN_PROGRESS',
+  AWAITING_CONFIRMATION: 'AWAITING_CONFIRMATION',
+  DISPUTED: 'DISPUTED',
+  RESOLVED_REFUND: 'RESOLVED_REFUND',
+  RESOLVED_PARTIAL: 'RESOLVED_PARTIAL',
+  RESOLVED_PAYOUT: 'RESOLVED_PAYOUT',
+  CONFIRMED: 'CONFIRMED',
+  PAYOUT_PENDING: 'PAYOUT_PENDING',
+  PAYOUT_BLOCKED: 'PAYOUT_BLOCKED',
+  TRANSFER_FAILED: 'TRANSFER_FAILED',
+  MANUAL_REVIEW_HOLD: 'MANUAL_REVIEW_HOLD',
+  PAID_OUT: 'PAID_OUT',
+  REFUNDED: 'REFUNDED',
+  PARTIALLY_REFUNDED: 'PARTIALLY_REFUNDED',
+});
+
+const TERMINAL_STATES = new Set([
+  STATES.CANCELLED,
+  STATES.PAID_OUT,
+  STATES.REFUNDED,
+  STATES.PARTIALLY_REFUNDED,
+]);
+
+const EVENTS = Object.freeze({
+  BOOK: 'BOOK',
+  PAYMENT_SUCCEEDED: 'PAYMENT_SUCCEEDED',
+  CANCEL_BOOKED: 'CANCEL_BOOKED',
+  CHECK_IN: 'CHECK_IN',
+  CANCEL_BY_CLEANER: 'CANCEL_BY_CLEANER',
+  CANCEL_BY_CUSTOMER: 'CANCEL_BY_CUSTOMER',
+  REFUND_DONE: 'REFUND_DONE',
+  PARTIAL_REFUND_DONE: 'PARTIAL_REFUND_DONE',
+  MARK_COMPLETE: 'MARK_COMPLETE',
+  CONFIRM: 'CONFIRM',
+  RAISE_DISPUTE: 'RAISE_DISPUTE',
+  RESOLVE_REFUND: 'RESOLVE_REFUND',
+  RESOLVE_PARTIAL: 'RESOLVE_PARTIAL',
+  RESOLVE_PAYOUT: 'RESOLVE_PAYOUT',
+  PARTIAL_RESOLUTION_DONE: 'PARTIAL_RESOLUTION_DONE',
+  PROCEED_TO_CONFIRMED: 'PROCEED_TO_CONFIRMED',
+  CALCULATE_SPLIT: 'CALCULATE_SPLIT',
+  BLOCK_PAYOUT: 'BLOCK_PAYOUT',
+  RECHECK_PAYOUT: 'RECHECK_PAYOUT',
+  TRANSFER_ERROR: 'TRANSFER_ERROR',
+  ESCALATE_MANUAL: 'ESCALATE_MANUAL',
+  TRANSFER_PAID: 'TRANSFER_PAID',
+});
+
+// TRANSITIONS[currentState][event] = nextState. `null` is used as the
+// "no job yet" starting state for the BOOK event.
+const TRANSITIONS = {
+  [null]: {
+    [EVENTS.BOOK]: STATES.BOOKED,
+  },
+  [STATES.BOOKED]: {
+    [EVENTS.PAYMENT_SUCCEEDED]: STATES.PAID_HELD,
+    [EVENTS.CANCEL_BOOKED]: STATES.CANCELLED,
+  },
+  [STATES.PAID_HELD]: {
+    [EVENTS.CHECK_IN]: STATES.IN_PROGRESS,
+    [EVENTS.CANCEL_BY_CLEANER]: STATES.CANCELLED_BY_CLEANER,
+    [EVENTS.CANCEL_BY_CUSTOMER]: STATES.CANCELLED_BY_CUSTOMER,
+  },
+  [STATES.CANCELLED_BY_CLEANER]: {
+    [EVENTS.REFUND_DONE]: STATES.REFUNDED,
+  },
+  [STATES.CANCELLED_BY_CUSTOMER]: {
+    [EVENTS.REFUND_DONE]: STATES.REFUNDED,
+    [EVENTS.PARTIAL_REFUND_DONE]: STATES.PARTIALLY_REFUNDED,
+  },
+  [STATES.IN_PROGRESS]: {
+    [EVENTS.MARK_COMPLETE]: STATES.AWAITING_CONFIRMATION,
+  },
+  [STATES.AWAITING_CONFIRMATION]: {
+    [EVENTS.CONFIRM]: STATES.CONFIRMED,
+    [EVENTS.RAISE_DISPUTE]: STATES.DISPUTED,
+  },
+  [STATES.DISPUTED]: {
+    [EVENTS.RESOLVE_REFUND]: STATES.RESOLVED_REFUND,
+    [EVENTS.RESOLVE_PARTIAL]: STATES.RESOLVED_PARTIAL,
+    [EVENTS.RESOLVE_PAYOUT]: STATES.RESOLVED_PAYOUT,
+  },
+  [STATES.RESOLVED_REFUND]: {
+    [EVENTS.REFUND_DONE]: STATES.REFUNDED,
+  },
+  [STATES.RESOLVED_PARTIAL]: {
+    [EVENTS.PARTIAL_RESOLUTION_DONE]: STATES.PAID_OUT,
+  },
+  [STATES.RESOLVED_PAYOUT]: {
+    [EVENTS.PROCEED_TO_CONFIRMED]: STATES.CONFIRMED,
+  },
+  [STATES.CONFIRMED]: {
+    [EVENTS.CALCULATE_SPLIT]: STATES.PAYOUT_PENDING,
+  },
+  [STATES.PAYOUT_PENDING]: {
+    [EVENTS.TRANSFER_PAID]: STATES.PAID_OUT,
+    [EVENTS.TRANSFER_ERROR]: STATES.TRANSFER_FAILED,
+    [EVENTS.BLOCK_PAYOUT]: STATES.PAYOUT_BLOCKED,
+  },
+  [STATES.PAYOUT_BLOCKED]: {
+    [EVENTS.RECHECK_PAYOUT]: STATES.PAYOUT_PENDING,
+  },
+  [STATES.TRANSFER_FAILED]: {
+    [EVENTS.TRANSFER_PAID]: STATES.PAID_OUT,
+    [EVENTS.ESCALATE_MANUAL]: STATES.MANUAL_REVIEW_HOLD,
+  },
+  [STATES.MANUAL_REVIEW_HOLD]: {
+    [EVENTS.TRANSFER_PAID]: STATES.PAID_OUT,
+  },
+  [STATES.PAID_OUT]: {},
+  [STATES.REFUNDED]: {},
+  [STATES.CANCELLED]: {},
+  [STATES.PARTIALLY_REFUNDED]: {},
+};
+
+class PaymentStateError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'PaymentStateError';
+    this.status = 409;
+  }
+}
+
+/**
+ * The only function allowed to write job.paymentStatus. Guards and side
+ * effects (Stripe calls, notifications) are the caller's responsibility —
+ * this function only validates and performs the state change itself.
+ */
+function transition(job, event) {
+  const currentState = job.paymentStatus || null;
+  const allowed = TRANSITIONS[currentState];
+  if (!allowed || !(event in allowed)) {
+    throw new PaymentStateError(
+      `Invalid payment transition: event "${event}" is not valid from state "${currentState}"`
+    );
+  }
+  job.paymentStatus = allowed[event];
+  return job;
+}
+
+function isTerminal(state) {
+  return TERMINAL_STATES.has(state);
+}
+
+module.exports = {
+  STATES,
+  EVENTS,
+  TRANSITIONS,
+  PaymentStateError,
+  transition,
+  isTerminal,
+};
