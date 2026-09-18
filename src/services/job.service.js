@@ -5,6 +5,7 @@ const mapboxService = require('./mapbox.service');
 const coverageService = require('./coverage.service');
 const aiScoringService = require('./ai-scoring.service');
 const insuranceService = require('./insurance.service');
+const paymentService = require('./payment.service');
 
 const MAX_OFFERS = 5;
 
@@ -18,6 +19,32 @@ function forbidden(message) {
   const error = new Error(message);
   error.status = 403;
   return error;
+}
+
+function badRequest(message) {
+  const error = new Error(message);
+  error.status = 400;
+  return error;
+}
+
+async function requireOwningCleanerProfile(userId) {
+  const cleaner = await CleanerProfile.findOne({ user: userId });
+  if (!cleaner) throw forbidden('No cleaner profile found for this user');
+  return cleaner;
+}
+
+async function requireOwnOffer(jobId, offerId, userId) {
+  const offer = await JobOffer.findById(offerId);
+  if (!offer || offer.job.toString() !== jobId) throw notFound('Offer not found');
+
+  const cleaner = await requireOwningCleanerProfile(userId);
+  if (offer.cleaner.toString() !== cleaner._id.toString()) {
+    throw forbidden('This offer was not sent to you');
+  }
+  if (offer.status !== 'sent') {
+    throw badRequest('This offer is no longer available');
+  }
+  return { offer, cleaner };
 }
 
 async function createJob(jobData) {
@@ -69,8 +96,38 @@ async function allocateJob(jobId, requestingUser) {
   return { jobId: job._id, offers };
 }
 
+// Cleaner accepts a sent offer at a price THEY set — the platform never sets
+// or suggests a rate. Accepting books the job (creates the PaymentIntent via
+// payment.service) and declines every other outstanding offer on it.
+async function acceptOffer(jobId, offerId, requestingUser, pricePence) {
+  const job = await Job.findById(jobId);
+  if (!job) throw notFound('Job not found');
+  if (job.cleaner) throw badRequest('This job has already been booked with another cleaner');
+
+  const { offer, cleaner } = await requireOwnOffer(jobId, offerId, requestingUser.id);
+
+  offer.status = 'accepted';
+  await offer.save();
+
+  await JobOffer.updateMany(
+    { job: job._id, _id: { $ne: offer._id }, status: 'sent' },
+    { $set: { status: 'declined' } }
+  );
+
+  return paymentService.bookJob({ jobId: job._id, cleanerId: cleaner._id, pricePence });
+}
+
+async function declineOffer(jobId, offerId, requestingUser) {
+  const { offer } = await requireOwnOffer(jobId, offerId, requestingUser.id);
+  offer.status = 'declined';
+  await offer.save();
+  return offer;
+}
+
 module.exports = {
   createJob,
   getJobById,
   allocateJob,
+  acceptOffer,
+  declineOffer,
 };

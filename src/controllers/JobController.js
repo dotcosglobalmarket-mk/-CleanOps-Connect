@@ -30,8 +30,28 @@ async function allocate(req, res, next) {
   }
 }
 
+async function acceptOffer(req, res, next) {
+  try {
+    const job = await jobService.acceptOffer(req.params.id, req.params.offerId, req.user, req.body.pricePence);
+    res.status(200).json(job);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function declineOffer(req, res, next) {
+  try {
+    const offer = await jobService.declineOffer(req.params.id, req.params.offerId, req.user);
+    res.status(200).json(offer);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   create,
   getById,
   allocate,
+  acceptOffer,
+  declineOffer,
 };

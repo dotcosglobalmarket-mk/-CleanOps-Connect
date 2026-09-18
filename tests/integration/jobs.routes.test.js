@@ -3,9 +3,14 @@ jest.mock('../../src/models/Job', () => {
   JobMock.findById = jest.fn();
   return JobMock;
 });
-jest.mock('../../src/models/JobOffer', () => ({ insertMany: jest.fn() }));
-jest.mock('../../src/models/CleanerProfile', () => ({ find: jest.fn() }));
+jest.mock('../../src/models/JobOffer', () => ({
+  insertMany: jest.fn(),
+  findById: jest.fn(),
+  updateMany: jest.fn(),
+}));
+jest.mock('../../src/models/CleanerProfile', () => ({ find: jest.fn(), findOne: jest.fn() }));
 jest.mock('../../src/services/mapbox.service', () => ({ geocodePostcode: jest.fn() }));
+jest.mock('../../src/services/payment.service', () => ({ bookJob: jest.fn() }));
 
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
@@ -14,6 +19,7 @@ const Job = require('../../src/models/Job');
 const JobOffer = require('../../src/models/JobOffer');
 const CleanerProfile = require('../../src/models/CleanerProfile');
 const mapboxService = require('../../src/services/mapbox.service');
+const paymentService = require('../../src/services/payment.service');
 
 function authHeaderFor(role, id = 'user1') {
   const token = jwt.sign({ sub: id, role }, process.env.JWT_SECRET, { expiresIn: '1h' });
@@ -181,6 +187,140 @@ describe('Jobs routes', () => {
       expect(insertedOffers).toHaveLength(2);
       expect(insertedOffers[0].cleaner).toBe('cleaner-strong');
       expect(insertedOffers[0].score).toBeGreaterThan(insertedOffers[1].score);
+    });
+  });
+
+  describe('POST /jobs/:id/offers/:offerId/accept', () => {
+    const jobId = '507f1f77bcf86cd799439011';
+    const offerId = '507f1f77bcf86cd799439012';
+
+    it('returns 401 without auth', async () => {
+      const res = await request(app).post(`/jobs/${jobId}/offers/${offerId}/accept`).send({ pricePence: 5000 });
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for a non-cleaner role', async () => {
+      const res = await request(app)
+        .post(`/jobs/${jobId}/offers/${offerId}/accept`)
+        .set('Authorization', authHeaderFor('customer'))
+        .send({ pricePence: 5000 });
+      expect(res.status).toBe(403);
+    });
+
+    it('rejects a job that has already been booked with another cleaner', async () => {
+      Job.findById.mockResolvedValue({ _id: jobId, cleaner: 'someone-elses-profile-id' });
+
+      const res = await request(app)
+        .post(`/jobs/${jobId}/offers/${offerId}/accept`)
+        .set('Authorization', authHeaderFor('cleaner', 'user2'))
+        .send({ pricePence: 5000 });
+
+      expect(res.status).toBe(400);
+      expect(paymentService.bookJob).not.toHaveBeenCalled();
+    });
+
+    it('rejects an offer sent to a different cleaner', async () => {
+      Job.findById.mockResolvedValue({ _id: jobId, cleaner: null });
+      JobOffer.findById.mockResolvedValue({
+        _id: offerId,
+        job: { toString: () => jobId },
+        cleaner: { toString: () => 'a-different-cleaner-profile-id' },
+        status: 'sent',
+      });
+      CleanerProfile.findOne.mockResolvedValue({ _id: 'my-cleaner-profile-id' });
+
+      const res = await request(app)
+        .post(`/jobs/${jobId}/offers/${offerId}/accept`)
+        .set('Authorization', authHeaderFor('cleaner', 'user2'))
+        .send({ pricePence: 5000 });
+
+      expect(res.status).toBe(403);
+      expect(paymentService.bookJob).not.toHaveBeenCalled();
+    });
+
+    it('rejects accepting an offer that is no longer sent', async () => {
+      Job.findById.mockResolvedValue({ _id: jobId, cleaner: null });
+      JobOffer.findById.mockResolvedValue({
+        _id: offerId,
+        job: { toString: () => jobId },
+        cleaner: { toString: () => 'my-cleaner-profile-id' },
+        status: 'declined',
+      });
+      CleanerProfile.findOne.mockResolvedValue({ _id: 'my-cleaner-profile-id' });
+
+      const res = await request(app)
+        .post(`/jobs/${jobId}/offers/${offerId}/accept`)
+        .set('Authorization', authHeaderFor('cleaner', 'user2'))
+        .send({ pricePence: 5000 });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('accepts the offer at the price the cleaner sets, books the job, and declines the other offers', async () => {
+      Job.findById.mockResolvedValue({ _id: jobId, cleaner: null });
+      const offerSave = jest.fn().mockResolvedValue(undefined);
+      const offer = {
+        _id: offerId,
+        job: { toString: () => jobId },
+        cleaner: { toString: () => 'my-cleaner-profile-id' },
+        status: 'sent',
+        save: offerSave,
+      };
+      JobOffer.findById.mockResolvedValue(offer);
+      JobOffer.updateMany.mockResolvedValue({ modifiedCount: 2 });
+      CleanerProfile.findOne.mockResolvedValue({ _id: 'my-cleaner-profile-id' });
+      paymentService.bookJob.mockResolvedValue({ _id: jobId, paymentStatus: 'BOOKED', pricePence: 5000 });
+
+      const res = await request(app)
+        .post(`/jobs/${jobId}/offers/${offerId}/accept`)
+        .set('Authorization', authHeaderFor('cleaner', 'user2'))
+        .send({ pricePence: 5000 });
+
+      expect(res.status).toBe(200);
+      expect(offer.status).toBe('accepted');
+      expect(offerSave).toHaveBeenCalledTimes(1);
+      expect(JobOffer.updateMany).toHaveBeenCalledWith(
+        { job: jobId, _id: { $ne: offerId }, status: 'sent' },
+        { $set: { status: 'declined' } }
+      );
+      expect(paymentService.bookJob).toHaveBeenCalledWith({
+        jobId,
+        cleanerId: 'my-cleaner-profile-id',
+        pricePence: 5000,
+      });
+    });
+  });
+
+  describe('POST /jobs/:id/offers/:offerId/decline', () => {
+    const jobId = '507f1f77bcf86cd799439011';
+    const offerId = '507f1f77bcf86cd799439012';
+
+    it('returns 403 for a non-cleaner role', async () => {
+      const res = await request(app)
+        .post(`/jobs/${jobId}/offers/${offerId}/decline`)
+        .set('Authorization', authHeaderFor('customer'));
+      expect(res.status).toBe(403);
+    });
+
+    it('declines an offer sent to the requesting cleaner', async () => {
+      const offerSave = jest.fn().mockResolvedValue(undefined);
+      const offer = {
+        _id: offerId,
+        job: { toString: () => jobId },
+        cleaner: { toString: () => 'my-cleaner-profile-id' },
+        status: 'sent',
+        save: offerSave,
+      };
+      JobOffer.findById.mockResolvedValue(offer);
+      CleanerProfile.findOne.mockResolvedValue({ _id: 'my-cleaner-profile-id' });
+
+      const res = await request(app)
+        .post(`/jobs/${jobId}/offers/${offerId}/decline`)
+        .set('Authorization', authHeaderFor('cleaner', 'user2'));
+
+      expect(res.status).toBe(200);
+      expect(offer.status).toBe('declined');
+      expect(offerSave).toHaveBeenCalledTimes(1);
     });
   });
 });
