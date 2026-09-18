@@ -19,10 +19,10 @@ const DISPUTE_REASON_CODES = [
   'other',
 ];
 
-// Placeholder cancellation policy — the spec references "check cancellation
-// policy window" without specifying the exact hours/percentage. These
-// constants are a clearly-labelled starting point, not a business decision;
-// confirm the real numbers before relying on this in production.
+// Cancellation policy — the spec referenced "check cancellation policy
+// window" without specifying the exact hours/percentage; these numbers are
+// the confirmed business rule (full refund within 24hr of booking, 50% back
+// on a later cancellation), not a placeholder.
 const CUSTOMER_FULL_REFUND_WINDOW_HOURS = 24;
 const CUSTOMER_LATE_CANCELLATION_REFUND_RATE = 0.5;
 
