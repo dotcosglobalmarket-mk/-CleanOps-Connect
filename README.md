@@ -187,9 +187,9 @@ exponential backoff (5min → 30min → 2hr, capped at 3 attempts before
 escalating to `MANUAL_REVIEW_HOLD`), and auto-confirms jobs whose 48hr
 customer-confirmation window has elapsed with no dispute raised.
 
-Cancellation-policy numbers (`24hr` full-refund window, `50%` partial refund
-after that) are placeholder defaults pending a real business decision — see
-the comment above them in `src/services/payment.service.js`.
+Cancellation policy: full refund within `24hr` of booking, `50%` partial
+refund after that — confirmed business rule, defined in
+`src/services/payment.service.js`.
 
 🔒 requires a `Authorization: Bearer <token>` header from `/auth/login`.
 
