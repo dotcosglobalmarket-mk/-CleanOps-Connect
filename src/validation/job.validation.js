@@ -21,7 +21,18 @@ const jobIdParamSchema = z.object({
   id: objectId(),
 });
 
+const offerIdParamSchema = z.object({
+  id: objectId(),
+  offerId: objectId(),
+});
+
+const acceptOfferSchema = z.object({
+  pricePence: z.number().int().positive(),
+});
+
 module.exports = {
   createJobSchema,
   jobIdParamSchema,
+  offerIdParamSchema,
+  acceptOfferSchema,
 };

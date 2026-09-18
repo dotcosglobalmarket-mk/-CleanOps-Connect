@@ -123,6 +123,8 @@ npm run dev
 
 - `POST /jobs` 🔒 (customer) – Create a new job
 - `POST /jobs/:id/allocate` 🔒 (job owner or admin) – Run AI allocation and send offers
+- `POST /jobs/:id/offers/:offerId/accept` 🔒 (the offered cleaner) – Accept an offer **at the price the cleaner sets** (`pricePence` — the platform never sets or suggests a rate). Books the job (creates the Stripe PaymentIntent, see Payments below) and automatically declines every other outstanding offer on the job.
+- `POST /jobs/:id/offers/:offerId/decline` 🔒 (the offered cleaner) – Decline an offer
 - `GET /jobs/:id` – View job details
 
 ### Cleaners
