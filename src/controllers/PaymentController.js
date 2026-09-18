@@ -110,7 +110,10 @@ const manualRetry = wrap(async (req) => ({ body: await paymentService.manualRetr
 const opsQueue = wrap(async () => {
   const jobs = await Job.find({
     paymentStatus: { $in: ['MANUAL_REVIEW_HOLD', 'PAYOUT_BLOCKED'] },
-  }).sort({ updatedAt: 1 });
+  })
+    .populate('customer', 'name email')
+    .populate('cleaner', 'name')
+    .sort({ updatedAt: 1 });
   return { body: jobs };
 });
 

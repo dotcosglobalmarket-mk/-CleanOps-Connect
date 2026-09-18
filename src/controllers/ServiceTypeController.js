@@ -18,7 +18,17 @@ async function create(req, res, next) {
   }
 }
 
+async function update(req, res, next) {
+  try {
+    const serviceType = await serviceTypeService.updateServiceType(req.params.id, req.body);
+    res.status(200).json(serviceType);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   list,
   create,
+  update,
 };

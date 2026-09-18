@@ -1,6 +1,7 @@
 jest.mock('../../src/models/ServiceType', () => ({
   find: jest.fn(),
   create: jest.fn(),
+  findById: jest.fn(),
 }));
 
 const request = require('supertest');
@@ -93,6 +94,56 @@ describe('Service types routes', () => {
       expect(res.status).toBe(201);
       expect(ServiceType.create).toHaveBeenCalledWith(validBody());
       expect(res.body.name).toBe('Domestic Deep Clean');
+    });
+  });
+
+  describe('PATCH /service-types/:id', () => {
+    const id = '507f1f77bcf86cd799439011';
+
+    it('returns 401 without auth', async () => {
+      const res = await request(app).patch(`/service-types/${id}`).send({ name: 'New name' });
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for a non-admin role', async () => {
+      const res = await request(app)
+        .patch(`/service-types/${id}`)
+        .set('Authorization', authHeaderFor('customer'))
+        .send({ name: 'New name' });
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 400 for an empty body', async () => {
+      const res = await request(app)
+        .patch(`/service-types/${id}`)
+        .set('Authorization', authHeaderFor('admin'))
+        .send({});
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 404 when the service type does not exist', async () => {
+      ServiceType.findById.mockResolvedValue(null);
+      const res = await request(app)
+        .patch(`/service-types/${id}`)
+        .set('Authorization', authHeaderFor('admin'))
+        .send({ name: 'New name' });
+      expect(res.status).toBe(404);
+    });
+
+    it('updates a service type for an admin', async () => {
+      const save = jest.fn().mockResolvedValue(undefined);
+      const serviceType = { _id: id, name: 'Old name', category: 'domestic', save };
+      ServiceType.findById.mockResolvedValue(serviceType);
+
+      const res = await request(app)
+        .patch(`/service-types/${id}`)
+        .set('Authorization', authHeaderFor('admin'))
+        .send({ name: 'New name', requiresCoshh: true });
+
+      expect(res.status).toBe(200);
+      expect(serviceType.name).toBe('New name');
+      expect(serviceType.requiresCoshh).toBe(true);
+      expect(save).toHaveBeenCalledTimes(1);
     });
   });
 });

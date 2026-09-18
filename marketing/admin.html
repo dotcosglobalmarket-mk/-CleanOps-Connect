@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin dashboard — CleanOps Connect</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate icon" href="/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav id="site-nav"></nav>
+  </header>
+
+  <main class="dash-layout">
+    <aside class="dash-sidebar">
+      <button type="button" class="dash-nav-item is-active" data-panel="overview">Overview</button>
+      <button type="button" class="dash-nav-item" data-panel="payments">Payments Ops Queue</button>
+      <button type="button" class="dash-nav-item" data-panel="cleaners">Cleaner Verification</button>
+      <button type="button" class="dash-nav-item" data-panel="jobs">Jobs</button>
+      <button type="button" class="dash-nav-item" data-panel="service-types">Service Types</button>
+    </aside>
+
+    <div class="dash-content">
+      <!-- Overview -->
+      <section id="panel-overview" class="dash-panel is-active">
+        <div class="dash-banner">
+          <h1>Super Admin</h1>
+          <p>Platform-wide controls — payments, cleaner compliance, jobs, and the service catalogue.</p>
+        </div>
+
+        <div id="overview-alert" class="alert alert-error" hidden></div>
+
+        <h2 style="margin-top: 0;">Cleaners</h2>
+        <div class="stat-grid">
+          <div class="stat-tile">
+            <div class="stat-tile-label">Total</div>
+            <div id="stat-cleaners-total" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Unverified</div>
+            <div id="stat-cleaners-unverified" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Under review</div>
+            <div id="stat-cleaners-under-review" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Suspended</div>
+            <div id="stat-cleaners-suspended" class="stat-tile-value">—</div>
+          </div>
+        </div>
+
+        <h2>Jobs &amp; Payments</h2>
+        <div class="stat-grid">
+          <div class="stat-tile">
+            <div class="stat-tile-label">Total jobs</div>
+            <div id="stat-jobs-total" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Open jobs</div>
+            <div id="stat-jobs-open" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Manual review hold</div>
+            <div id="stat-manual-review-hold" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Payout blocked</div>
+            <div id="stat-payout-blocked" class="stat-tile-value">—</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Payments Ops Queue -->
+      <section id="panel-payments" class="dash-panel">
+        <div class="section-heading">
+          <h1>Payments Ops Queue</h1>
+          <button id="payments-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Jobs stuck in <code>MANUAL_REVIEW_HOLD</code> (exhausted the automatic transfer retry backoff) or
+          <code>PAYOUT_BLOCKED</code> (the cleaner hasn't finished Stripe payouts onboarding — this clears itself once
+          they do). Never triggers a customer refund; funds remain in the platform balance until manually resolved.
+        </p>
+        <div id="payments-alert" class="alert alert-error" hidden></div>
+        <div id="payments-table" class="table-wrap"></div>
+      </section>
+
+      <!-- Cleaner Verification -->
+      <section id="panel-cleaners" class="dash-panel">
+        <div class="section-heading">
+          <h1>Cleaner Verification</h1>
+          <button id="cleaners-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          DBS/COSHH/insurance are CleanOps's own compliance checks (separate from Stripe's onboarding KYC). Suspending
+          a cleaner always routes through <strong>Under review</strong> first — there is no fully automated,
+          irreversible deactivation.
+        </p>
+        <div id="cleaners-alert" class="alert alert-error" hidden></div>
+        <div id="cleaners-success" class="alert alert-success" hidden></div>
+
+        <div class="filter-bar">
+          <div class="form-row">
+            <label for="cleaners-filter-verified">Verification</label>
+            <select id="cleaners-filter-verified">
+              <option value="">All</option>
+              <option value="true">Verified</option>
+              <option value="false">Unverified</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="cleaners-filter-deactivation">Status</label>
+            <select id="cleaners-filter-deactivation">
+              <option value="">All</option>
+              <option value="active">Active</option>
+              <option value="under_review">Under review</option>
+              <option value="suspended">Suspended</option>
+            </select>
+          </div>
+          <button id="cleaners-filter-apply" type="button">Apply</button>
+        </div>
+
+        <div id="cleaners-table" class="table-wrap"></div>
+      </section>
+
+      <!-- Jobs -->
+      <section id="panel-jobs" class="dash-panel">
+        <div class="section-heading">
+          <h1>Jobs</h1>
+          <button id="jobs-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <div id="jobs-alert" class="alert alert-error" hidden></div>
+
+        <div class="filter-bar">
+          <div class="form-row">
+            <label for="jobs-filter-status">Allocation status</label>
+            <select id="jobs-filter-status">
+              <option value="">All</option>
+              <option value="open">Open</option>
+              <option value="allocated">Allocated</option>
+              <option value="in_progress">In progress</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="jobs-filter-payment-status">Payment status</label>
+            <select id="jobs-filter-payment-status">
+              <option value="">All</option>
+            </select>
+          </div>
+          <button id="jobs-filter-apply" type="button">Apply</button>
+        </div>
+
+        <div id="jobs-table" class="table-wrap"></div>
+        <pre id="job-detail" style="white-space: pre-wrap; font-size: 0.82rem; margin-top: 1rem;" hidden></pre>
+      </section>
+
+      <!-- Service Types -->
+      <section id="panel-service-types" class="dash-panel">
+        <div class="section-heading">
+          <h1>Service Types</h1>
+          <button id="service-types-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <div id="service-types-alert" class="alert alert-error" hidden></div>
+        <div id="service-types-success" class="alert alert-success" hidden></div>
+
+        <div id="service-types-table" class="table-wrap"></div>
+
+        <div class="card" style="margin-top: 1.5rem;">
+          <h2>Add a service type</h2>
+          <form id="create-service-type-form">
+            <div class="two-column">
+              <div class="form-row">
+                <label for="st-name">Name</label>
+                <input id="st-name" type="text" required />
+              </div>
+              <div class="form-row">
+                <label for="st-category">Category</label>
+                <select id="st-category">
+                  <option value="domestic">Domestic</option>
+                  <option value="industrial">Industrial</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <label for="st-description">Description (optional)</label>
+              <input id="st-description" type="text" />
+            </div>
+            <div class="form-row">
+              <label><input id="st-requires-coshh" type="checkbox" /> Requires COSHH training</label>
+            </div>
+            <button type="submit">Add service type</button>
+          </form>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script type="module" src="js/nav.js"></script>
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

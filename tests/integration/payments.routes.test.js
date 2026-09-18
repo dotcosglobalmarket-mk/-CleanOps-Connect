@@ -119,7 +119,9 @@ describe('Payments routes', () => {
 
     it('lists MANUAL_REVIEW_HOLD and PAYOUT_BLOCKED jobs for admins', async () => {
       const sortMock = jest.fn().mockResolvedValue([{ _id: '1', paymentStatus: 'MANUAL_REVIEW_HOLD' }]);
-      Job.find.mockReturnValue({ sort: sortMock });
+      const populateCleanerMock = jest.fn().mockReturnValue({ sort: sortMock });
+      const populateCustomerMock = jest.fn().mockReturnValue({ populate: populateCleanerMock });
+      Job.find.mockReturnValue({ populate: populateCustomerMock });
 
       const res = await request(app).get('/payments/ops/queue').set('Authorization', authHeaderFor('admin'));
 
