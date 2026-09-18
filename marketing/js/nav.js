@@ -25,7 +25,7 @@ function renderNav() {
       <a href="register.html" class="button-link">Register</a>
     `;
   } else {
-    const dashboardHref = role === 'cleaner' ? 'cleaner.html' : 'customer.html';
+    const dashboardHref = role === 'admin' ? 'admin.html' : role === 'cleaner' ? 'cleaner.html' : 'customer.html';
     links = `
       <span class="nav-user">${user ? user.name : ''} (${role})</span>
       <a href="${dashboardHref}">Dashboard</a>

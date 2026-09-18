@@ -118,6 +118,7 @@ npm run dev
 
 - `GET /service-types` – List service types, optionally `?category=domestic|industrial`. No auth required — the frontend uses this to populate the "service type" dropdown when a customer posts a job, since a raw ObjectId isn't something a customer can be expected to know. A default catalogue is seeded automatically on server start (see `src/services/service-type-seed.service.js`).
 - `POST /service-types` 🔒 (admin) – Add a new service type
+- `PATCH /service-types/:id` 🔒 (admin) – Edit a service type
 
 ### Jobs
 
@@ -191,6 +192,20 @@ after that) are placeholder defaults pending a real business decision — see
 the comment above them in `src/services/payment.service.js`.
 
 🔒 requires a `Authorization: Bearer <token>` header from `/auth/login`.
+
+### Admin
+
+All routes below require `requireRole('admin')`. This is the platform's super-admin dashboard, backing `marketing/admin.html`.
+
+- `GET /admin/summary` – Aggregate counts for the overview screen: cleaner verification/review/suspension counts, job totals, and the payments ops queue size
+- `GET /admin/cleaners` – List cleaners, optionally `?deactivationStatus=active|under_review|suspended` and/or `?verified=true|false` (a cleaner counts as verified once `dbsVerified` is true and `insuranceStatus` isn't `none`)
+- `GET /admin/cleaners/:id` – View a single cleaner
+- `PATCH /admin/cleaners/:id/verification` – Update `dbsVerified` / `coshhTrained` / `insuranceStatus` (at least one field required)
+- `PATCH /admin/cleaners/:id/deactivation` – Set `deactivationStatus`. This is the human review step itself — any rating/algorithm-triggered suspension must land here as `under_review` first, never straight to `suspended` (see `CleanerProfile.deactivationStatus`)
+- `GET /admin/jobs` – List jobs across every status, optionally `?status=` (the lead-allocation status) and/or `?paymentStatus=` (the escrow state machine status)
+- `GET /admin/jobs/:id` – View a single job with populated customer/cleaner/service type
+
+The existing `GET /payments/ops/queue` and `POST /payments/ops/jobs/:id/manual-retry` (documented under Payments above) are also admin-only and surface in the same dashboard's Payments Ops Queue tab.
 
 ## Mapbox Integration
 

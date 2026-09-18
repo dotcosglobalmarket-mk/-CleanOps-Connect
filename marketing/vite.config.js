@@ -16,6 +16,7 @@ export default defineConfig({
         login: resolve(__dirname, 'login.html'),
         customer: resolve(__dirname, 'customer.html'),
         cleaner: resolve(__dirname, 'cleaner.html'),
+        admin: resolve(__dirname, 'admin.html'),
       },
     },
   },
