@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   test:
@@ -12,12 +15,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
@@ -29,18 +32,22 @@ jobs:
   deploy:
     name: Deploy App
     needs: test
+    # Only deploy from main, never from a pull request.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: DO_API_TOKEN
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
         with:
           token: ${{ secrets.DO_API_TOKEN }}
 
+      # Redeploys the latest commit using the app's CURRENT configuration.
+      # We deliberately do not run `doctl apps update --spec .do/app.yaml`:
+      # that spec holds placeholder values (REPLACE_WITH_...) for secrets and
+      # no Stripe keys, so applying it would overwrite the real production
+      # secrets. Environment variables are managed in the DigitalOcean
+      # dashboard (App -> Settings -> Environment Variables).
       - name: Deploy to DigitalOcean App Platform
-        run: |
-          doctl apps update ${{ secrets.DO_APP_ID }} --spec .do/app.yaml
+        run: doctl apps create-deployment ${{ secrets.DO_APP_ID }} --wait
