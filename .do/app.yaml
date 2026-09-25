@@ -1,3 +1,8 @@
+# Reference spec for the DigitalOcean app. It is NOT applied automatically by
+# CI (see .github/workflows/deploy.yml). Secret values below are placeholders;
+# the real values live only in the DigitalOcean dashboard. Required runtime
+# variables: PORT, MONGO_URI, MAPBOX_API_KEY, JWT_SECRET, STRIPE_SECRET_KEY,
+# STRIPE_WEBHOOK_SECRET, and optionally CORS_ORIGINS and AUTH_RATE_LIMIT_MAX.
 name: cleanops-connect
 region: lon
 services:
