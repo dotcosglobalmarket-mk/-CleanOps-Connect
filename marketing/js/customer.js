@@ -1,4 +1,5 @@
 import { apiRequest, requireRole } from './api.js';
+import { escapeHtml } from './dom.js';
 
 requireRole('customer');
 
@@ -20,8 +21,8 @@ function renderServiceTypeOptions() {
   const matching = serviceTypes.filter((s) => s.category === category);
 
   select.innerHTML = matching.length
-    ? matching.map((s) => `<option value="${s._id}">${s.name}</option>`).join('')
-    : `<option value="" disabled selected>No ${category} service types available</option>`;
+    ? matching.map((s) => `<option value="${escapeHtml(s._id)}">${escapeHtml(s.name)}</option>`).join('')
+    : `<option value="" disabled selected>No ${escapeHtml(category)} service types available</option>`;
 }
 
 async function loadServiceTypes() {
@@ -77,7 +78,7 @@ document.getElementById('view-job-button').addEventListener('click', async () =>
   }
 
   try {
-    const job = await apiRequest(`/jobs/${jobId}`);
+    const job = await apiRequest(`/jobs/${encodeURIComponent(jobId)}`, { auth: true });
     const details = document.getElementById('job-details');
     details.textContent = JSON.stringify(job, null, 2);
     details.hidden = false;
@@ -95,7 +96,7 @@ document.getElementById('allocate-job-button').addEventListener('click', async (
   }
 
   try {
-    const result = await apiRequest(`/jobs/${jobId}/allocate`, { method: 'POST', auth: true });
+    const result = await apiRequest(`/jobs/${encodeURIComponent(jobId)}/allocate`, { method: 'POST', auth: true });
     const heading = document.getElementById('offers-heading');
     const list = document.getElementById('offers-list');
     heading.hidden = false;
@@ -109,7 +110,7 @@ document.getElementById('allocate-job-button').addEventListener('click', async (
     list.innerHTML = result.offers
       .map(
         (offer, index) =>
-          `<li>#${index + 1} — Cleaner ${offer.cleaner} — score ${Math.round(offer.score)} — status: ${offer.status}</li>`
+          `<li>#${index + 1} — Cleaner ${escapeHtml(offer.cleaner)} — score ${Math.round(offer.score)} — status: ${escapeHtml(offer.status)}</li>`
       )
       .join('');
   } catch (err) {

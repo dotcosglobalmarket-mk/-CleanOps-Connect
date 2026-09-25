@@ -1,4 +1,5 @@
 import { isLoggedIn, getRole, getUser, clearSession } from './api.js';
+import { escapeHtml } from './dom.js';
 
 // Flat, geometric enterprise-SaaS mark: solid navy shield, no gradients,
 // with a bold electric-blue checkmark as the sole internal accent.
@@ -27,7 +28,7 @@ function renderNav() {
   } else {
     const dashboardHref = role === 'admin' ? 'admin.html' : role === 'cleaner' ? 'cleaner.html' : 'customer.html';
     links = `
-      <span class="nav-user">${user ? user.name : ''} (${role})</span>
+      <span class="nav-user">${escapeHtml(user ? user.name : '')} (${escapeHtml(role)})</span>
       <a href="${dashboardHref}">Dashboard</a>
       <a href="#" id="logout-link">Log out</a>
     `;

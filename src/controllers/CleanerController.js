@@ -11,7 +11,7 @@ async function create(req, res, next) {
 
 async function getById(req, res, next) {
   try {
-    const cleaner = await cleanerService.getCleanerById(req.params.id);
+    const cleaner = await cleanerService.getPublicCleanerById(req.params.id);
     if (!cleaner) {
       return res.status(404).json({ message: 'Cleaner not found' });
     }

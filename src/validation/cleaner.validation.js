@@ -6,8 +6,9 @@ const createCleanerSchema = z.object({
   companyName: z.string().optional(),
   basePostcode: z.string().min(1),
   services: z.array(objectId()).optional(),
-  dbsVerified: z.boolean().optional(),
-  coshhTrained: z.boolean().optional(),
+  // dbsVerified / coshhTrained are deliberately absent: compliance status is
+  // set only by an admin via PATCH /admin/cleaners/:id/verification after
+  // checking evidence. Unknown keys are stripped by z.object.
 });
 
 const geoJsonPolygonSchema = z.object({

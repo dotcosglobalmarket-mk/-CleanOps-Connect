@@ -78,7 +78,13 @@ paths:
   /jobs/{id}:
     get:
       summary: Get job details
+      description: >
+        Visible only to the customer who posted the job, a cleaner who was
+        offered or booked it, or an admin. Stripe fields are omitted for
+        non-admins.
       tags: [Jobs]
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/JobId'
       responses:
@@ -88,6 +94,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Job'
+        '401':
+          description: Authentication required
+        '403':
+          description: You do not have access to this job
+        '404':
+          description: Job not found
 
   /jobs/{id}/allocate:
     post:
@@ -127,17 +139,20 @@ paths:
 
   /cleaners/{id}:
     get:
-      summary: Get cleaner profile
+      summary: Get a cleaner's public profile
+      description: >
+        Returns only public fields (name, services, compliance badges, rating,
+        availability and the outward postcode as `area`). Contact details,
+        exact postcode, coordinates, Stripe and commission data are never
+        returned. Suspended cleaners return 404.
       tags: [Cleaners]
       parameters:
         - $ref: '#/components/parameters/CleanerId'
       responses:
         '200':
-          description: Cleaner profile
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CleanerProfile'
+          description: Public cleaner profile
+        '404':
+          description: Cleaner not found
 
   /cleaners/coverage:
     post:
@@ -242,7 +257,8 @@ components:
           minLength: 8
         role:
           type: string
-          enum: [customer, cleaner, admin]
+          description: Admin accounts cannot be self-registered.
+          enum: [customer, cleaner]
         phone:
           type: string
 

@@ -60,8 +60,42 @@ async function createJob(jobData) {
   return job;
 }
 
-async function getJobById(jobId) {
-  return Job.findById(jobId);
+// Payment-internal fields only the platform needs to see.
+const INTERNAL_JOB_FIELDS = ['stripePaymentIntentId', 'stripeTransferId', 'payoutAttemptCount', 'nextPayoutRetryAt'];
+
+function toPlain(doc) {
+  return typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
+}
+
+// A job contains the customer's postcode, coordinates and budget, so it is
+// visible only to: the customer who posted it, an admin, the cleaner it is
+// booked with, or a cleaner who was sent an offer for it.
+async function getJobForUser(jobId, requestingUser) {
+  const job = await Job.findById(jobId);
+  if (!job) throw notFound('Job not found');
+
+  if (requestingUser.role === 'admin') return job;
+
+  if (requestingUser.role === 'customer' && job.customer && job.customer.toString() === requestingUser.id) {
+    return stripInternalFields(job);
+  }
+
+  if (requestingUser.role === 'cleaner') {
+    const cleaner = await CleanerProfile.findOne({ user: requestingUser.id });
+    if (cleaner) {
+      const isAssigned = job.cleaner && job.cleaner.toString() === cleaner._id.toString();
+      const hasOffer = isAssigned || (await JobOffer.exists({ job: job._id, cleaner: cleaner._id }));
+      if (hasOffer) return stripInternalFields(job);
+    }
+  }
+
+  throw forbidden('You do not have access to this job');
+}
+
+function stripInternalFields(job) {
+  const plain = toPlain(job);
+  INTERNAL_JOB_FIELDS.forEach((field) => delete plain[field]);
+  return plain;
 }
 
 async function allocateJob(jobId, requestingUser) {
@@ -74,7 +108,13 @@ async function allocateJob(jobId, requestingUser) {
     throw forbidden('You do not have access to this job');
   }
 
-  const candidates = await CleanerProfile.find({ services: job.serviceType });
+  // Suspended cleaners and cleaners who have switched themselves to
+  // unavailable must never be sent offers.
+  const candidates = await CleanerProfile.find({
+    services: job.serviceType,
+    deactivationStatus: { $ne: 'suspended' },
+    available: { $ne: false },
+  });
 
   const inCoverage = coverageService.filterCleanersByCoverage(job.lat, job.lng, candidates);
   const insured = inCoverage.filter((cleaner) => insuranceService.validateInsuranceForJob(job, cleaner));
@@ -96,25 +136,61 @@ async function allocateJob(jobId, requestingUser) {
   return { jobId: job._id, offers };
 }
 
+function conflict(message) {
+  const error = new Error(message);
+  error.status = 409;
+  return error;
+}
+
 // Cleaner accepts a sent offer at a price THEY set — the platform never sets
 // or suggests a rate. Accepting books the job (creates the PaymentIntent via
 // payment.service) and declines every other outstanding offer on it.
+//
+// The offer and the job are claimed with conditional atomic updates so that
+// two cleaners accepting different offers on the same job at the same moment
+// cannot both book it (and both create a PaymentIntent).
 async function acceptOffer(jobId, offerId, requestingUser, pricePence) {
   const job = await Job.findById(jobId);
   if (!job) throw notFound('Job not found');
-  if (job.cleaner) throw badRequest('This job has already been booked with another cleaner');
+  if (job.cleaner || job.paymentStatus) {
+    throw badRequest('This job has already been booked with another cleaner');
+  }
 
   const { offer, cleaner } = await requireOwnOffer(jobId, offerId, requestingUser.id);
 
-  offer.status = 'accepted';
-  await offer.save();
+  const claimedOffer = await JobOffer.findOneAndUpdate(
+    { _id: offer._id, status: 'sent' },
+    { $set: { status: 'accepted' } },
+    { new: true }
+  );
+  if (!claimedOffer) throw badRequest('This offer is no longer available');
+
+  const claimedJob = await Job.findOneAndUpdate(
+    { _id: job._id, cleaner: null, paymentStatus: null },
+    { $set: { cleaner: cleaner._id } },
+    { new: true }
+  );
+  if (!claimedJob) {
+    await JobOffer.updateOne({ _id: offer._id }, { $set: { status: 'declined' } });
+    throw conflict('This job has just been booked with another cleaner');
+  }
+
+  let booked;
+  try {
+    booked = await paymentService.bookJob({ jobId: job._id, cleanerId: cleaner._id, pricePence });
+  } catch (err) {
+    // Release the claim so the job can still be booked by another offer.
+    await Job.updateOne({ _id: job._id, cleaner: cleaner._id, paymentStatus: null }, { $unset: { cleaner: 1 } });
+    await JobOffer.updateOne({ _id: offer._id }, { $set: { status: 'sent' } });
+    throw err;
+  }
 
   await JobOffer.updateMany(
     { job: job._id, _id: { $ne: offer._id }, status: 'sent' },
     { $set: { status: 'declined' } }
   );
 
-  return paymentService.bookJob({ jobId: job._id, cleanerId: cleaner._id, pricePence });
+  return booked;
 }
 
 async function declineOffer(jobId, offerId, requestingUser) {
@@ -126,7 +202,7 @@ async function declineOffer(jobId, offerId, requestingUser) {
 
 module.exports = {
   createJob,
-  getJobById,
+  getJobForUser,
   allocateJob,
   acceptOffer,
   declineOffer,

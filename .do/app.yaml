@@ -30,3 +30,6 @@ services:
         value: "REPLACE_WITH_JWT_SECRET"
         scope: RUN_TIME
         type: SECRET
+      - key: CORS_ORIGINS
+        value: "https://www.cleanop-connect.co.uk,https://cleanop-connect.co.uk"
+        scope: RUN_TIME
