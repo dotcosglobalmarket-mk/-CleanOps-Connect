@@ -62,11 +62,23 @@ async function requireJob(jobId) {
 
 async function bookJob({ jobId, cleanerId, pricePence }) {
   const job = await requireJob(jobId);
+  // Check bookability BEFORE creating a PaymentIntent so a job that is
+  // already booked (or cancelled) never gets an orphaned Stripe charge.
+  if (job.paymentStatus) {
+    throw badRequest('This job has already been booked');
+  }
+  if (job.cleaner && job.cleaner.toString() !== cleanerId.toString()) {
+    throw badRequest('This job has already been booked with another cleaner');
+  }
   const cleaner = await CleanerProfile.findById(cleanerId);
   if (!cleaner) throw notFound('Cleaner not found');
+  if (cleaner.deactivationStatus === 'suspended') {
+    throw badRequest('This cleaner is suspended and cannot be booked');
+  }
 
   job.cleaner = cleaner._id;
   job.pricePence = pricePence; // set by the cleaner, immutable once booked
+  job.bookedAt = new Date();
 
   const paymentIntent = await stripeService.createPaymentIntent({
     amountPence: pricePence,
@@ -136,7 +148,10 @@ async function cancelByCustomer(jobId) {
     throw badRequest('Job can only be cancelled by the customer before it has started');
   }
 
-  const hoursSinceBooking = (Date.now() - job.createdAt.getTime()) / (1000 * 60 * 60);
+  // The refund window runs from when the job was booked, not when it was
+  // posted. Jobs booked before bookedAt existed fall back to createdAt.
+  const bookedAt = job.bookedAt || job.createdAt;
+  const hoursSinceBooking = (Date.now() - bookedAt.getTime()) / (1000 * 60 * 60);
   const isWithinFullRefundWindow = hoursSinceBooking <= CUSTOMER_FULL_REFUND_WINDOW_HOURS;
 
   transition(job, EVENTS.CANCEL_BY_CUSTOMER);
@@ -266,6 +281,9 @@ async function resolveDisputeRefund(jobId) {
 
 async function resolveDisputePartial(jobId, { refundPence, payoutPence }) {
   const job = await requireJob(jobId);
+  if (job.paymentStatus !== STATES.DISPUTED) {
+    throw badRequest('Only a disputed job can be resolved');
+  }
   if (refundPence + payoutPence !== job.pricePence) {
     throw badRequest('refundPence + payoutPence must equal the original job price');
   }

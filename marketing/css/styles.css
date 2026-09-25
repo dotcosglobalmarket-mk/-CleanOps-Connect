@@ -1142,3 +1142,51 @@ table.data-table tbody tr:hover {
 .section-heading h1 {
   margin: 0;
 }
+
+/* Legal pages (privacy, terms, cookies) */
+.legal {
+  max-width: 760px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.legal h1 {
+  font-size: 1.75rem;
+  margin-top: 0;
+}
+
+.legal h2 {
+  font-size: 1.15rem;
+  margin-top: 1.75rem;
+}
+
+.legal-updated,
+.legal-links {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.legal-links {
+  margin-top: 2rem;
+}
+
+.legal-todo {
+  background: #fff4d6;
+  color: #7a4b00;
+  padding: 0 0.25rem;
+  border-radius: 3px;
+}
+
+.legal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.legal-table th,
+.legal-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}

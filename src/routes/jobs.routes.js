@@ -12,7 +12,7 @@ const {
 const router = express.Router();
 
 router.post('/', requireAuth, requireRole('customer'), validateBody(createJobSchema), JobController.create);
-router.get('/:id', validateParams(jobIdParamSchema), JobController.getById);
+router.get('/:id', requireAuth, validateParams(jobIdParamSchema), JobController.getById);
 router.post('/:id/allocate', requireAuth, validateParams(jobIdParamSchema), JobController.allocate);
 router.post(
   '/:id/offers/:offerId/accept',

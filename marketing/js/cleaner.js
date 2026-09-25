@@ -1,4 +1,5 @@
 import { apiRequest, requireRole } from './api.js';
+import { escapeHtml } from './dom.js';
 
 requireRole('cleaner');
 
@@ -64,7 +65,7 @@ function renderServiceTypeChips() {
   container.innerHTML = serviceTypes
     .map(
       (s) =>
-        `<button type="button" class="chip${selectedServiceIds.has(s._id) ? ' chip-selected' : ''}" data-id="${s._id}">${s.name}</button>`
+        `<button type="button" class="chip${selectedServiceIds.has(s._id) ? ' chip-selected' : ''}" data-id="${escapeHtml(s._id)}">${escapeHtml(s.name)}</button>`
     )
     .join('');
   container.querySelectorAll('.chip').forEach((chip) => {
@@ -81,7 +82,7 @@ function renderServiceTypeChips() {
 function renderCustomServices() {
   const container = document.getElementById('custom-services-list');
   container.innerHTML = customServices
-    .map((name, index) => `<button type="button" class="chip chip-selected" data-index="${index}">${name} ×</button>`)
+    .map((name, index) => `<button type="button" class="chip chip-selected" data-index="${index}">${escapeHtml(name)} ×</button>`)
     .join('');
   container.querySelectorAll('.chip').forEach((chip) => {
     chip.addEventListener('click', () => {
@@ -136,8 +137,8 @@ function populateFromProfile(cleaner) {
   document.getElementById('startTime').value = cleaner.startTime || '';
   document.getElementById('endTime').value = cleaner.endTime || '';
   document.getElementById('acceptEmergencyBookings').checked = Boolean(cleaner.acceptEmergencyBookings);
-  document.getElementById('dbsVerified').checked = Boolean(cleaner.dbsVerified);
-  document.getElementById('coshhTrained').checked = Boolean(cleaner.coshhTrained);
+  document.getElementById('dbs-status').textContent = cleaner.dbsVerified ? 'Verified' : 'Not yet verified';
+  document.getElementById('coshh-status').textContent = cleaner.coshhTrained ? 'Verified' : 'Not yet verified';
   document.getElementById('radiusKm').value = cleaner.coverageRadiusKm ?? '';
 
   selectedWorkingDays = new Set(cleaner.workingDays || []);
@@ -197,8 +198,6 @@ document.getElementById('profile-form').addEventListener('submit', async (event)
     startTime: document.getElementById('startTime').value,
     endTime: document.getElementById('endTime').value,
     acceptEmergencyBookings: document.getElementById('acceptEmergencyBookings').checked,
-    dbsVerified: document.getElementById('dbsVerified').checked,
-    coshhTrained: document.getElementById('coshhTrained').checked,
     workingDays: Array.from(selectedWorkingDays),
     services: Array.from(selectedServiceIds),
     customServices,

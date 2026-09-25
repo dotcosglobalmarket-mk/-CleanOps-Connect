@@ -11,10 +11,13 @@ const {
 
 const router = express.Router();
 
+// Normal bookings happen when a cleaner accepts an offer at the price they
+// set (POST /jobs/:id/offers/:offerId/accept). This endpoint is an admin-only
+// manual override; a customer must never choose the cleaner's price.
 router.post(
   '/jobs/:id/book',
   requireAuth,
-  requireRole('customer', 'admin'),
+  requireRole('admin'),
   validateParams(jobIdParamSchema),
   validateBody(bookJobSchema),
   PaymentController.book

@@ -11,10 +11,7 @@ async function create(req, res, next) {
 
 async function getById(req, res, next) {
   try {
-    const job = await jobService.getJobById(req.params.id);
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found' });
-    }
+    const job = await jobService.getJobForUser(req.params.id, req.user);
     res.status(200).json(job);
   } catch (err) {
     next(err);

@@ -57,6 +57,23 @@ describe('Cleaners routes', () => {
       expect(res.body.lat).toBe(51.5);
       expect(saveMock).toHaveBeenCalledTimes(1);
     });
+
+    it('ignores self-declared DBS / COSHH status — only an admin can verify compliance', async () => {
+      mapboxService.geocodePostcode.mockResolvedValue({ lat: 51.5, lng: -0.1 });
+      CleanerProfile.mockImplementation(function (data) {
+        Object.assign(this, data);
+        this.save = jest.fn().mockResolvedValue(undefined);
+      });
+
+      const res = await request(app)
+        .post('/cleaners')
+        .set('Authorization', authHeaderFor('cleaner', 'cleanerUser1'))
+        .send({ name: 'Bob', basePostcode: 'SW1A 1AA', dbsVerified: true, coshhTrained: true });
+
+      expect(res.status).toBe(201);
+      expect(res.body.dbsVerified).toBeUndefined();
+      expect(res.body.coshhTrained).toBeUndefined();
+    });
   });
 
   describe('POST /cleaners/coverage', () => {
@@ -188,6 +205,37 @@ describe('Cleaners routes', () => {
 
     it('returns 404 when the cleaner does not exist', async () => {
       CleanerProfile.findById.mockResolvedValue(null);
+      const res = await request(app).get('/cleaners/507f1f77bcf86cd799439011');
+      expect(res.status).toBe(404);
+    });
+
+    it('returns only the public profile — no contact details, address, coordinates or Stripe data', async () => {
+      CleanerProfile.findById.mockResolvedValue({
+        _id: '507f1f77bcf86cd799439011',
+        name: 'Bob',
+        basePostcode: 'LS12 1AB',
+        lat: 53.79,
+        lng: -1.59,
+        dbsVerified: true,
+        ratingAverage: 4.8,
+        phoneNumber: '07700 900000',
+        contactEmail: 'bob@example.com',
+        stripeConnectedAccountId: 'acct_123',
+        commissionTierRate: 0.15,
+        deactivationStatus: 'active',
+      });
+
+      const res = await request(app).get('/cleaners/507f1f77bcf86cd799439011');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ name: 'Bob', dbsVerified: true, ratingAverage: 4.8, area: 'LS12' });
+      ['basePostcode', 'lat', 'lng', 'phoneNumber', 'contactEmail', 'stripeConnectedAccountId', 'commissionTierRate'].forEach(
+        (field) => expect(res.body[field]).toBeUndefined()
+      );
+    });
+
+    it('returns 404 for a suspended cleaner', async () => {
+      CleanerProfile.findById.mockResolvedValue({ _id: '507f1f77bcf86cd799439011', name: 'Bob', deactivationStatus: 'suspended' });
       const res = await request(app).get('/cleaners/507f1f77bcf86cd799439011');
       expect(res.status).toBe(404);
     });

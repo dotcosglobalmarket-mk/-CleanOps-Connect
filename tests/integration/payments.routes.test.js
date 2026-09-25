@@ -40,7 +40,7 @@ describe('Payments routes', () => {
       expect(res.status).toBe(401);
     });
 
-    it('returns 403 for a cleaner (only customer/admin may book)', async () => {
+    it('returns 403 for a cleaner (only admin may book directly)', async () => {
       const res = await request(app)
         .post(`/payments/jobs/${jobId}/book`)
         .set('Authorization', authHeaderFor('cleaner'))
@@ -48,12 +48,21 @@ describe('Payments routes', () => {
       expect(res.status).toBe(403);
     });
 
-    it('books the job at the price the cleaner set, using validated input', async () => {
+    it('returns 403 for a customer — customers cannot pick a cleaner or set the price directly', async () => {
+      const res = await request(app)
+        .post(`/payments/jobs/${jobId}/book`)
+        .set('Authorization', authHeaderFor('customer'))
+        .send({ cleanerId, pricePence: 1 });
+      expect(res.status).toBe(403);
+      expect(paymentService.bookJob).not.toHaveBeenCalled();
+    });
+
+    it('lets an admin manually book the job, using validated input', async () => {
       paymentService.bookJob.mockResolvedValue({ _id: jobId, paymentStatus: 'BOOKED', pricePence: 5000 });
 
       const res = await request(app)
         .post(`/payments/jobs/${jobId}/book`)
-        .set('Authorization', authHeaderFor('customer'))
+        .set('Authorization', authHeaderFor('admin'))
         .send({ cleanerId, pricePence: 5000 });
 
       expect(res.status).toBe(201);
@@ -63,7 +72,7 @@ describe('Payments routes', () => {
     it('rejects a negative price at the validation layer', async () => {
       const res = await request(app)
         .post(`/payments/jobs/${jobId}/book`)
-        .set('Authorization', authHeaderFor('customer'))
+        .set('Authorization', authHeaderFor('admin'))
         .send({ cleanerId, pricePence: -100 });
 
       expect(res.status).toBe(400);

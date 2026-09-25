@@ -1,4 +1,5 @@
 import { apiRequest, requireRole } from './api.js';
+import { escapeHtml } from './dom.js';
 
 requireRole('admin');
 
@@ -36,15 +37,6 @@ function hideAlert(id) {
   document.getElementById(id).hidden = true;
 }
 
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  })[c]);
-}
 
 function renderTable({ columns, rows, emptyMessage }) {
   if (!rows.length) {

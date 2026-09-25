@@ -121,6 +121,11 @@ const jobSchema = new mongoose.Schema(
     awaitingConfirmationAt: {
       type: Date,
     },
+    // When the job was booked with a cleaner. The customer cancellation
+    // refund window is measured from this, not from createdAt.
+    bookedAt: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );

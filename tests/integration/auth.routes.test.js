@@ -25,6 +25,18 @@ describe('Auth routes', () => {
       expect(User.create).not.toHaveBeenCalled();
     });
 
+    it('rejects self-registration as an admin', async () => {
+      const res = await request(app).post('/auth/register').send({
+        name: 'Mallory',
+        email: 'mallory@example.com',
+        password: 'password123',
+        role: 'admin',
+      });
+
+      expect(res.status).toBe(400);
+      expect(User.create).not.toHaveBeenCalled();
+    });
+
     it('registers a new user and returns a valid token', async () => {
       User.findOne.mockResolvedValue(null);
       User.create.mockResolvedValue({

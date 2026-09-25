@@ -4,7 +4,9 @@ const registerSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(['customer', 'cleaner', 'admin']),
+  // Self-registration is limited to marketplace roles. Admin accounts must
+  // never be creatable from a public endpoint.
+  role: z.enum(['customer', 'cleaner']),
   phone: z.string().optional(),
 });
 

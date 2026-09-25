@@ -200,3 +200,86 @@ describe('account.updated recheck', () => {
     expect(stripeService.createTransfer).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('bookJob — state is checked before any Stripe call', () => {
+  it('does not create a PaymentIntent for a job that is already booked', async () => {
+    Job.findById.mockResolvedValue(makeJob({ paymentStatus: STATES.BOOKED }));
+
+    await expect(
+      paymentService.bookJob({ jobId: 'job1', cleanerId: 'cleaner1', pricePence: 5000 })
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(stripeService.createPaymentIntent).not.toHaveBeenCalled();
+  });
+
+  it('does not book a suspended cleaner', async () => {
+    Job.findById.mockResolvedValue(makeJob({ cleaner: null, paymentStatus: undefined }));
+    CleanerProfile.findById.mockResolvedValue(makeCleaner({ deactivationStatus: 'suspended' }));
+
+    await expect(
+      paymentService.bookJob({ jobId: 'job1', cleanerId: 'cleaner1', pricePence: 5000 })
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(stripeService.createPaymentIntent).not.toHaveBeenCalled();
+  });
+
+  it('records bookedAt when the job is booked', async () => {
+    const job = makeJob({ cleaner: null, paymentStatus: undefined });
+    Job.findById.mockResolvedValue(job);
+    CleanerProfile.findById.mockResolvedValue(makeCleaner());
+    stripeService.createPaymentIntent.mockResolvedValue({ id: 'pi_new' });
+
+    await paymentService.bookJob({ jobId: 'job1', cleanerId: 'cleaner1', pricePence: 5000 });
+
+    expect(job.paymentStatus).toBe(STATES.BOOKED);
+    expect(job.bookedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe('cancelByCustomer — refund window runs from booking, not from posting', () => {
+  it('gives a full refund when booked recently even if the job was posted long ago', async () => {
+    const job = makeJob({
+      paymentStatus: STATES.PAID_HELD,
+      stripePaymentIntentId: 'pi_1',
+      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      bookedAt: new Date(Date.now() - 60 * 60 * 1000),
+    });
+    Job.findById.mockResolvedValue(job);
+
+    await paymentService.cancelByCustomer('job1');
+
+    expect(stripeService.createRefund).toHaveBeenCalledWith(
+      expect.not.objectContaining({ amountPence: expect.anything() })
+    );
+    expect(job.paymentStatus).toBe(STATES.REFUNDED);
+  });
+
+  it('gives a 50% refund when cancelled more than 24 hours after booking', async () => {
+    const job = makeJob({
+      paymentStatus: STATES.PAID_HELD,
+      stripePaymentIntentId: 'pi_1',
+      pricePence: 10000,
+      bookedAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+    });
+    Job.findById.mockResolvedValue(job);
+
+    await paymentService.cancelByCustomer('job1');
+
+    expect(stripeService.createRefund).toHaveBeenCalledWith(expect.objectContaining({ amountPence: 5000 }));
+    expect(job.paymentStatus).toBe(STATES.PARTIALLY_REFUNDED);
+  });
+});
+
+describe('resolveDisputePartial — only runs on a disputed job', () => {
+  it('refuses to refund or transfer when the job is not DISPUTED', async () => {
+    Job.findById.mockResolvedValue(makeJob({ paymentStatus: STATES.PAID_OUT, pricePence: 10000 }));
+    CleanerProfile.findById.mockResolvedValue(makeCleaner());
+
+    await expect(
+      paymentService.resolveDisputePartial('job1', { refundPence: 5000, payoutPence: 5000 })
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(stripeService.createRefund).not.toHaveBeenCalled();
+    expect(stripeService.createTransfer).not.toHaveBeenCalled();
+  });
+});
