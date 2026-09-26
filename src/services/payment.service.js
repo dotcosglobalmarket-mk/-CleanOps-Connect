@@ -251,7 +251,7 @@ async function autoConfirmExpiredJobs(now = new Date()) {
 
 // --- Disputes ---
 
-async function raiseDispute(jobId, reasonCode) {
+async function raiseDispute(jobId, reasonCode, detail) {
   if (!DISPUTE_REASON_CODES.includes(reasonCode)) {
     throw badRequest(`reasonCode must be one of: ${DISPUTE_REASON_CODES.join(', ')}`);
   }
@@ -259,6 +259,8 @@ async function raiseDispute(jobId, reasonCode) {
   const job = await requireJob(jobId);
   transition(job, EVENTS.RAISE_DISPUTE);
   job.disputeReason = reasonCode;
+  job.disputeDetail = detail;
+  job.disputedAt = new Date();
   await job.save();
   console.log(`[payments] Job ${job._id}: flagged for review (${reasonCode}). Auto-confirm timer frozen.`);
   return job;

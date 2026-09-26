@@ -18,8 +18,14 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['customer', 'cleaner', 'admin'],
+      enum: ['customer', 'cleaner', 'operator', 'admin'],
       default: 'customer',
+    },
+    // Staff accounts are deactivated rather than deleted so the audit trail
+    // keeps pointing at a real user. Inactive accounts cannot log in.
+    active: {
+      type: Boolean,
+      default: true,
     },
     phone: {
       type: String,

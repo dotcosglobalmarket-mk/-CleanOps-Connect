@@ -97,6 +97,23 @@ describe('Auth routes', () => {
       expect(typeof res.body.token).toBe('string');
     });
 
+    it('rejects a deactivated account even with the correct password', async () => {
+      const passwordHash = await bcrypt.hash('password123', 4);
+      User.findOne.mockResolvedValue({
+        _id: 'user9',
+        name: 'Former Operator',
+        email: 'former@example.com',
+        role: 'operator',
+        active: false,
+        passwordHash,
+      });
+
+      const res = await request(app).post('/auth/login').send({ email: 'former@example.com', password: 'password123' });
+
+      expect(res.status).toBe(401);
+      expect(res.body.token).toBeUndefined();
+    });
+
     it('rejects an unknown email', async () => {
       User.findOne.mockResolvedValue(null);
 

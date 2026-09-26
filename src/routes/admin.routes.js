@@ -1,6 +1,6 @@
 const express = require('express');
 const AdminController = require('../controllers/AdminController');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole, requireActiveStaff } = require('../middleware/auth');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
 const {
   listCleanersQuerySchema,
@@ -9,11 +9,18 @@ const {
   updateCleanerDeactivationSchema,
   listJobsQuerySchema,
   jobIdParamSchema,
+  listApprovalsQuerySchema,
+  approvalDecisionSchema,
+  listAuditQuerySchema,
+  listStaffQuerySchema,
+  createStaffSchema,
+  updateStaffSchema,
 } = require('../validation/admin.validation');
+const { idParamSchema } = require('../validation/ops.validation');
 
 const router = express.Router();
 
-router.use(requireAuth, requireRole('admin'));
+router.use(requireAuth, requireRole('admin'), requireActiveStaff);
 
 router.get('/summary', AdminController.summary);
 
@@ -34,5 +41,21 @@ router.patch(
 
 router.get('/jobs', validateQuery(listJobsQuerySchema), AdminController.listJobs);
 router.get('/jobs/:id', validateParams(jobIdParamSchema), AdminController.getJob);
+
+// Maker-checker: refunds above the ops limit raised by operators.
+router.get('/approvals', validateQuery(listApprovalsQuerySchema), AdminController.listApprovals);
+router.post(
+  '/approvals/:id/decision',
+  validateParams(idParamSchema),
+  validateBody(approvalDecisionSchema),
+  AdminController.decideApproval
+);
+
+router.get('/audit', validateQuery(listAuditQuerySchema), AdminController.listAudit);
+
+// Staff (operator/admin) accounts. These cannot be self-registered.
+router.get('/users', validateQuery(listStaffQuerySchema), AdminController.listStaff);
+router.post('/users', validateBody(createStaffSchema), AdminController.createStaff);
+router.patch('/users/:id', validateParams(idParamSchema), validateBody(updateStaffSchema), AdminController.updateStaff);
 
 module.exports = router;

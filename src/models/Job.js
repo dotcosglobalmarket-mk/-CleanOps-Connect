@@ -118,6 +118,14 @@ const jobSchema = new mongoose.Schema(
     disputeReason: {
       type: String,
     },
+    // Free-text detail the customer gave alongside the reason code.
+    disputeDetail: {
+      type: String,
+      maxlength: 2000,
+    },
+    disputedAt: {
+      type: Date,
+    },
     awaitingConfirmationAt: {
       type: Date,
     },
