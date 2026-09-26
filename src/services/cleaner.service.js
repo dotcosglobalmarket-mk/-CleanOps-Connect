@@ -109,6 +109,7 @@ async function setCoverage(cleanerId, coverageData, requestingUser) {
 module.exports = {
   createCleaner,
   getPublicCleanerById,
+  outwardCode,
   getMyProfile,
   updateMyProfile,
   setCoverage,

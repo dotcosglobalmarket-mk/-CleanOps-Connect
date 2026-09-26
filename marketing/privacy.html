@@ -44,6 +44,8 @@
         <li><strong>Cleaner profile</strong> — name, trading or company name, base postcode, coverage area, services, availability, rates, contact details you choose to add, ratings, and compliance status (DBS, COSHH training, insurance).</li>
         <li><strong>Payments</strong> — card payments are taken by Stripe. We never see or store full card numbers. We keep payment references, amounts, refunds and payout status.</li>
         <li><strong>Disputes and support</strong> — the reason code and any detail you give when raising a dispute, and records of how it was resolved.</li>
+        <li><strong>Reviews</strong> — the rating and comment you leave after a completed job. Reviews are published with your first name and last initial only.</li>
+        <li><strong>Cleaner payouts</strong> — Stripe verifies cleaners' identity and bank details during payout set-up. We only keep the Stripe account reference and whether payouts are enabled.</li>
         <li><strong>Technical data</strong> — IP address and request logs needed to run and secure the service.</li>
       </ul>
 
@@ -56,6 +58,8 @@
           <tr><td>Taking payment, holding it until the job is confirmed, paying cleaners, refunds</td><td>Contract; legal obligation (financial records)</td></tr>
           <tr><td>Checking cleaner DBS, COSHH and insurance status before showing it as verified</td><td>Legitimate interests (customer safety and trust)</td></tr>
           <tr><td>Resolving disputes and preventing fraud or misuse</td><td>Legitimate interests</td></tr>
+          <tr><td>Emails about your bookings (offers, payment, check-in, completion, disputes, payouts)</td><td>Contract</td></tr>
+          <tr><td>Publishing reviews from completed bookings</td><td>Legitimate interests (helping customers choose, and fair treatment of cleaners)</td></tr>
           <tr><td>Keeping the service secure (logs, rate limiting)</td><td>Legitimate interests</td></tr>
         </tbody>
       </table>
@@ -77,6 +81,7 @@
         <li><strong>The other party to a job</strong> — once a job is offered or booked, the cleaner sees the job details they need to do it.</li>
         <li><strong>Stripe</strong> — payment processing, holding funds and cleaner payouts.</li>
         <li><strong>Mapbox</strong> — turning postcodes into map locations.</li>
+        <li><strong>Resend</strong> — sending emails about your bookings.</li>
         <li><strong>Hosting providers</strong> — DigitalOcean (application, London region), our database host <span class="legal-todo">[To be completed: database provider and region]</span>, and Cloudflare (website delivery).</li>
         <li>Regulators, the police or courts where the law requires it.</li>
       </ul>

@@ -27,6 +27,7 @@
       <button type="button" class="dash-nav-item" data-panel="payments">Payments Queue</button>
       <button type="button" class="dash-nav-item" data-panel="jobs">Jobs</button>
       <button type="button" class="dash-nav-item" data-panel="cleaners">Cleaners</button>
+      <button type="button" class="dash-nav-item" data-panel="reviews">Reviews</button>
     </aside>
 
     <div class="dash-content">
@@ -226,6 +227,33 @@
           <button id="cleaners-filter-apply" type="button">Apply</button>
         </div>
         <div id="cleaners-table" class="table-wrap"></div>
+      </section>
+
+      <!-- Reviews -->
+      <section id="panel-reviews" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Reviews</h2>
+          <button id="reviews-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Only hide a review that breaks the content policy — abuse, personal information (such as an address or phone
+          number) or content unrelated to the job. <strong>Never hide a review because it is negative</strong>: that is
+          unlawful under the Digital Markets, Competition and Consumers Act 2024. Every change is recorded with your reason.
+        </p>
+        <div id="reviews-alert" class="alert alert-error" hidden></div>
+        <div id="reviews-success" class="alert alert-success" hidden></div>
+        <div class="filter-bar">
+          <div class="form-row">
+            <label for="reviews-filter-status">Status</label>
+            <select id="reviews-filter-status">
+              <option value="">All</option>
+              <option value="published">Published</option>
+              <option value="hidden">Hidden</option>
+            </select>
+          </div>
+          <button id="reviews-filter-apply" type="button">Apply</button>
+        </div>
+        <div id="reviews-table" class="table-wrap"></div>
       </section>
     </div>
   </main>

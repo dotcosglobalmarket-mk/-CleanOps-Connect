@@ -45,8 +45,26 @@ async function declineOffer(req, res, next) {
   }
 }
 
+async function listMine(req, res, next) {
+  try {
+    res.status(200).json(await jobService.listJobsForCustomer(req.user.id));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function listOffers(req, res, next) {
+  try {
+    res.status(200).json(await jobService.listOffersForCustomer(req.params.id, req.user));
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   create,
+  listMine,
+  listOffers,
   getById,
   allocate,
   acceptOffer,

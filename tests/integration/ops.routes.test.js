@@ -1,3 +1,5 @@
+// Lifecycle emails are fire-and-forget side effects; tested in notification.service.test.js.
+jest.mock('../../src/services/notification.service');
 const staffAccounts = {};
 jest.mock('../../src/models/User', () => ({
   findById: jest.fn((id) => Promise.resolve(staffAccounts[id] || null)),

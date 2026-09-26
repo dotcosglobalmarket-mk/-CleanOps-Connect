@@ -62,8 +62,13 @@ const updateMyProfileSchema = z.object({
   customServices: z.array(z.string().min(1)).optional(),
 });
 
+const listMyOffersQuerySchema = z.object({
+  status: z.enum(['sent', 'accepted', 'declined', 'expired']).optional(),
+});
+
 module.exports = {
   createCleanerSchema,
+  listMyOffersQuerySchema,
   coverageSchema,
   cleanerIdParamSchema,
   updateMyProfileSchema,

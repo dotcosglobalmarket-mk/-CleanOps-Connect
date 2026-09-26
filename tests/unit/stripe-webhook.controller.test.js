@@ -1,3 +1,5 @@
+// Lifecycle emails are fire-and-forget side effects; tested in notification.service.test.js.
+jest.mock('../../src/services/notification.service');
 jest.mock('../../src/services/stripe.service');
 jest.mock('../../src/models/ProcessedWebhookEvent');
 jest.mock('../../src/services/payment.service');

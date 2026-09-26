@@ -2,6 +2,8 @@ const Job = require('../models/Job');
 const CleanerProfile = require('../models/CleanerProfile');
 const stripeService = require('./stripe.service');
 const { STATES, EVENTS, transition, PaymentStateError } = require('./payment-state-machine');
+const notifications = require('./notification.service');
+const logger = require('../utils/logger');
 
 const MAX_TRANSFER_ATTEMPTS = 3;
 const RETRY_BACKOFF_MINUTES = [5, 30, 120]; // 5min -> 30min -> 2hr
@@ -91,10 +93,28 @@ async function bookJob({ jobId, cleanerId, pricePence }) {
   return job;
 }
 
+// Customer cancels a booked job before paying. The PaymentIntent is
+// cancelled at Stripe FIRST: if the customer's payment has just gone
+// through, Stripe refuses and we keep the job, so a payment can never land
+// on a job we have already cancelled.
 async function cancelBooked(jobId) {
   const job = await requireJob(jobId);
+  if (job.paymentStatus !== STATES.BOOKED) {
+    throw badRequest('Only a booked job that has not been paid for can be cancelled this way');
+  }
+
+  if (job.stripePaymentIntentId) {
+    try {
+      await stripeService.cancelPaymentIntent(job.stripePaymentIntentId);
+    } catch (err) {
+      throw badRequest('Your payment is already being processed, so this booking cannot be cancelled without a refund. Please refresh and try again.');
+    }
+  }
+
   transition(job, EVENTS.CANCEL_BOOKED);
+  job.status = 'cancelled';
   await job.save();
+  notifications.jobCancelled(job, { by: 'customer' });
   return job;
 }
 
@@ -111,8 +131,7 @@ async function handlePaymentSucceeded(paymentIntentId, amountReceivedPence) {
 
   transition(job, EVENTS.PAYMENT_SUCCEEDED);
   await job.save();
-  // notify cleaner — logging stands in for a real notification channel
-  console.log(`[payments] Job ${job._id}: notifying cleaner, payment held.`);
+  notifications.paymentReceived(job);
   return job;
 }
 
@@ -125,6 +144,7 @@ async function cancelByCleaner(jobId) {
   }
 
   transition(job, EVENTS.CANCEL_BY_CLEANER);
+  job.status = 'cancelled';
   await job.save();
 
   await stripeService.createRefund({
@@ -135,10 +155,11 @@ async function cancelByCleaner(jobId) {
   // Dock reliability score — NOT automatic deactivation. No fully
   // automated, irreversible deactivation is permitted; any escalation must
   // route through deactivationStatus = 'under_review' for human review.
-  console.log(`[payments] Job ${job._id}: cleaner cancellation logged against reliability score.`);
+  logger.info(`[payments] Job ${job._id}: cleaner cancellation logged against reliability score.`);
 
   transition(job, EVENTS.REFUND_DONE);
   await job.save();
+  notifications.jobCancelled(job, { by: 'cleaner', refundPence: job.pricePence });
   return job;
 }
 
@@ -155,6 +176,7 @@ async function cancelByCustomer(jobId) {
   const isWithinFullRefundWindow = hoursSinceBooking <= CUSTOMER_FULL_REFUND_WINDOW_HOURS;
 
   transition(job, EVENTS.CANCEL_BY_CUSTOMER);
+  job.status = 'cancelled';
   await job.save();
 
   if (isWithinFullRefundWindow) {
@@ -174,6 +196,7 @@ async function cancelByCustomer(jobId) {
   }
 
   await job.save();
+  notifications.jobCancelled(job, { by: 'customer' });
   return job;
 }
 
@@ -182,16 +205,19 @@ async function cancelByCustomer(jobId) {
 async function checkIn(jobId) {
   const job = await requireJob(jobId);
   transition(job, EVENTS.CHECK_IN);
+  job.status = 'in_progress';
   await job.save();
+  notifications.cleanerArrived(job);
   return job;
 }
 
 async function markComplete(jobId) {
   const job = await requireJob(jobId);
   transition(job, EVENTS.MARK_COMPLETE);
+  job.status = 'completed';
   job.awaitingConfirmationAt = new Date();
   await job.save();
-  console.log(`[payments] Job ${job._id}: notifying customer, 48hr auto-confirm timer started.`);
+  notifications.jobCompleted(job);
   return job;
 }
 
@@ -228,6 +254,7 @@ async function confirmJob(jobId) {
 
   transition(job, EVENTS.CONFIRM);
   await job.save();
+  notifications.jobConfirmed(job);
   return enterPayoutPending(job);
 }
 
@@ -244,6 +271,7 @@ async function autoConfirmExpiredJobs(now = new Date()) {
   for (const job of jobs) {
     transition(job, EVENTS.CONFIRM);
     await job.save();
+    notifications.jobConfirmed(job);
     results.push(await enterPayoutPending(job));
   }
   return results;
@@ -262,7 +290,7 @@ async function raiseDispute(jobId, reasonCode, detail) {
   job.disputeDetail = detail;
   job.disputedAt = new Date();
   await job.save();
-  console.log(`[payments] Job ${job._id}: flagged for review (${reasonCode}). Auto-confirm timer frozen.`);
+  notifications.disputeRaised(job);
   return job;
 }
 
@@ -334,7 +362,7 @@ async function attemptTransfer(job, cleaner) {
   if (!cleaner.payoutsEnabled) {
     transition(job, EVENTS.BLOCK_PAYOUT);
     await job.save();
-    console.log(`[payments] Job ${job._id}: payout blocked, cleaner has not finished Stripe onboarding.`);
+    notifications.payoutsNeedSetup(job);
     return job;
   }
 
@@ -362,7 +390,10 @@ async function handleTransferError(job) {
     transition(job, EVENTS.ESCALATE_MANUAL);
     job.nextPayoutRetryAt = undefined;
     await job.save();
-    console.log(`[payments] ALERT ops: Job ${job._id} exhausted ${MAX_TRANSFER_ATTEMPTS} transfer retries.`);
+    notifications.opsAlert(
+      `Payout on hold: job ${String(job._id).slice(-8)}`,
+      `The transfer to the cleaner failed ${MAX_TRANSFER_ATTEMPTS} times and is now in MANUAL_REVIEW_HOLD. Retry it from the payments queue once the cause is fixed.`
+    );
     return job;
   }
 
@@ -425,7 +456,7 @@ async function handleTransferPaid(transferId) {
 
   transition(job, EVENTS.TRANSFER_PAID);
   await job.save();
-  console.log(`[payments] Job ${job._id}: paid out, rating eligibility unlocked.`);
+  notifications.payoutSent(job);
   return job;
 }
 
@@ -446,7 +477,7 @@ async function handlePayoutFailed(connectedAccountId) {
   if (!cleaner) return null;
   cleaner.payoutsEnabled = false;
   await cleaner.save();
-  console.log(`[payments] Cleaner ${cleaner._id}: payout to bank failed, notify to fix bank details.`);
+  notifications.bankPayoutFailed(cleaner);
   return cleaner;
 }
 
@@ -478,7 +509,10 @@ async function handleChargeDisputeCreated(paymentIntentId, reason) {
   if (!job) return null;
   job.disputeReason = `stripe_chargeback: ${reason}`;
   await job.save();
-  console.log(`[payments] ALERT ops: Stripe chargeback on job ${job._id} (${reason}).`);
+  notifications.opsAlert(
+    `Card chargeback on job ${String(job._id).slice(-8)}`,
+    `The customer's bank has opened a chargeback (${reason}). Respond in the Stripe dashboard before the deadline.`
+  );
   return job;
 }
 

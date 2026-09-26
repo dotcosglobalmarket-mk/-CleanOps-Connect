@@ -19,91 +19,164 @@
   </header>
 
   <main>
-    <h1>Customer dashboard</h1>
+    <div class="section-heading">
+      <h1>My jobs</h1>
+      <button id="show-post-job" type="button">Post a job</button>
+    </div>
 
-    <div class="card">
+    <div id="page-alert" class="alert alert-error" hidden></div>
+    <div id="page-success" class="alert alert-success" hidden></div>
+
+    <div class="card" id="post-job-card" hidden>
       <h2>Post a job</h2>
       <div id="create-alert" class="alert alert-error" hidden></div>
-      <div id="create-success" class="alert alert-success" hidden></div>
 
       <form id="create-job-form">
-        <div class="form-row">
-          <label for="serviceType">Service type</label>
-          <select id="serviceType" required>
-            <option value="" disabled selected>Loading service types…</option>
-          </select>
-          <span id="serviceType-help" class="field-help" hidden>
-            Couldn't load service types from the API — check VITE_API_URL.
-          </span>
-        </div>
-
-        <div class="form-row">
-          <label for="category">Category</label>
-          <select id="category" required>
-            <option value="domestic">Domestic</option>
-            <option value="industrial">Industrial</option>
-          </select>
-        </div>
-
-        <div class="form-row">
-          <label for="postcode">Postcode</label>
-          <input id="postcode" type="text" placeholder="SW1A 1AA" required />
-        </div>
-
-        <div class="form-row">
-          <label for="description">Description (optional)</label>
-          <textarea id="description" rows="3"></textarea>
-        </div>
-
-        <div class="form-row">
-          <label for="frequency">Frequency</label>
-          <select id="frequency">
-            <option value="one_off">One-off</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="contract">Contract</option>
-          </select>
-        </div>
-
-        <div class="form-row">
-          <label for="estimatedHours">Estimated hours (optional)</label>
-          <input id="estimatedHours" type="number" min="0" step="0.5" />
+        <div class="two-column">
+          <div class="form-row">
+            <label for="category">Category</label>
+            <select id="category" required>
+              <option value="domestic">Domestic</option>
+              <option value="industrial">Industrial</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="serviceType">Service type</label>
+            <select id="serviceType" required>
+              <option value="" disabled selected>Loading service types…</option>
+            </select>
+            <span id="serviceType-help" class="field-help" hidden>
+              Couldn't load service types. Please refresh the page.
+            </span>
+          </div>
         </div>
 
         <div class="two-column">
           <div class="form-row">
-            <label for="budgetMin">Budget min (£)</label>
-            <input id="budgetMin" type="number" min="0" step="1" required />
+            <label for="postcode">Postcode</label>
+            <input id="postcode" type="text" placeholder="LS12 1AB" autocomplete="postal-code" required />
           </div>
           <div class="form-row">
-            <label for="budgetMax">Budget max (£)</label>
-            <input id="budgetMax" type="number" min="0" step="1" required />
+            <label for="frequency">How often</label>
+            <select id="frequency">
+              <option value="one_off">One-off</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="contract">Contract</option>
+            </select>
           </div>
         </div>
 
-        <button type="submit">Post job</button>
+        <div class="form-row">
+          <label for="description">What needs doing? (optional)</label>
+          <textarea id="description" rows="3" maxlength="2000"></textarea>
+          <span class="field-help">Cleaners see this and your area (e.g. LS12). Your full postcode is only shared with the cleaner you book.</span>
+        </div>
+
+        <div class="two-column">
+          <div class="form-row">
+            <label for="estimatedHours">Estimated hours (optional)</label>
+            <input id="estimatedHours" type="number" min="0" step="0.5" />
+          </div>
+          <div class="two-column">
+            <div class="form-row">
+              <label for="budgetMin">Budget from (£)</label>
+              <input id="budgetMin" type="number" min="0" step="1" required />
+            </div>
+            <div class="form-row">
+              <label for="budgetMax">Budget to (£)</label>
+              <input id="budgetMax" type="number" min="0" step="1" required />
+            </div>
+          </div>
+        </div>
+
+        <button type="submit">Post job and find cleaners</button>
       </form>
     </div>
 
-    <div class="card">
-      <h2>View a job</h2>
-      <div id="view-alert" class="alert alert-error" hidden></div>
+    <div id="jobs-list" class="table-wrap"></div>
 
-      <div class="form-row">
-        <label for="jobId">Job ID</label>
-        <input id="jobId" type="text" />
+    <article id="job-detail" class="card detail-pane" hidden>
+      <div class="section-heading">
+        <h2 id="job-title">Job</h2>
+        <button id="close-job" type="button" class="secondary">Close</button>
       </div>
+      <p id="job-status-text" class="job-status-text"></p>
+      <dl id="job-facts" class="detail-grid"></dl>
 
-      <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
-        <button id="view-job-button" type="button">View job</button>
-        <button id="allocate-job-button" type="button" class="secondary">Allocate cleaners</button>
-      </div>
+      <!-- Offers -->
+      <section id="offers-section" hidden>
+        <h3>Cleaners we've asked</h3>
+        <p class="field-help">The first cleaner to accept books the job at their price. You'll get an email when that happens.</p>
+        <ul id="offers-list" class="offer-list"></ul>
+        <button id="find-cleaners" type="button" hidden>Find cleaners</button>
+      </section>
 
-      <pre id="job-details" style="white-space: pre-wrap; font-size: 0.85rem;" hidden></pre>
+      <!-- Payment -->
+      <section id="payment-section" hidden>
+        <h3>Pay to confirm your booking</h3>
+        <p class="field-help">
+          Your payment is held securely by Stripe and only released to the cleaner after you confirm the job is done
+          (or 48 hours after they finish, if you don't report a problem).
+        </p>
+        <div id="payment-element"></div>
+        <div id="payment-alert" class="alert alert-error" hidden></div>
+        <button id="pay-button" type="button" style="margin-top: 1rem;">Pay</button>
+      </section>
 
-      <h3 id="offers-heading" hidden>Ranked offers</h3>
-      <ul id="offers-list" class="offer-list" hidden></ul>
-    </div>
+      <!-- Confirm or report a problem -->
+      <section id="confirm-section" hidden>
+        <h3>Is the job done?</h3>
+        <p class="field-help" id="confirm-deadline"></p>
+        <button id="confirm-button" type="button">Yes, confirm and pay the cleaner</button>
+
+        <details style="margin-top: 1rem;">
+          <summary>Report a problem instead</summary>
+          <form id="dispute-form">
+            <div class="form-row">
+              <label for="dispute-reason">What went wrong?</label>
+              <select id="dispute-reason" required>
+                <option value="not_completed">The job wasn't finished</option>
+                <option value="quality_issue">The quality wasn't good enough</option>
+                <option value="damage_caused">Something was damaged</option>
+                <option value="no_show">The cleaner didn't turn up</option>
+                <option value="other">Something else</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="dispute-detail">Tell us more</label>
+              <textarea id="dispute-detail" rows="3" maxlength="2000" required></textarea>
+            </div>
+            <p class="field-help">Payment stays on hold while our team looks into it. We'll email you with the outcome.</p>
+            <button type="submit" class="secondary">Report a problem</button>
+          </form>
+        </details>
+      </section>
+
+      <!-- Review -->
+      <section id="review-section" hidden>
+        <h3>Review your cleaner</h3>
+        <div id="existing-review" hidden></div>
+        <form id="review-form">
+          <fieldset>
+            <legend>Rating</legend>
+            <div class="radio-row" id="rating-options"></div>
+          </fieldset>
+          <div class="form-row">
+            <label for="review-comment">Comment (optional)</label>
+            <textarea id="review-comment" rows="3" maxlength="1000"></textarea>
+            <span class="field-help">Shown publicly with your first name and last initial.</span>
+          </div>
+          <button type="submit">Submit review</button>
+        </form>
+      </section>
+
+      <!-- Cancel -->
+      <section id="cancel-section" hidden>
+        <p class="field-help" id="cancel-policy"></p>
+        <button id="cancel-button" type="button" class="secondary">Cancel this job</button>
+      </section>
+    </article>
   </main>
 
   <script type="module" src="js/nav.js"></script>

@@ -527,6 +527,217 @@ paths:
         '200':
           description: Updated and audited
 
+
+  # --- Phase 3: customer and cleaner journeys --------------------------------
+  /jobs/mine:
+    get:
+      summary: The logged-in customer's jobs, newest first
+      tags: [Jobs]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Jobs without payment internals
+
+  /jobs/{id}/offers:
+    get:
+      summary: Offers on the customer's job, with each cleaner's public details
+      tags: [Jobs]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Offers
+        '403':
+          description: Not the customer who posted the job
+
+  /jobs/{id}/review:
+    get:
+      summary: The customer's review of this job, and whether they can leave one
+      tags: [Reviews]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: '{ review, canReview }'
+    post:
+      summary: Review the cleaner after a completed job (one review per job)
+      tags: [Reviews]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '201':
+          description: Review published; the cleaner's rating is recalculated
+        '400':
+          description: The job is not completed yet, or is under dispute
+        '409':
+          description: Already reviewed
+
+  /payments/jobs/{id}/intent:
+    get:
+      summary: Client secret for paying a BOOKED job with Stripe.js
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: '{ clientSecret, amountPence, status }'
+        '400':
+          description: The job is not waiting for payment
+
+  /cleaners/me/offers:
+    get:
+      summary: The cleaner's job offers (outward postcode only until booked)
+      tags: [Cleaners]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [sent, accepted, declined, expired]
+      responses:
+        '200':
+          description: Offers with distance and job details
+
+  /cleaners/me/jobs:
+    get:
+      summary: Jobs booked with the cleaner
+      tags: [Cleaners]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Booked jobs with the customer's name and full postcode
+
+  /cleaners/me/earnings:
+    get:
+      summary: Paid out, on the way, and held-in-escrow totals
+      tags: [Cleaners]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Earnings summary and jobs
+
+  /cleaners/me/payouts/onboarding:
+    post:
+      summary: Start or continue Stripe Connect Express payout set-up
+      description: Creates the connected account on first use and returns a hosted Stripe onboarding URL. Needs FRONTEND_URL.
+      tags: [Cleaners]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: '{ url }'
+
+  /cleaners/me/payouts/status:
+    get:
+      summary: Payout set-up status, synced from Stripe
+      tags: [Cleaners]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: '{ connected, detailsSubmitted, payoutsEnabled, requirementsDue }'
+
+  /cleaners/me/payouts/dashboard:
+    post:
+      summary: Single-use link to the cleaner's Stripe Express dashboard
+      tags: [Cleaners]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: '{ url }'
+
+  /cleaners/{id}/reviews:
+    get:
+      summary: Published reviews for a cleaner (reviewer shown as first name and last initial)
+      tags: [Reviews]
+      parameters:
+        - $ref: '#/components/parameters/CleanerId'
+      responses:
+        '200':
+          description: Reviews
+
+  /reviews/latest:
+    get:
+      summary: Latest published reviews in date order, with the overall average
+      tags: [Reviews]
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+      responses:
+        '200':
+          description: '{ averageRating, count, reviews }'
+
+  /ops/reviews:
+    get:
+      summary: Reviews for moderation
+      tags: [Ops]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Reviews
+
+  /ops/reviews/{id}:
+    patch:
+      summary: Hide or re-publish a review for a content-policy reason (audited)
+      tags: [Ops]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hidden, reason]
+              properties:
+                hidden:
+                  type: boolean
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Updated; the cleaner's rating is recalculated
+
 components:
 
   securitySchemes:

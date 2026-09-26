@@ -1,5 +1,6 @@
 const paymentService = require('../services/payment.service');
 const opsService = require('../services/ops.service');
+const stripeService = require('../services/stripe.service');
 const Job = require('../models/Job');
 const CleanerProfile = require('../models/CleanerProfile');
 
@@ -46,6 +47,9 @@ const cancel = wrap(async (req) => {
     err.status = 403;
     throw err;
   }
+  if (job.paymentStatus === 'BOOKED') {
+    return { body: await paymentService.cancelBooked(req.params.id) };
+  }
   return { body: await paymentService.cancelByCustomer(req.params.id) };
 });
 
@@ -77,6 +81,21 @@ async function requireOwningCustomer(req) {
     throw err;
   }
 }
+
+// The customer pays for a booked job in the browser with Stripe.js. Only
+// the client secret is returned — it lets the customer's browser confirm
+// this one payment and nothing else.
+const paymentIntent = wrap(async (req) => {
+  await requireOwningCustomer(req);
+  const job = await Job.findById(req.params.id);
+  if (job.paymentStatus !== 'BOOKED' || !job.stripePaymentIntentId) {
+    const err = new Error('This job is not waiting for payment');
+    err.status = 400;
+    throw err;
+  }
+  const intent = await stripeService.retrievePaymentIntent(job.stripePaymentIntentId);
+  return { body: { clientSecret: intent.client_secret, amountPence: job.pricePence, status: intent.status } };
+});
 
 const checkIn = wrap(async (req) => {
   await requireOwningCleaner(req);
@@ -123,6 +142,7 @@ const opsQueue = wrap(async () => {
 module.exports = {
   book,
   cancel,
+  paymentIntent,
   checkIn,
   markComplete,
   confirm,

@@ -21,6 +21,9 @@
   <main class="dash-layout">
     <aside class="dash-sidebar">
       <button type="button" class="dash-nav-item is-active" data-panel="overview">Overview</button>
+      <button type="button" class="dash-nav-item" data-panel="offers">Job Offers</button>
+      <button type="button" class="dash-nav-item" data-panel="jobs">My Jobs</button>
+      <button type="button" class="dash-nav-item" data-panel="earnings">Earnings &amp; Payouts</button>
       <button type="button" class="dash-nav-item" data-panel="profile">My Profile</button>
       <button type="button" class="dash-nav-item" data-panel="coverage">Coverage &amp; Subscription</button>
     </aside>
@@ -67,9 +70,76 @@
         </div>
       </section>
 
+      <!-- Job Offers -->
+      <section id="panel-offers" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Job Offers</h2>
+          <button id="offers-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Offers go to several cleaners who cover the area. The first to accept books the job, at the price you set.
+          You'll see the customer's full address once the job is booked with you.
+        </p>
+        <div id="offers-alert" class="alert alert-error" hidden></div>
+        <div id="offers-success" class="alert alert-success" hidden></div>
+        <div id="offers-list" class="offer-cards"></div>
+      </section>
+
+      <!-- My Jobs -->
+      <section id="panel-jobs" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">My Jobs</h2>
+          <button id="jobs-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Check in when you arrive and mark the job complete when you finish. The customer then has 48 hours to confirm
+          or report a problem before you're paid.
+        </p>
+        <div id="jobs-alert" class="alert alert-error" hidden></div>
+        <div id="jobs-success" class="alert alert-success" hidden></div>
+        <div id="my-jobs-table" class="table-wrap"></div>
+      </section>
+
+      <!-- Earnings & Payouts -->
+      <section id="panel-earnings" class="dash-panel">
+        <h2 class="panel-title">Earnings &amp; Payouts</h2>
+        <div id="earnings-alert" class="alert alert-error" hidden></div>
+
+        <div class="card">
+          <h3>Payouts</h3>
+          <p id="payouts-status-text">Checking your payout set-up…</p>
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <button id="payouts-setup-button" type="button" hidden>Set up payouts with Stripe</button>
+            <button id="payouts-dashboard-button" type="button" class="secondary" hidden>Open my Stripe dashboard</button>
+          </div>
+          <p class="field-help">
+            Stripe checks your identity and bank details for us. We never see your bank account number.
+          </p>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-tile">
+            <div class="stat-tile-label">Paid out</div>
+            <div id="earn-paid" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">On the way to you</div>
+            <div id="earn-on-the-way" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Held until jobs are confirmed</div>
+            <div id="earn-escrow" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Commission rate</div>
+            <div id="earn-rate" class="stat-tile-value">—</div>
+          </div>
+        </div>
+      </section>
+
       <!-- My Profile -->
       <section id="panel-profile" class="dash-panel">
-        <h1>My Profile</h1>
+        <h2 class="panel-title">My Profile</h2>
         <div id="profile-alert" class="alert alert-error" hidden></div>
         <div id="profile-success" class="alert alert-success" hidden></div>
 
@@ -191,7 +261,7 @@
 
       <!-- Coverage & Subscription -->
       <section id="panel-coverage" class="dash-panel">
-        <h1>Coverage &amp; Subscription</h1>
+        <h2 class="panel-title">Coverage &amp; Subscription</h2>
 
         <div class="card">
           <h2>1. Register your profile</h2>
@@ -251,5 +321,6 @@
 
   <script type="module" src="js/nav.js"></script>
   <script type="module" src="js/cleaner.js"></script>
+  <script type="module" src="js/cleaner-work.js"></script>
 </body>
 </html>

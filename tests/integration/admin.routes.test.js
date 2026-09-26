@@ -1,3 +1,5 @@
+// Lifecycle emails are fire-and-forget side effects; tested in notification.service.test.js.
+jest.mock('../../src/services/notification.service');
 // Staff routes re-check the account on every request (requireActiveStaff).
 jest.mock('../../src/models/User', () => ({
   findById: jest.fn((id) => Promise.resolve({ _id: id, name: 'Staff', role: 'admin', active: true })),

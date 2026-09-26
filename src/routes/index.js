@@ -8,6 +8,7 @@ const serviceTypesRoutes = require('./service-types.routes');
 const paymentsRoutes = require('./payments.routes');
 const adminRoutes = require('./admin.routes');
 const opsRoutes = require('./ops.routes');
+const reviewsRoutes = require('./reviews.routes');
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.use('/service-types', serviceTypesRoutes);
 router.use('/payments', paymentsRoutes);
 router.use('/admin', adminRoutes);
 router.use('/ops', opsRoutes);
+router.use('/reviews', reviewsRoutes);
 
 module.exports = router;

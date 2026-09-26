@@ -25,6 +25,13 @@ router.post(
   PaymentController.book
 );
 router.post('/jobs/:id/cancel', requireAuth, validateParams(jobIdParamSchema), PaymentController.cancel);
+router.get(
+  '/jobs/:id/intent',
+  requireAuth,
+  requireRole('customer'),
+  validateParams(jobIdParamSchema),
+  PaymentController.paymentIntent
+);
 router.post(
   '/jobs/:id/check-in',
   requireAuth,

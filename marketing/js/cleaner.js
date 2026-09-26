@@ -1,5 +1,6 @@
 import { apiRequest, requireRole } from './api.js';
 import { escapeHtml } from './dom.js';
+import { setupTabs } from './dashboard-ui.js';
 
 requireRole('cleaner');
 
@@ -29,15 +30,10 @@ function hideAlert(id) {
   document.getElementById(id).hidden = true;
 }
 
-// --- Tab switching ---
-document.querySelectorAll('.dash-nav-item').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.dash-nav-item').forEach((b) => b.classList.remove('is-active'));
-    document.querySelectorAll('.dash-panel').forEach((p) => p.classList.remove('is-active'));
-    btn.classList.add('is-active');
-    document.getElementById(`panel-${btn.dataset.panel}`).classList.add('is-active');
-  });
-});
+// --- Tab switching (a ?tab= link, e.g. from an email, opens that tab) ---
+const selectPanel = setupTabs();
+const requestedTab = new URLSearchParams(window.location.search).get('tab');
+if (requestedTab) selectPanel(requestedTab);
 
 // --- Working days chips ---
 function renderWorkingDayChips() {
