@@ -108,7 +108,18 @@ Implemented as planned, with these details:
 - Add a **Disputes** tab and an **Audit log** tab to `admin.html` as well.
 - Accessibility: `role="tab"` and `aria-selected` on tabs, `aria-live` on alerts, and one `<h1>` per page.
 
-## Phase 3: complete the core journeys (suggested next)
+## Phase 3: complete the core journeys (suggested next) — implemented
+
+Implemented in full, with these details:
+- **Payment flow:** the cleaner accepts an offer at their price, the customer gets an email and pays on `customer.html` with the Stripe Payment Element (card details go straight to Stripe). The `payment_intent.succeeded` webhook moves the job to `PAID_HELD`.
+- **Cancelling before paying** cancels the PaymentIntent at Stripe first; if the payment has just gone through, the cancellation is refused so money can never land on a cancelled job.
+- **Cleaner payouts:** Stripe Connect Express onboarding from the Earnings & Payouts tab; payout status is synced from Stripe when the cleaner returns and by the `account.updated` webhook (a separate Connect webhook secret, `STRIPE_CONNECT_WEBHOOK_SECRET`, is supported).
+- **Offers** show only the outward postcode and distance until the job is booked with that cleaner.
+- **Emails** go through Resend for offers, booking, payment, check-in, completion, confirmation (with a review invite), disputes and their outcome, cancellations, payouts and ops alerts. Without `RESEND_API_KEY` they are only logged.
+- **Reviews** can only be left by the customer of a completed booking, once per job. Staff can hide a review only for a content-policy reason, with the reason audited. The landing page shows the latest reviews in date order with the overall average (not hand-picked), in line with the DMCC Act 2024 fake-review rules.
+- Job `status` now moves to `in_progress`, `completed` and `cancelled` with the payment lifecycle.
+
+Open question for the business: when a customer cancels more than 24 hours after booking, 50% is refunded and the other 50% stays with the platform; the cleaner currently receives none of it.
 1. **Cleaner:**
    - Stripe Connect Express onboarding: `POST /cleaners/me/stripe/onboard` returns an account link, and the `account.updated` webhook sets `payoutsEnabled`.
    - Offers inbox with accept or decline.

@@ -1,3 +1,5 @@
+// Lifecycle emails are fire-and-forget side effects; tested in notification.service.test.js.
+jest.mock('../../src/services/notification.service');
 jest.mock('../../src/models/Job');
 jest.mock('../../src/models/CleanerProfile');
 jest.mock('../../src/services/stripe.service');
@@ -281,5 +283,29 @@ describe('resolveDisputePartial — only runs on a disputed job', () => {
 
     expect(stripeService.createRefund).not.toHaveBeenCalled();
     expect(stripeService.createTransfer).not.toHaveBeenCalled();
+  });
+});
+
+describe('cancelBooked — customer cancels before paying', () => {
+  it('cancels the PaymentIntent at Stripe before cancelling the job', async () => {
+    const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_1' });
+    Job.findById.mockResolvedValue(job);
+    stripeService.cancelPaymentIntent.mockResolvedValue({ status: 'canceled' });
+
+    await paymentService.cancelBooked('job1');
+
+    expect(stripeService.cancelPaymentIntent).toHaveBeenCalledWith('pi_1');
+    expect(job.paymentStatus).toBe(STATES.CANCELLED);
+    expect(job.status).toBe('cancelled');
+  });
+
+  it('keeps the job when Stripe refuses because the payment already went through', async () => {
+    const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_1' });
+    Job.findById.mockResolvedValue(job);
+    stripeService.cancelPaymentIntent.mockRejectedValue(new Error('PaymentIntent has succeeded'));
+
+    await expect(paymentService.cancelBooked('job1')).rejects.toMatchObject({ status: 400 });
+    expect(job.paymentStatus).toBe(STATES.BOOKED);
+    expect(job.save).not.toHaveBeenCalled();
   });
 });

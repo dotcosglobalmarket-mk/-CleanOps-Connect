@@ -5,6 +5,11 @@
 # STRIPE_WEBHOOK_SECRET, and optionally CORS_ORIGINS, AUTH_RATE_LIMIT_MAX and
 # OPS_REFUND_LIMIT_PENCE (operator refund limit before admin approval; default
 # 15000 = £150).
+# Phase 3: FRONTEND_URL (e.g. https://www.cleanop-connect.co.uk, used for Stripe
+# onboarding return links and email links), RESEND_API_KEY and EMAIL_FROM
+# (e.g. "CleanOps Connect <bookings@cleanop-connect.co.uk>" on a domain verified
+# in Resend), OPS_NOTIFICATION_EMAIL (dispute and payout alerts), and
+# STRIPE_CONNECT_WEBHOOK_SECRET if Connect events use a separate endpoint.
 name: cleanops-connect
 region: lon
 services:

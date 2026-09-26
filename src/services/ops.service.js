@@ -7,6 +7,7 @@ const auditService = require('./audit.service');
 const paymentService = require('./payment.service');
 const { STATES } = require('./payment-state-machine');
 const { hasPermission } = require('../config/permissions');
+const notifications = require('./notification.service');
 
 // Refunds above this need an admin's approval when an operator resolves a
 // dispute (maker-checker). Default £150.
@@ -136,6 +137,7 @@ async function resolveDispute(jobId, { outcome, refundPence, reason }, req) {
     after: { paymentStatus: resolved.paymentStatus, outcome, refundPence: refund },
     reason,
   });
+  notifications.disputeResolved(resolved, { outcome, refundPence: refund });
   return { status: 'resolved', job: resolved };
 }
 
@@ -215,6 +217,7 @@ async function decideApproval(approvalId, { decision, reason }, req) {
     },
     reason,
   });
+  notifications.disputeResolved(resolved, { outcome: claimed.outcome, refundPence: claimed.refundPence });
   return { approval: claimed, job: resolved };
 }
 

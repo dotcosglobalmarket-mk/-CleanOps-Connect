@@ -492,6 +492,67 @@ async function loadCleaners() {
 document.getElementById('cleaners-refresh').addEventListener('click', loadCleaners);
 document.getElementById('cleaners-filter-apply').addEventListener('click', loadCleaners);
 
+// --- Reviews ---
+async function loadReviews() {
+  hideAlert('reviews-alert');
+  const container = document.getElementById('reviews-table');
+  container.innerHTML = '<div class="table-empty">Loading…</div>';
+  const status = document.getElementById('reviews-filter-status').value;
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  try {
+    const reviews = await apiRequest(`/ops/reviews${query}`, { auth: true });
+    container.innerHTML = renderTable({
+      columns: ['Date', 'Customer', 'Cleaner', 'Rating', 'Comment', 'Status', ''],
+      emptyMessage: 'No reviews match this filter.',
+      rows: reviews.map((r) => `
+        <tr>
+          <td>${formatDate(r.createdAt)}</td>
+          <td>${escapeHtml(r.customer?.name || '—')}</td>
+          <td>${escapeHtml(r.cleaner?.name || '—')}</td>
+          <td>${'★'.repeat(r.rating)}</td>
+          <td>${escapeHtml(r.comment || '—')}${r.hiddenReason ? `<div class="field-help">Hidden: ${escapeHtml(r.hiddenReason)}</div>` : ''}</td>
+          <td>${r.status === 'hidden' ? statusBadge('Hidden', 'bad') : statusBadge('Published', 'good')}</td>
+          <td class="table-actions">
+            <button type="button" class="secondary review-visibility-btn" data-id="${escapeHtml(r._id)}" data-hide="${r.status !== 'hidden'}">
+              ${r.status === 'hidden' ? 'Publish' : 'Hide'}
+            </button>
+          </td>
+        </tr>
+      `),
+    });
+    container.querySelectorAll('.review-visibility-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        hideAlert('reviews-alert');
+        hideAlert('reviews-success');
+        const hide = btn.dataset.hide === 'true';
+        const reason = window.prompt(
+          hide ? 'Which content-policy rule does this review break?' : 'Why is it right to publish this review again?'
+        );
+        if (!reason || reason.trim().length < 3) return;
+        btn.disabled = true;
+        try {
+          await apiRequest(`/ops/reviews/${btn.dataset.id}`, {
+            method: 'PATCH',
+            body: { hidden: hide, reason: reason.trim() },
+            auth: true,
+          });
+          showAlert('reviews-success', hide ? 'Review hidden.' : 'Review published.');
+          await loadReviews();
+        } catch (err) {
+          showAlert('reviews-alert', err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch (err) {
+    container.innerHTML = '';
+    showAlert('reviews-alert', err.message);
+  }
+}
+
+document.getElementById('reviews-refresh').addEventListener('click', loadReviews);
+document.getElementById('reviews-filter-apply').addEventListener('click', loadReviews);
+
 // --- Init ---
 populatePaymentStatusFilter();
 loadToday();
@@ -500,3 +561,4 @@ loadVerification();
 loadPayments();
 loadJobs();
 loadCleaners();
+loadReviews();

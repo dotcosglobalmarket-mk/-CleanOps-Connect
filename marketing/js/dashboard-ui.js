@@ -118,4 +118,10 @@ export function setupTabs(onShow) {
   });
 
   document.querySelectorAll('.alert').forEach((el) => el.setAttribute('aria-live', 'polite'));
+
+  // Lets a page open a specific tab, e.g. from a ?tab= link in an email.
+  return function selectPanel(name) {
+    const tab = tabs.find((t) => t.dataset.panel === name);
+    if (tab) select(tab);
+  };
 }

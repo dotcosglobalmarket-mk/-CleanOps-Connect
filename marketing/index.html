@@ -252,6 +252,15 @@
       </div>
     </section>
 
+    <!-- 7. Latest reviews (from verified bookings; hidden until there are some) -->
+    <section id="reviews" hidden>
+      <div class="lp-section-head">
+        <h2>Latest reviews</h2>
+        <p id="reviews-summary"></p>
+      </div>
+      <div id="reviews-list" class="lp-testimonials"></div>
+    </section>
+
     <!-- 8. FAQ -->
     <section id="faq">
       <div class="lp-section-head">
@@ -361,5 +370,6 @@
     loadMap('coverage-map-img', 'coverage-map-fallback', { cities: COVERAGE_CITIES, width: 640, height: 420, padding: 60, showRoute: true });
   </script>
   <script type="module" src="js/nav.js"></script>
+  <script type="module" src="js/reviews.js"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@ const coverageService = require('./coverage.service');
 const aiScoringService = require('./ai-scoring.service');
 const insuranceService = require('./insurance.service');
 const paymentService = require('./payment.service');
+const notifications = require('./notification.service');
 
 const MAX_OFFERS = 5;
 
@@ -98,6 +99,35 @@ function stripInternalFields(job) {
   return plain;
 }
 
+// Customer's own jobs, newest first, without payment internals.
+async function listJobsForCustomer(customerId) {
+  const jobs = await Job.find({ customer: customerId })
+    .populate('serviceType', 'name')
+    .populate('cleaner', 'name ratingAverage ratingCount')
+    .sort({ createdAt: -1 })
+    .limit(200);
+  return jobs.map(stripInternalFields);
+}
+
+// Offers on the customer's job with each cleaner's public details only.
+async function listOffersForCustomer(jobId, requestingUser) {
+  const job = await Job.findById(jobId);
+  if (!job) throw notFound('Job not found');
+  if (requestingUser.role !== 'admin' && job.customer.toString() !== requestingUser.id) {
+    throw forbidden('You do not have access to this job');
+  }
+
+  const offers = await JobOffer.find({ job: job._id })
+    .populate('cleaner', 'name companyName ratingAverage ratingCount dbsVerified coshhTrained insuranceStatus experienceYears')
+    .sort({ score: -1 });
+  return offers.map((offer) => ({
+    _id: offer._id,
+    status: offer.status,
+    score: offer.score,
+    cleaner: offer.cleaner,
+  }));
+}
+
 async function allocateJob(jobId, requestingUser) {
   const job = await Job.findById(jobId);
   if (!job) {
@@ -132,6 +162,7 @@ async function allocateJob(jobId, requestingUser) {
 
   job.status = 'allocated';
   await job.save();
+  notifications.offersSent(job, offers);
 
   return { jobId: job._id, offers };
 }
@@ -189,6 +220,7 @@ async function acceptOffer(jobId, offerId, requestingUser, pricePence) {
     { job: job._id, _id: { $ne: offer._id }, status: 'sent' },
     { $set: { status: 'declined' } }
   );
+  notifications.jobBooked(booked);
 
   return booked;
 }
@@ -203,6 +235,8 @@ async function declineOffer(jobId, offerId, requestingUser) {
 module.exports = {
   createJob,
   getJobForUser,
+  listJobsForCustomer,
+  listOffersForCustomer,
   allocateJob,
   acceptOffer,
   declineOffer,

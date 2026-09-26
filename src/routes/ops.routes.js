@@ -1,5 +1,7 @@
 const express = require('express');
 const OpsController = require('../controllers/OpsController');
+const ReviewController = require('../controllers/ReviewController');
+const { moderationQuerySchema, setReviewVisibilitySchema } = require('../validation/review.validation');
 const { requireAuth, requireActiveStaff, requirePermission } = require('../middleware/auth');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
 const { listCleanersQuerySchema, listJobsQuerySchema } = require('../validation/admin.validation');
@@ -60,6 +62,22 @@ router.post(
   validateParams(idParamSchema),
   validateBody(jobNoteSchema),
   OpsController.addJobNote
+);
+
+// Review moderation: hide only for a content-policy reason, never because a
+// review is negative. Every change is audited.
+router.get(
+  '/reviews',
+  requirePermission('reviews.moderate'),
+  validateQuery(moderationQuerySchema),
+  ReviewController.listForModeration
+);
+router.patch(
+  '/reviews/:id',
+  requirePermission('reviews.moderate'),
+  validateParams(idParamSchema),
+  validateBody(setReviewVisibilitySchema),
+  ReviewController.setVisibility
 );
 
 module.exports = router;

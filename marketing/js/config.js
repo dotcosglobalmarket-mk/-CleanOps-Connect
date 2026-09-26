@@ -8,3 +8,8 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:40
 // designed to be embedded in client-side code and restricted via URL/referrer
 // allowlists on the Mapbox account dashboard, not kept secret.
 export const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
+
+// Stripe PUBLISHABLE key ("pk_live_..." / "pk_test_..."), injected at build
+// time from VITE_STRIPE_PUBLISHABLE_KEY. Publishable keys are designed to be
+// public; the secret key stays on the API server.
+export const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';

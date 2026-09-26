@@ -16,6 +16,7 @@ const OPERATOR_PERMISSIONS = [
   'disputes.resolve',
   'payments.queue.read',
   'payments.retry',
+  'reviews.moderate',
 ];
 
 const ADMIN_ONLY_PERMISSIONS = [
