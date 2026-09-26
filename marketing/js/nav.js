@@ -26,7 +26,7 @@ function renderNav() {
       <a href="register.html" class="button-link">Register</a>
     `;
   } else {
-    const dashboardHref = role === 'admin' ? 'admin.html' : role === 'cleaner' ? 'cleaner.html' : 'customer.html';
+    const dashboardHref = { admin: 'admin.html', operator: 'ops.html', cleaner: 'cleaner.html' }[role] || 'customer.html';
     links = `
       <span class="nav-user">${escapeHtml(user ? user.name : '')} (${escapeHtml(role)})</span>
       <a href="${dashboardHref}">Dashboard</a>

@@ -1,6 +1,6 @@
 const express = require('express');
 const ServiceTypeController = require('../controllers/ServiceTypeController');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole, requireActiveStaff } = require('../middleware/auth');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
 const {
   listServiceTypesQuerySchema,
@@ -12,11 +12,12 @@ const {
 const router = express.Router();
 
 router.get('/', validateQuery(listServiceTypesQuerySchema), ServiceTypeController.list);
-router.post('/', requireAuth, requireRole('admin'), validateBody(createServiceTypeSchema), ServiceTypeController.create);
+router.post('/', requireAuth, requireRole('admin'), requireActiveStaff, validateBody(createServiceTypeSchema), ServiceTypeController.create);
 router.patch(
   '/:id',
   requireAuth,
   requireRole('admin'),
+  requireActiveStaff,
   validateParams(serviceTypeIdParamSchema),
   validateBody(updateServiceTypeSchema),
   ServiceTypeController.update

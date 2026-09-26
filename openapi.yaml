@@ -214,6 +214,319 @@ paths:
               schema:
                 $ref: '#/components/schemas/Subscription'
 
+
+  # --- Operator (platform ops) API: operators and admins -------------------
+  /ops/summary:
+    get:
+      summary: Ops queue counts (disputes, approvals, verification, stuck payouts)
+      tags: [Ops]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Counts, plus the operator refund limit in pence
+        '401':
+          description: Not logged in, or the staff account is deactivated
+        '403':
+          description: Not a staff account
+
+  /ops/disputes:
+    get:
+      summary: List open disputes, oldest first
+      tags: [Ops]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Jobs in the DISPUTED state
+
+  /ops/disputes/{id}:
+    get:
+      summary: Dispute detail with notes, audit timeline and any pending approval
+      tags: [Ops]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Dispute detail
+
+  /ops/disputes/{id}/resolve:
+    post:
+      summary: Resolve a dispute
+      description: >
+        Operators whose refund is above OPS_REFUND_LIMIT_PENCE (default 15000)
+        get 202 and an approval request for an admin; no money moves until it
+        is approved. Admins are not limited. Every resolution is audited.
+      tags: [Ops]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome, reason]
+              properties:
+                outcome:
+                  type: string
+                  enum: [payout, refund, partial]
+                refundPence:
+                  type: integer
+                  description: Required for a partial refund; less than the job price
+                reason:
+                  type: string
+                  minLength: 3
+      responses:
+        '200':
+          description: Resolved
+        '202':
+          description: Sent to an admin for approval
+        '400':
+          description: Validation failed or the job is not disputed
+        '409':
+          description: A resolution for this job is already awaiting approval
+
+  /ops/cleaners:
+    get:
+      summary: List cleaners (filters as /admin/cleaners)
+      tags: [Ops]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Cleaners
+
+  /ops/cleaners/{id}/verification:
+    patch:
+      summary: Record DBS / COSHH / insurance verification with the evidence checked
+      tags: [Ops]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CleanerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                dbsVerified:
+                  type: boolean
+                coshhTrained:
+                  type: boolean
+                insuranceStatus:
+                  type: string
+                  enum: [none, own, platform]
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Updated and audited
+
+  /ops/cleaners/{id}/review:
+    patch:
+      summary: Put a cleaner under review or re-activate them
+      description: Operators cannot suspend a cleaner or lift a suspension (403).
+      tags: [Ops]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CleanerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deactivationStatus, reason]
+              properties:
+                deactivationStatus:
+                  type: string
+                  enum: [active, under_review]
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Updated and audited
+        '403':
+          description: The cleaner is suspended; only an admin can change them
+
+  /ops/jobs/{id}/notes:
+    post:
+      summary: Add an internal staff note to a job
+      tags: [Ops]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+                  maxLength: 2000
+      responses:
+        '201':
+          description: Note added
+
+  # --- Admin-only additions ---------------------------------------------------
+  /admin/approvals:
+    get:
+      summary: List refund approval requests
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+      responses:
+        '200':
+          description: Approval requests
+
+  /admin/approvals/{id}/decision:
+    post:
+      summary: Approve (issues the refund) or reject a refund request
+      description: The admin who raised a request cannot decide it.
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, reason]
+              properties:
+                decision:
+                  type: string
+                  enum: [approve, reject]
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Decided and audited
+        '409':
+          description: Already decided, or the job is no longer disputed
+
+  /admin/audit:
+    get:
+      summary: Read the staff audit log (newest first, max 200)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: action
+          schema:
+            type: string
+        - in: query
+          name: actor
+          schema:
+            type: string
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Audit entries
+
+  /admin/users:
+    get:
+      summary: List staff (operator/admin) accounts
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Staff accounts
+    post:
+      summary: Create a staff account
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, role]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 12
+                role:
+                  type: string
+                  enum: [operator, admin]
+      responses:
+        '201':
+          description: Created and audited
+        '409':
+          description: Email already registered
+
+  /admin/users/{id}:
+    patch:
+      summary: Deactivate or re-activate a staff account
+      description: Takes effect on the account's next request. An admin cannot deactivate themselves.
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active, reason]
+              properties:
+                active:
+                  type: boolean
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Updated and audited
+
 components:
 
   securitySchemes:
@@ -285,7 +598,7 @@ components:
           type: string
         role:
           type: string
-          enum: [customer, cleaner, admin]
+          enum: [customer, cleaner, operator, admin]
         phone:
           type: string
 

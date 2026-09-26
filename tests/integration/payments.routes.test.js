@@ -1,3 +1,9 @@
+// Staff routes re-check the account on every request (requireActiveStaff).
+jest.mock('../../src/models/User', () => ({
+  findById: jest.fn((id) => Promise.resolve({ _id: id, name: 'Staff', role: 'admin', active: true })),
+  findOne: jest.fn(),
+  create: jest.fn(),
+}));
 jest.mock('../../src/models/Job', () => {
   const JobMock = jest.fn();
   JobMock.findById = jest.fn();
@@ -165,7 +171,7 @@ describe('Payments routes', () => {
         .send({ reasonCode: 'quality_issue' });
 
       expect(res.status).toBe(200);
-      expect(paymentService.raiseDispute).toHaveBeenCalledWith(jobId, 'quality_issue');
+      expect(paymentService.raiseDispute).toHaveBeenCalledWith(jobId, 'quality_issue', undefined);
     });
   });
 });

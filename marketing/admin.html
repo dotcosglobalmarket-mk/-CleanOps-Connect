@@ -25,6 +25,10 @@
       <button type="button" class="dash-nav-item" data-panel="cleaners">Cleaner Verification</button>
       <button type="button" class="dash-nav-item" data-panel="jobs">Jobs</button>
       <button type="button" class="dash-nav-item" data-panel="service-types">Service Types</button>
+      <button type="button" class="dash-nav-item" data-panel="approvals">Refund Approvals</button>
+      <button type="button" class="dash-nav-item" data-panel="audit">Audit Log</button>
+      <button type="button" class="dash-nav-item" data-panel="staff">Staff Accounts</button>
+      <a class="dash-nav-link" href="ops.html">Disputes &amp; ops dashboard →</a>
     </aside>
 
     <div class="dash-content">
@@ -81,7 +85,7 @@
       <!-- Payments Ops Queue -->
       <section id="panel-payments" class="dash-panel">
         <div class="section-heading">
-          <h1>Payments Ops Queue</h1>
+          <h2 class="panel-title">Payments Ops Queue</h2>
           <button id="payments-refresh" type="button" class="secondary">Refresh</button>
         </div>
         <p class="field-help">
@@ -96,7 +100,7 @@
       <!-- Cleaner Verification -->
       <section id="panel-cleaners" class="dash-panel">
         <div class="section-heading">
-          <h1>Cleaner Verification</h1>
+          <h2 class="panel-title">Cleaner Verification</h2>
           <button id="cleaners-refresh" type="button" class="secondary">Refresh</button>
         </div>
         <p class="field-help">
@@ -134,7 +138,7 @@
       <!-- Jobs -->
       <section id="panel-jobs" class="dash-panel">
         <div class="section-heading">
-          <h1>Jobs</h1>
+          <h2 class="panel-title">Jobs</h2>
           <button id="jobs-refresh" type="button" class="secondary">Refresh</button>
         </div>
         <div id="jobs-alert" class="alert alert-error" hidden></div>
@@ -167,7 +171,7 @@
       <!-- Service Types -->
       <section id="panel-service-types" class="dash-panel">
         <div class="section-heading">
-          <h1>Service Types</h1>
+          <h2 class="panel-title">Service Types</h2>
           <button id="service-types-refresh" type="button" class="secondary">Refresh</button>
         </div>
         <div id="service-types-alert" class="alert alert-error" hidden></div>
@@ -176,7 +180,7 @@
         <div id="service-types-table" class="table-wrap"></div>
 
         <div class="card" style="margin-top: 1.5rem;">
-          <h2>Add a service type</h2>
+          <h3>Add a service type</h3>
           <form id="create-service-type-form">
             <div class="two-column">
               <div class="form-row">
@@ -199,6 +203,100 @@
               <label><input id="st-requires-coshh" type="checkbox" /> Requires COSHH training</label>
             </div>
             <button type="submit">Add service type</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Refund Approvals -->
+      <section id="panel-approvals" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Refund Approvals</h2>
+          <button id="approvals-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Dispute refunds that an operator resolved above the ops refund limit wait here for an admin decision.
+          Approving issues the refund through Stripe straight away. Rejecting leaves the job disputed so it can be
+          resolved again. You cannot decide a request you raised yourself.
+        </p>
+        <div id="approvals-alert" class="alert alert-error" hidden></div>
+        <div id="approvals-success" class="alert alert-success" hidden></div>
+        <div id="approvals-table" class="table-wrap"></div>
+      </section>
+
+      <!-- Audit Log -->
+      <section id="panel-audit" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Audit Log</h2>
+          <button id="audit-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">Every action taken by staff, newest first (up to 200 entries). Entries cannot be edited or deleted.</p>
+        <div id="audit-alert" class="alert alert-error" hidden></div>
+        <div class="filter-bar">
+          <div class="form-row">
+            <label for="audit-filter-action">Action</label>
+            <select id="audit-filter-action">
+              <option value="">All</option>
+              <option value="dispute.resolve">Dispute resolved</option>
+              <option value="dispute.resolution.requested">Refund sent for approval</option>
+              <option value="approval.approve">Refund approved</option>
+              <option value="approval.reject">Refund rejected</option>
+              <option value="cleaner.verification.update">Cleaner verification</option>
+              <option value="cleaner.status.update">Cleaner status</option>
+              <option value="payout.manual_retry">Payout retry</option>
+              <option value="job.note">Job note</option>
+              <option value="user.create">Staff created</option>
+              <option value="user.deactivate">Staff deactivated</option>
+              <option value="user.activate">Staff re-activated</option>
+            </select>
+          </div>
+          <button id="audit-filter-apply" type="button">Apply</button>
+        </div>
+        <div id="audit-table" class="table-wrap"></div>
+      </section>
+
+      <!-- Staff Accounts -->
+      <section id="panel-staff" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Staff Accounts</h2>
+          <button id="staff-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Operators handle disputes, cleaner verification and the payments queue. They cannot suspend cleaners,
+          approve refunds above the limit, manage staff or read the full audit log. Deactivating an account takes
+          effect on the next request.
+        </p>
+        <div id="staff-alert" class="alert alert-error" hidden></div>
+        <div id="staff-success" class="alert alert-success" hidden></div>
+        <div id="staff-table" class="table-wrap"></div>
+
+        <div class="card" style="margin-top: 1.5rem;">
+          <h3>Create a staff account</h3>
+          <form id="create-staff-form">
+            <div class="two-column">
+              <div class="form-row">
+                <label for="staff-name">Name</label>
+                <input id="staff-name" type="text" required autocomplete="off" />
+              </div>
+              <div class="form-row">
+                <label for="staff-email">Email</label>
+                <input id="staff-email" type="email" required autocomplete="off" />
+              </div>
+            </div>
+            <div class="two-column">
+              <div class="form-row">
+                <label for="staff-password">Initial password (at least 12 characters)</label>
+                <input id="staff-password" type="password" minlength="12" required autocomplete="new-password" />
+              </div>
+              <div class="form-row">
+                <label for="staff-role">Role</label>
+                <select id="staff-role">
+                  <option value="operator">Operator</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+            <p class="field-help">Give the initial password to the new staff member directly, not by email.</p>
+            <button type="submit">Create account</button>
           </form>
         </div>
       </section>

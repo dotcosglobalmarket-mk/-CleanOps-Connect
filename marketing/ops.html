@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Operations dashboard — CleanOps Connect</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate icon" href="/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav id="site-nav"></nav>
+  </header>
+
+  <main class="dash-layout">
+    <aside class="dash-sidebar" aria-label="Operations sections">
+      <button type="button" class="dash-nav-item is-active" data-panel="today">Today</button>
+      <button type="button" class="dash-nav-item" data-panel="disputes">Disputes</button>
+      <button type="button" class="dash-nav-item" data-panel="verification">Verification</button>
+      <button type="button" class="dash-nav-item" data-panel="payments">Payments Queue</button>
+      <button type="button" class="dash-nav-item" data-panel="jobs">Jobs</button>
+      <button type="button" class="dash-nav-item" data-panel="cleaners">Cleaners</button>
+    </aside>
+
+    <div class="dash-content">
+      <!-- Today -->
+      <section id="panel-today" class="dash-panel is-active">
+        <div class="dash-banner">
+          <h1>Operations</h1>
+          <p>Disputes, cleaner verification and stuck payouts. Every action you take is recorded with your reason.</p>
+        </div>
+        <div id="today-alert" class="alert alert-error" hidden></div>
+
+        <div class="stat-grid">
+          <div class="stat-tile">
+            <div class="stat-tile-label">Open disputes</div>
+            <div id="stat-open-disputes" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Refunds awaiting admin</div>
+            <div id="stat-pending-approvals" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Cleaners to verify</div>
+            <div id="stat-unverified" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Stuck payouts</div>
+            <div id="stat-stuck-payouts" class="stat-tile-value">—</div>
+          </div>
+        </div>
+        <div class="stat-grid" style="margin-top: 1rem;">
+          <div class="stat-tile">
+            <div class="stat-tile-label">Cleaners under review</div>
+            <div id="stat-under-review" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Overdue confirmations (&gt;48h)</div>
+            <div id="stat-overdue" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Open jobs</div>
+            <div id="stat-open-jobs" class="stat-tile-value">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Your refund limit</div>
+            <div id="stat-refund-limit" class="stat-tile-value">—</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Disputes -->
+      <section id="panel-disputes" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Disputes</h2>
+          <button id="disputes-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Oldest first. Payment stays on hold until the dispute is resolved. Refunds above your limit go to an admin
+          for approval before any money moves.
+        </p>
+        <div id="disputes-alert" class="alert alert-error" hidden></div>
+        <div id="disputes-success" class="alert alert-success" hidden></div>
+        <div id="disputes-table" class="table-wrap"></div>
+
+        <div id="dispute-detail" class="card detail-pane" hidden>
+          <h3>Dispute <code id="dispute-id"></code></h3>
+          <dl class="detail-grid">
+            <div><dt>Reason</dt><dd id="dispute-reason"></dd></div>
+            <div><dt>Raised</dt><dd id="dispute-raised"></dd></div>
+            <div><dt>Price</dt><dd id="dispute-price"></dd></div>
+            <div><dt>Customer</dt><dd id="dispute-customer"></dd></div>
+            <div><dt>Cleaner</dt><dd id="dispute-cleaner"></dd></div>
+            <div><dt>Service</dt><dd id="dispute-service"></dd></div>
+          </dl>
+          <p><strong>Customer's description:</strong> <span id="dispute-customer-detail"></span></p>
+          <div id="dispute-pending" class="alert alert-success" hidden></div>
+
+          <form id="resolve-form">
+            <fieldset>
+              <legend>Resolution</legend>
+              <div class="radio-row">
+                <label><input type="radio" name="outcome" value="payout" checked /> Pay the cleaner in full</label>
+                <label><input type="radio" name="outcome" value="partial" /> Partial refund</label>
+                <label><input type="radio" name="outcome" value="refund" /> Full refund to customer</label>
+              </div>
+            </fieldset>
+            <div class="form-row" id="partial-amount-row" hidden>
+              <label for="partial-amount">Refund to customer (£)</label>
+              <input id="partial-amount" type="number" min="0.01" step="0.01" inputmode="decimal" />
+            </div>
+            <div class="form-row">
+              <label for="resolve-reason">Reason (recorded in the audit log)</label>
+              <textarea id="resolve-reason" rows="3" required minlength="3" maxlength="2000"
+                placeholder="What evidence did you check, and why is this outcome fair?"></textarea>
+            </div>
+            <p id="resolve-limit-help" class="field-help"></p>
+            <button type="submit">Resolve dispute</button>
+          </form>
+
+          <h4>Notes</h4>
+          <form id="dispute-note-form">
+            <div class="form-row">
+              <label for="dispute-note">Add an internal note (not shown to the customer or cleaner)</label>
+              <textarea id="dispute-note" rows="2" required maxlength="2000"></textarea>
+            </div>
+            <button type="submit" class="secondary">Add note</button>
+          </form>
+          <h4>Timeline</h4>
+          <ul id="dispute-timeline" class="timeline"></ul>
+        </div>
+      </section>
+
+      <!-- Verification -->
+      <section id="panel-verification" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Cleaner Verification</h2>
+          <button id="verification-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Only mark a check as verified after you have seen the evidence. Record it in the reason, for example
+          "Enhanced DBS 001234567890 issued 01/08/2026, checked on the update service" or "Public liability, Insurer
+          Ltd, policy ABC123, expires 31/07/2027".
+        </p>
+        <div id="verification-alert" class="alert alert-error" hidden></div>
+        <div id="verification-success" class="alert alert-success" hidden></div>
+        <div id="verification-table" class="table-wrap"></div>
+      </section>
+
+      <!-- Payments Queue -->
+      <section id="panel-payments" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Payments Queue</h2>
+          <button id="payments-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          <code>MANUAL_REVIEW_HOLD</code>: automatic payout retries ran out. <code>PAYOUT_BLOCKED</code>: the cleaner
+          has not finished Stripe onboarding, and this clears itself once they do. Retrying never refunds the customer.
+        </p>
+        <div id="payments-alert" class="alert alert-error" hidden></div>
+        <div id="payments-table" class="table-wrap"></div>
+      </section>
+
+      <!-- Jobs -->
+      <section id="panel-jobs" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Jobs</h2>
+          <button id="jobs-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <div id="jobs-alert" class="alert alert-error" hidden></div>
+        <div class="filter-bar">
+          <div class="form-row">
+            <label for="jobs-filter-payment-status">Payment status</label>
+            <select id="jobs-filter-payment-status">
+              <option value="">All</option>
+            </select>
+          </div>
+          <button id="jobs-filter-apply" type="button">Apply</button>
+        </div>
+        <div id="jobs-table" class="table-wrap"></div>
+
+        <div id="job-detail" class="card detail-pane" hidden>
+          <h3>Job <code id="job-detail-id"></code></h3>
+          <dl id="job-detail-grid" class="detail-grid"></dl>
+          <form id="job-note-form">
+            <div class="form-row">
+              <label for="job-note">Add an internal note</label>
+              <textarea id="job-note" rows="2" required maxlength="2000"></textarea>
+            </div>
+            <button type="submit" class="secondary">Add note</button>
+          </form>
+          <h4>Notes</h4>
+          <ul id="job-notes" class="timeline"></ul>
+        </div>
+      </section>
+
+      <!-- Cleaners -->
+      <section id="panel-cleaners" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Cleaners</h2>
+          <button id="cleaners-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Put a cleaner <strong>under review</strong> while you look into complaints. Suspending a cleaner, or lifting
+          a suspension, needs an admin.
+        </p>
+        <div id="cleaners-alert" class="alert alert-error" hidden></div>
+        <div id="cleaners-success" class="alert alert-success" hidden></div>
+        <div class="filter-bar">
+          <div class="form-row">
+            <label for="cleaners-filter-status">Status</label>
+            <select id="cleaners-filter-status">
+              <option value="">All</option>
+              <option value="active">Active</option>
+              <option value="under_review">Under review</option>
+              <option value="suspended">Suspended</option>
+            </select>
+          </div>
+          <button id="cleaners-filter-apply" type="button">Apply</button>
+        </div>
+        <div id="cleaners-table" class="table-wrap"></div>
+      </section>
+    </div>
+  </main>
+
+  <script type="module" src="js/nav.js"></script>
+  <script type="module" src="js/ops.js"></script>
+</body>
+</html>

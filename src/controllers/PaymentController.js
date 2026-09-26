@@ -1,4 +1,5 @@
 const paymentService = require('../services/payment.service');
+const opsService = require('../services/ops.service');
 const Job = require('../models/Job');
 const CleanerProfile = require('../models/CleanerProfile');
 
@@ -94,7 +95,7 @@ const confirm = wrap(async (req) => {
 
 const raiseDispute = wrap(async (req) => {
   await requireOwningCustomer(req);
-  return { body: await paymentService.raiseDispute(req.params.id, req.body.reasonCode) };
+  return { body: await paymentService.raiseDispute(req.params.id, req.body.reasonCode, req.body.detail) };
 });
 
 const resolveRefund = wrap(async (req) => ({ body: await paymentService.resolveDisputeRefund(req.params.id) }));
@@ -105,7 +106,9 @@ const resolvePartial = wrap(async (req) => ({
 
 const resolvePayout = wrap(async (req) => ({ body: await paymentService.resolveDisputePayout(req.params.id) }));
 
-const manualRetry = wrap(async (req) => ({ body: await paymentService.manualRetryTransfer(req.params.id) }));
+const manualRetry = wrap(async (req) => ({
+  body: await opsService.manualRetryTransfer(req.params.id, req.body.reason || 'Manual payout retry', req),
+}));
 
 const opsQueue = wrap(async () => {
   const jobs = await Job.find({

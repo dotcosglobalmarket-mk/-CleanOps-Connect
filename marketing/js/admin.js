@@ -1,69 +1,21 @@
 import { apiRequest, requireRole } from './api.js';
 import { escapeHtml } from './dom.js';
+import {
+  PAYMENT_STATES,
+  showAlert,
+  hideAlert,
+  renderTable,
+  statusBadge,
+  paymentStatusBadge,
+  formatPence,
+  formatDate,
+  shortId,
+  setupTabs,
+} from './dashboard-ui.js';
 
 requireRole('admin');
 
-// Mirrors src/services/payment-state-machine.js STATES on the backend —
-// duplicated here only to populate the payment-status filter dropdown.
-const PAYMENT_STATES = [
-  'BOOKED',
-  'PAID_HELD',
-  'CANCELLED',
-  'CANCELLED_BY_CLEANER',
-  'CANCELLED_BY_CUSTOMER',
-  'IN_PROGRESS',
-  'AWAITING_CONFIRMATION',
-  'DISPUTED',
-  'RESOLVED_REFUND',
-  'RESOLVED_PARTIAL',
-  'RESOLVED_PAYOUT',
-  'CONFIRMED',
-  'PAYOUT_PENDING',
-  'PAYOUT_BLOCKED',
-  'TRANSFER_FAILED',
-  'MANUAL_REVIEW_HOLD',
-  'PAID_OUT',
-  'REFUNDED',
-  'PARTIALLY_REFUNDED',
-];
-
-function showAlert(id, message) {
-  const el = document.getElementById(id);
-  el.textContent = message;
-  el.hidden = false;
-}
-
-function hideAlert(id) {
-  document.getElementById(id).hidden = true;
-}
-
-
-function renderTable({ columns, rows, emptyMessage }) {
-  if (!rows.length) {
-    return `<div class="table-empty">${escapeHtml(emptyMessage)}</div>`;
-  }
-  return `
-    <table class="data-table">
-      <thead><tr>${columns.map((c) => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead>
-      <tbody>${rows.join('')}</tbody>
-    </table>
-  `;
-}
-
-function statusBadge(value, kind) {
-  const classes = { good: 'badge-success', bad: 'badge-error', warn: 'badge-warning' };
-  return `<span class="badge ${classes[kind] || ''}">${escapeHtml(value)}</span>`;
-}
-
-// --- Tab switching ---
-document.querySelectorAll('.dash-nav-item').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.dash-nav-item').forEach((b) => b.classList.remove('is-active'));
-    document.querySelectorAll('.dash-panel').forEach((p) => p.classList.remove('is-active'));
-    btn.classList.add('is-active');
-    document.getElementById(`panel-${btn.dataset.panel}`).classList.add('is-active');
-  });
-});
+setupTabs();
 
 // --- Overview ---
 async function loadOverview() {
@@ -84,9 +36,6 @@ async function loadOverview() {
 }
 
 // --- Payments Ops Queue ---
-function paymentStatusBadge(status) {
-  return statusBadge(status, status === 'MANUAL_REVIEW_HOLD' ? 'bad' : 'warn');
-}
 
 async function loadPaymentsQueue() {
   hideAlert('payments-alert');
@@ -136,10 +85,6 @@ async function loadPaymentsQueue() {
 document.getElementById('payments-refresh').addEventListener('click', loadPaymentsQueue);
 
 // --- Cleaner Verification ---
-function deactivationBadge(status) {
-  const kind = status === 'suspended' ? 'bad' : status === 'under_review' ? 'warn' : 'good';
-  return statusBadge(status, kind);
-}
 
 async function loadCleaners() {
   hideAlert('cleaners-alert');
@@ -379,6 +324,186 @@ document.getElementById('create-service-type-form').addEventListener('submit', a
   }
 });
 
+// --- Refund Approvals ---
+async function loadApprovals() {
+  hideAlert('approvals-alert');
+  const container = document.getElementById('approvals-table');
+  container.innerHTML = '<div class="table-empty">Loading…</div>';
+
+  try {
+    const approvals = await apiRequest('/admin/approvals?status=pending', { auth: true });
+    container.innerHTML = renderTable({
+      columns: ['Job', 'Requested by', 'Outcome', 'Refund', 'Operator reason', 'Raised', 'Your reason', ''],
+      emptyMessage: 'No refunds are waiting for approval.',
+      rows: approvals.map((a) => `
+        <tr data-id="${escapeHtml(a._id)}">
+          <td><code>${shortId(a.job?._id || a.job)}</code></td>
+          <td>${escapeHtml(a.requestedBy?.name || '—')}</td>
+          <td>${statusBadge(a.outcome, 'warn')}</td>
+          <td>${formatPence(a.refundPence)}${a.job?.pricePence ? ` of ${formatPence(a.job.pricePence)}` : ''}</td>
+          <td>${escapeHtml(a.reason)}</td>
+          <td>${formatDate(a.createdAt)}</td>
+          <td><input type="text" class="decision-reason" aria-label="Reason for your decision" placeholder="Required" /></td>
+          <td class="table-actions">
+            <button type="button" class="decide-btn" data-decision="approve">Approve</button>
+            <button type="button" class="secondary decide-btn" data-decision="reject">Reject</button>
+          </td>
+        </tr>
+      `),
+    });
+
+    container.querySelectorAll('tr[data-id]').forEach((row) => {
+      row.querySelectorAll('.decide-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          hideAlert('approvals-alert');
+          hideAlert('approvals-success');
+          const reason = row.querySelector('.decision-reason').value.trim();
+          if (reason.length < 3) {
+            showAlert('approvals-alert', 'Give a reason for your decision.');
+            return;
+          }
+          row.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+          try {
+            await apiRequest(`/admin/approvals/${row.dataset.id}/decision`, {
+              method: 'POST',
+              body: { decision: btn.dataset.decision, reason },
+              auth: true,
+            });
+            showAlert('approvals-success', btn.dataset.decision === 'approve' ? 'Refund approved and issued.' : 'Request rejected.');
+            await loadApprovals();
+          } catch (err) {
+            showAlert('approvals-alert', err.message);
+            row.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+          }
+        });
+      });
+    });
+  } catch (err) {
+    container.innerHTML = '';
+    showAlert('approvals-alert', err.message);
+  }
+}
+
+document.getElementById('approvals-refresh').addEventListener('click', loadApprovals);
+
+// --- Audit Log ---
+function describeChange(entry) {
+  const parts = [];
+  if (entry.before && Object.keys(entry.before).length) parts.push(`before ${JSON.stringify(entry.before)}`);
+  if (entry.after && Object.keys(entry.after).length) parts.push(`after ${JSON.stringify(entry.after)}`);
+  return escapeHtml(parts.join(' → ') || '—');
+}
+
+async function loadAudit() {
+  hideAlert('audit-alert');
+  const container = document.getElementById('audit-table');
+  container.innerHTML = '<div class="table-empty">Loading…</div>';
+  const action = document.getElementById('audit-filter-action').value;
+  const query = action ? `?action=${encodeURIComponent(action)}` : '';
+
+  try {
+    const entries = await apiRequest(`/admin/audit${query}`, { auth: true });
+    container.innerHTML = renderTable({
+      columns: ['When', 'Who', 'Action', 'Target', 'Change', 'Reason'],
+      emptyMessage: 'No audit entries match this filter.',
+      rows: entries.map((e) => `
+        <tr>
+          <td>${formatDate(e.createdAt)}</td>
+          <td>${escapeHtml(e.actor?.name || '—')} <span class="field-help">(${escapeHtml(e.actorRole)})</span></td>
+          <td><code>${escapeHtml(e.action)}</code></td>
+          <td>${escapeHtml(e.targetType)} <code>${shortId(e.targetId)}</code></td>
+          <td style="font-size: 0.82rem;">${describeChange(e)}</td>
+          <td>${escapeHtml(e.reason)}</td>
+        </tr>
+      `),
+    });
+  } catch (err) {
+    container.innerHTML = '';
+    showAlert('audit-alert', err.message);
+  }
+}
+
+document.getElementById('audit-refresh').addEventListener('click', loadAudit);
+document.getElementById('audit-filter-apply').addEventListener('click', loadAudit);
+
+// --- Staff Accounts ---
+async function loadStaff() {
+  hideAlert('staff-alert');
+  const container = document.getElementById('staff-table');
+  container.innerHTML = '<div class="table-empty">Loading…</div>';
+
+  try {
+    const staff = await apiRequest('/admin/users', { auth: true });
+    container.innerHTML = renderTable({
+      columns: ['Name', 'Email', 'Role', 'Status', 'Created', ''],
+      emptyMessage: 'No staff accounts yet.',
+      rows: staff.map((u) => `
+        <tr data-id="${escapeHtml(u.id)}" data-active="${u.active}">
+          <td>${escapeHtml(u.name)}</td>
+          <td>${escapeHtml(u.email)}</td>
+          <td>${escapeHtml(u.role)}</td>
+          <td>${u.active ? statusBadge('Active', 'good') : statusBadge('Deactivated', 'bad')}</td>
+          <td>${formatDate(u.createdAt)}</td>
+          <td class="table-actions">
+            <button type="button" class="secondary toggle-staff-btn">${u.active ? 'Deactivate' : 'Re-activate'}</button>
+          </td>
+        </tr>
+      `),
+    });
+
+    container.querySelectorAll('tr[data-id]').forEach((row) => {
+      row.querySelector('.toggle-staff-btn').addEventListener('click', async (event) => {
+        hideAlert('staff-alert');
+        hideAlert('staff-success');
+        const activate = row.dataset.active !== 'true';
+        const reason = window.prompt(activate ? 'Reason for re-activating this account:' : 'Reason for deactivating this account:');
+        if (!reason || reason.trim().length < 3) return;
+        event.target.disabled = true;
+        try {
+          await apiRequest(`/admin/users/${row.dataset.id}`, {
+            method: 'PATCH',
+            body: { active: activate, reason: reason.trim() },
+            auth: true,
+          });
+          showAlert('staff-success', activate ? 'Account re-activated.' : 'Account deactivated.');
+          await loadStaff();
+        } catch (err) {
+          showAlert('staff-alert', err.message);
+          event.target.disabled = false;
+        }
+      });
+    });
+  } catch (err) {
+    container.innerHTML = '';
+    showAlert('staff-alert', err.message);
+  }
+}
+
+document.getElementById('staff-refresh').addEventListener('click', loadStaff);
+
+document.getElementById('create-staff-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  hideAlert('staff-alert');
+  hideAlert('staff-success');
+  try {
+    await apiRequest('/admin/users', {
+      method: 'POST',
+      body: {
+        name: document.getElementById('staff-name').value.trim(),
+        email: document.getElementById('staff-email').value.trim(),
+        password: document.getElementById('staff-password').value,
+        role: document.getElementById('staff-role').value,
+      },
+      auth: true,
+    });
+    event.target.reset();
+    showAlert('staff-success', 'Staff account created.');
+    await loadStaff();
+  } catch (err) {
+    showAlert('staff-alert', err.message);
+  }
+});
+
 // --- Init ---
 populatePaymentStatusFilter();
 loadOverview();
@@ -386,3 +511,6 @@ loadPaymentsQueue();
 loadCleaners();
 loadJobs();
 loadServiceTypes();
+loadApprovals();
+loadAudit();
+loadStaff();

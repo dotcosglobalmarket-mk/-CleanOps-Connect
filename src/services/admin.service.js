@@ -29,25 +29,6 @@ async function getCleanerById(id) {
   return cleaner;
 }
 
-// Human-driven only — this is the admin review action itself. Never called
-// automatically from a rating/scoring trigger; that path must land here as
-// 'under_review' first (see CleanerProfile.deactivationStatus comment).
-async function updateCleanerVerification(id, updates) {
-  const cleaner = await CleanerProfile.findById(id);
-  if (!cleaner) throw notFound('Cleaner not found');
-  Object.assign(cleaner, updates);
-  await cleaner.save();
-  return cleaner;
-}
-
-async function updateCleanerDeactivation(id, deactivationStatus) {
-  const cleaner = await CleanerProfile.findById(id);
-  if (!cleaner) throw notFound('Cleaner not found');
-  cleaner.deactivationStatus = deactivationStatus;
-  await cleaner.save();
-  return cleaner;
-}
-
 async function listJobs({ status, paymentStatus } = {}) {
   const filter = {};
   if (status) filter.status = status;
@@ -112,8 +93,6 @@ async function getSummary() {
 module.exports = {
   listCleaners,
   getCleanerById,
-  updateCleanerVerification,
-  updateCleanerDeactivation,
   listJobs,
   getJobById,
   getSummary,

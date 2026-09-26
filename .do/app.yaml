@@ -2,7 +2,9 @@
 # CI (see .github/workflows/deploy.yml). Secret values below are placeholders;
 # the real values live only in the DigitalOcean dashboard. Required runtime
 # variables: PORT, MONGO_URI, MAPBOX_API_KEY, JWT_SECRET, STRIPE_SECRET_KEY,
-# STRIPE_WEBHOOK_SECRET, and optionally CORS_ORIGINS and AUTH_RATE_LIMIT_MAX.
+# STRIPE_WEBHOOK_SECRET, and optionally CORS_ORIGINS, AUTH_RATE_LIMIT_MAX and
+# OPS_REFUND_LIMIT_PENCE (operator refund limit before admin approval; default
+# 15000 = £150).
 name: cleanops-connect
 region: lon
 services:

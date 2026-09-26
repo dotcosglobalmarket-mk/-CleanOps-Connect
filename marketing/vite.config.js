@@ -17,6 +17,7 @@ export default defineConfig({
         customer: resolve(__dirname, 'customer.html'),
         cleaner: resolve(__dirname, 'cleaner.html'),
         admin: resolve(__dirname, 'admin.html'),
+        ops: resolve(__dirname, 'ops.html'),
         privacy: resolve(__dirname, 'privacy.html'),
         terms: resolve(__dirname, 'terms.html'),
         cookies: resolve(__dirname, 'cookies.html'),

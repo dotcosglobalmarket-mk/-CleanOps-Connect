@@ -15,7 +15,8 @@ document.getElementById('login-form').addEventListener('submit', async (event) =
     const result = await apiRequest('/auth/login', { method: 'POST', body: payload });
     setSession(result.token, result.user);
     const role = result.user.role;
-    window.location.href = role === 'admin' ? 'admin.html' : role === 'cleaner' ? 'cleaner.html' : 'customer.html';
+    const dashboards = { admin: 'admin.html', operator: 'ops.html', cleaner: 'cleaner.html' };
+    window.location.href = dashboards[role] || 'customer.html';
   } catch (err) {
     alertBox.textContent = err.message;
     alertBox.hidden = false;

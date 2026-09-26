@@ -39,7 +39,7 @@ async function register({ name, email, password, role, phone }) {
     throw conflict('Email already registered');
   }
 
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  const passwordHash = await hashPassword(password);
   const user = await User.create({ name, email, passwordHash, role, phone });
 
   return { user: toPublicUser(user), token: signToken(user) };
@@ -56,10 +56,20 @@ async function login({ email, password }) {
     throw unauthorized('Invalid email or password');
   }
 
+  if (user.active === false) {
+    throw unauthorized('This account has been deactivated');
+  }
+
   return { user: toPublicUser(user), token: signToken(user) };
+}
+
+async function hashPassword(password) {
+  return bcrypt.hash(password, SALT_ROUNDS);
 }
 
 module.exports = {
   register,
   login,
+  hashPassword,
+  toPublicUser,
 };

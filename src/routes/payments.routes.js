@@ -1,6 +1,6 @@
 const express = require('express');
 const PaymentController = require('../controllers/PaymentController');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole, requireActiveStaff, requirePermission } = require('../middleware/auth');
 const { validateBody, validateParams } = require('../middleware/validate');
 const {
   bookJobSchema,
@@ -8,6 +8,7 @@ const {
   raiseDisputeSchema,
   resolvePartialSchema,
 } = require('../validation/payment.validation');
+const { manualRetrySchema } = require('../validation/ops.validation');
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ router.post(
   '/jobs/:id/book',
   requireAuth,
   requireRole('admin'),
+  requireActiveStaff,
   validateParams(jobIdParamSchema),
   validateBody(bookJobSchema),
   PaymentController.book
@@ -56,6 +58,7 @@ router.post(
   '/jobs/:id/resolve/refund',
   requireAuth,
   requireRole('admin'),
+  requireActiveStaff,
   validateParams(jobIdParamSchema),
   PaymentController.resolveRefund
 );
@@ -63,6 +66,7 @@ router.post(
   '/jobs/:id/resolve/partial',
   requireAuth,
   requireRole('admin'),
+  requireActiveStaff,
   validateParams(jobIdParamSchema),
   validateBody(resolvePartialSchema),
   PaymentController.resolvePartial
@@ -71,17 +75,27 @@ router.post(
   '/jobs/:id/resolve/payout',
   requireAuth,
   requireRole('admin'),
+  requireActiveStaff,
   validateParams(jobIdParamSchema),
   PaymentController.resolvePayout
 );
 
-// Ops-facing queue for MANUAL_REVIEW_HOLD / PAYOUT_BLOCKED jobs.
-router.get('/ops/queue', requireAuth, requireRole('admin'), PaymentController.opsQueue);
+// Ops-facing queue for MANUAL_REVIEW_HOLD / PAYOUT_BLOCKED jobs. Operators
+// and admins; the manual retry is audited.
+router.get(
+  '/ops/queue',
+  requireAuth,
+  requireActiveStaff,
+  requirePermission('payments.queue.read'),
+  PaymentController.opsQueue
+);
 router.post(
   '/ops/jobs/:id/manual-retry',
   requireAuth,
-  requireRole('admin'),
+  requireActiveStaff,
+  requirePermission('payments.retry'),
   validateParams(jobIdParamSchema),
+  validateBody(manualRetrySchema),
   PaymentController.manualRetry
 );
 

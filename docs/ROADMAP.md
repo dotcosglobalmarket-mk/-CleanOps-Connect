@@ -58,7 +58,15 @@ Notes from implementation:
 - **Legal pages:** add `privacy.html`, `terms.html` and `cookies.html`, and register them in `marketing/vite.config.js`. Remove the fake testimonials, or label them clearly as illustrative until real reviews exist. Fix the footer links.
 - **Tests:** add tests for each fix in `tests/integration/*.routes.test.js` and `tests/unit/payment.service.test.js`.
 
-## Phase 2: Operator (platform ops) dashboard
+## Phase 2: Operator (platform ops) dashboard — implemented
+
+Implemented as planned, with these details:
+- Staff routes re-check the account on every request (`requireActiveStaff`), so deactivating an operator takes effect immediately instead of when their 7-day token expires.
+- An admin cannot approve or reject a refund request they raised themselves, and approvals are claimed atomically so two admins cannot both decide one.
+- Operators cannot call the direct `/payments/jobs/:id/resolve/*` endpoints, so the refund limit cannot be bypassed.
+- The customer's free-text dispute detail is now stored (it was accepted but dropped before) and shown to ops.
+- Admins can use `ops.html` too; the admin dashboard links to it.
+
 
 **Role model:** add `'operator'` to the `User.role` enum in `src/models/User.js`. Access is permission-based and least-privilege.
 - **Operator can:**
