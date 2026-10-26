@@ -72,3 +72,42 @@ describe('model selection', () => {
     delete process.env.ANTHROPIC_MODEL;
   });
 });
+
+describe('suggestBio', () => {
+  const { suggestBio, buildBioMessage, BIO_SYSTEM_PROMPT } = require('../../src/services/ai-description.service');
+  const ServiceType = require('../../src/models/ServiceType');
+
+  beforeEach(() => {
+    ServiceType.find = jest.fn(() => ({ select: jest.fn().mockResolvedValue([{ name: 'Deep clean' }]) }));
+  });
+
+  it('sends service names, travel distance and the draft, with the bio system prompt', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text: 'I am a cleaner.' }] });
+    const result = await suggestBio({
+      services: ['507f1f77bcf86cd799439011'],
+      customServices: ['Oven cleaning'],
+      travelDistanceMiles: 15,
+      draft: 'cleaner in leeds',
+    });
+    expect(result).toEqual({ suggestion: 'I am a cleaner.' });
+    const args = mockCreate.mock.calls[0][0];
+    expect(args.system).toBe(BIO_SYSTEM_PROMPT);
+    expect(args.messages[0].content).toContain('Deep clean, Oven cleaning');
+    expect(args.messages[0].content).toContain('up to 15 miles');
+    expect(args.messages[0].content).toContain('<cleaner_draft>\ncleaner in leeds\n</cleaner_draft>');
+  });
+
+  it('forbids invented credentials in the prompt', () => {
+    expect(BIO_SYSTEM_PROMPT).toMatch(/Never invent or imply qualifications/);
+    expect(BIO_SYSTEM_PROMPT).toMatch(/DBS/);
+  });
+
+  it('asks for a starting bio when there is nothing yet', () => {
+    expect(buildBioMessage({})).toContain('has not written a bio yet');
+  });
+
+  it('returns 503 without an API key', async () => {
+    delete process.env.ANTHROPIC_API_KEY;
+    await expect(suggestBio({})).rejects.toMatchObject({ status: 503 });
+  });
+});

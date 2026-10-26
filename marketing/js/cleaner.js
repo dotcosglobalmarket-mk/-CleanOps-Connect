@@ -233,6 +233,47 @@ document.getElementById('available-toggle').addEventListener('change', async (ev
 });
 
 // --- My Profile form submit ---
+// --- AI writing help for the bio ---
+const bioHelpButton = document.getElementById('bio-help');
+const bioHelpStatus = document.getElementById('bio-help-status');
+const bioSuggestionBox = document.getElementById('bio-suggestion');
+const bioSuggestionText = document.getElementById('bio-suggestion-text');
+
+bioHelpButton.addEventListener('click', async () => {
+  const body = {
+    services: Array.from(selectedServiceIds),
+    customServices,
+    acceptEmergencyBookings: document.getElementById('acceptEmergencyBookings').checked,
+  };
+  const travel = document.getElementById('travelDistanceMiles').value;
+  const draft = document.getElementById('bio').value.trim();
+  if (travel !== '' && Number(travel) > 0) body.travelDistanceMiles = Number(travel);
+  if (draft) body.draft = draft;
+
+  bioHelpButton.disabled = true;
+  bioHelpStatus.textContent = 'Writing a suggestion…';
+  bioSuggestionBox.hidden = true;
+  try {
+    const { suggestion } = await apiRequest('/cleaners/me/describe-bio', { method: 'POST', body, auth: true });
+    bioSuggestionText.textContent = suggestion;
+    bioSuggestionBox.hidden = false;
+    bioHelpStatus.textContent = '';
+  } catch (err) {
+    bioHelpStatus.textContent = err.message;
+  } finally {
+    bioHelpButton.disabled = false;
+  }
+});
+
+document.getElementById('bio-use').addEventListener('click', () => {
+  document.getElementById('bio').value = bioSuggestionText.textContent.slice(0, 2000);
+  bioSuggestionBox.hidden = true;
+});
+
+document.getElementById('bio-dismiss').addEventListener('click', () => {
+  bioSuggestionBox.hidden = true;
+});
+
 document.getElementById('profile-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   hideAlert('profile-alert');
