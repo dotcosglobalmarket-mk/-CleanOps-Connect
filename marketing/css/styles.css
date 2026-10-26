@@ -930,6 +930,7 @@ body:has(.lp-page) {
   border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 1.25rem;
+  border-top: 3px solid var(--tile-accent, var(--color-border));
 }
 
 .stat-tile-head {
@@ -945,7 +946,8 @@ body:has(.lp-page) {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: var(--color-success-bg);
+  background: var(--tile-accent, var(--color-success-bg));
+  color: #fff;
   font-size: 1rem;
   margin-bottom: 0.75rem;
 }
@@ -960,7 +962,19 @@ body:has(.lp-page) {
   font-weight: 700;
   font-size: 1.15rem;
   margin-top: 0.15rem;
+  color: var(--tile-accent-text, var(--color-text));
 }
+
+/* Bright, modern tone palette for stat tiles — a colored top accent, a
+   solid-fill icon chip, and a matching bold value, on an otherwise plain
+   white card so dense dashboards stay readable instead of becoming a wall
+   of colored blocks. */
+.stat-tile-blue { --tile-accent: #2563eb; --tile-accent-text: #1d4ed8; }
+.stat-tile-teal { --tile-accent: #0d9488; --tile-accent-text: #0f766e; }
+.stat-tile-green { --tile-accent: #16a34a; --tile-accent-text: #15803d; }
+.stat-tile-amber { --tile-accent: #d97706; --tile-accent-text: #b45309; }
+.stat-tile-red { --tile-accent: #dc2626; --tile-accent-text: #b91c1c; }
+.stat-tile-purple { --tile-accent: #7c3aed; --tile-accent-text: #6d28d9; }
 
 /* Toggle switch */
 .toggle-switch input {
