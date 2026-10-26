@@ -346,11 +346,14 @@ No GitHub secrets are required for this deploy path; environment variables are c
 ## Roadmap
 
 **Delivered**
-- Customer and cleaner apps, as an installable progressive web app (install from the browser; works on phones and desktop, with live in-app chat). Native App Store and Play Store apps are not built; they need Apple and Google developer accounts and signing keys.
+- Customer and cleaner apps, as an installable progressive web app (install from the browser; works on phones and desktop, with live in-app chat).
 - Escrow payments (see Payments above).
 - Industrial tendering (see Industrial tenders above).
 - Suggested local rates for customers and cleaners (see Price guide above).
 - Job documents: a printable service record for every booked job, and a pre-start compliance pack for industrial jobs (see Job documents above).
+
+**Not built yet**
+- Native customer and cleaner mobile apps with an App Store / Play Store listing. The site is already an installable PWA, so there is a home-screen app experience; store listings need Apple and Google developer accounts and signing keys.
 
 ## License
 
