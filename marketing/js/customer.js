@@ -172,6 +172,10 @@ async function loadJobs() {
       emptyMessage: "You haven't posted any jobs yet. Use Post a job to get started.",
       rows: jobs.map((job) => {
         const [label, kind] = statusInfo(job);
+        const payNowButton =
+          job.paymentStatus === 'BOOKED'
+            ? `<button type="button" class="pay-now" data-id="${escapeHtml(job._id)}">Pay now</button>`
+            : '';
         return `
           <tr>
             <td>${escapeHtml(job.serviceType?.name || 'Cleaning')} · ${escapeHtml(job.postcode)}</td>
@@ -179,11 +183,18 @@ async function loadJobs() {
             <td>${escapeHtml(job.cleaner?.name || '—')}</td>
             <td>${formatPence(job.pricePence)}</td>
             <td>${statusBadge(label, kind)}</td>
-            <td class="table-actions"><button type="button" class="secondary open-job" data-id="${escapeHtml(job._id)}">Open</button>${unreadByJob[job._id] ? ` <span class="unread-badge" title="Unread messages" aria-label="${escapeHtml(unreadByJob[job._id])} unread messages">${escapeHtml(unreadByJob[job._id])}</span>` : ''}</td>
+            <td class="table-actions">
+              ${payNowButton}
+              <button type="button" class="secondary open-job" data-id="${escapeHtml(job._id)}">Open</button>
+              ${unreadByJob[job._id] ? `<span class="unread-badge" title="Unread messages" aria-label="${escapeHtml(unreadByJob[job._id])} unread messages">${escapeHtml(unreadByJob[job._id])}</span>` : ''}
+            </td>
           </tr>`;
       }),
     });
     container.querySelectorAll('.open-job').forEach((btn) => btn.addEventListener('click', () => openJob(btn.dataset.id)));
+    container.querySelectorAll('.pay-now').forEach((btn) =>
+      btn.addEventListener('click', () => openJob(btn.dataset.id, { focusPayment: true }))
+    );
   } catch (err) {
     showAlert('page-alert', err.message);
   }
@@ -194,7 +205,7 @@ function show(id, visible) {
   document.getElementById(id).hidden = !visible;
 }
 
-async function openJob(jobId, { focusReview = false } = {}) {
+async function openJob(jobId, { focusReview = false, focusPayment = false } = {}) {
   hideAlert('page-alert');
   try {
     currentJob = await apiRequest(`/jobs/${jobId}`, { auth: true });
@@ -234,7 +245,11 @@ async function openJob(jobId, { focusReview = false } = {}) {
   await renderReview(job);
 
   const detail = document.getElementById('job-detail');
-  const target = focusReview ? document.getElementById('review-section') : detail;
+  const target = focusReview
+    ? document.getElementById('review-section')
+    : focusPayment && status === 'BOOKED'
+      ? document.getElementById('payment-section')
+      : detail;
   target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 

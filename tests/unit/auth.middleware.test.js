@@ -43,6 +43,37 @@ describe('auth middleware', () => {
       expect(next).toHaveBeenCalledTimes(1);
       expect(req.user).toEqual({ id: 'user123', role: 'customer' });
     });
+
+    it('allows a GET request with an impersonation token and marks req.user.impersonatedBy', () => {
+      const token = jwt.sign({ sub: 'cleaner1', role: 'cleaner', imp: 'admin1' }, process.env.JWT_SECRET, {
+        expiresIn: '30m',
+      });
+      const req = { headers: { authorization: `Bearer ${token}` }, method: 'GET' };
+      const res = mockRes();
+      const next = jest.fn();
+
+      requireAuth(req, res, next);
+
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(req.user).toEqual({ id: 'cleaner1', role: 'cleaner', impersonatedBy: 'admin1' });
+    });
+
+    it('rejects a write request made with an impersonation token', () => {
+      const token = jwt.sign({ sub: 'cleaner1', role: 'cleaner', imp: 'admin1' }, process.env.JWT_SECRET, {
+        expiresIn: '30m',
+      });
+      const req = { headers: { authorization: `Bearer ${token}` }, method: 'POST' };
+      const res = mockRes();
+      const next = jest.fn();
+
+      requireAuth(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({
+        message: 'This is a read-only support view and cannot make changes',
+      });
+      expect(next).not.toHaveBeenCalled();
+    });
   });
 
   describe('requireRole', () => {

@@ -12,6 +12,10 @@ const cleanerIdParamSchema = z.object({
   id: objectId(),
 });
 
+const impersonateCleanerSchema = z.object({
+  reason,
+});
+
 const updateCleanerVerificationSchema = z
   .object({
     dbsVerified: z.boolean().optional(),
@@ -73,6 +77,7 @@ const jobIdParamSchema = z.object({
 module.exports = {
   listCleanersQuerySchema,
   cleanerIdParamSchema,
+  impersonateCleanerSchema,
   updateCleanerVerificationSchema,
   updateCleanerDeactivationSchema,
   listJobsQuerySchema,

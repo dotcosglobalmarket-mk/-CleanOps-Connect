@@ -13,6 +13,18 @@ function requireAuth(req, res, next) {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     req.user = { id: payload.sub, role: payload.role };
+
+    // Impersonation tokens (see impersonation.service.js) carry the real
+    // admin's id in `imp`. These tokens are read-only everywhere: a staff
+    // member diagnosing a support ticket can see exactly what the cleaner
+    // sees, but can never act on their behalf.
+    if (payload.imp) {
+      req.user.impersonatedBy = payload.imp;
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+        return res.status(403).json({ message: 'This is a read-only support view and cannot make changes' });
+      }
+    }
+
     next();
   } catch (err) {
     return res.status(401).json({ message: 'Invalid or expired token' });
