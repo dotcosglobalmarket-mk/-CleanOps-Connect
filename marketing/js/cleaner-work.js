@@ -36,13 +36,55 @@ function jobStatusBadge(paymentStatus) {
 }
 
 // --- Offers ---
+const isOpenTender = (job) => job.procurement === 'tender' && job.tender?.closesAt && new Date(job.tender.closesAt).getTime() > Date.now();
+
+function offerForm(o) {
+  const id = escapeHtml(o._id);
+  if (o.job.procurement === 'tender') {
+    const quote = o.quote;
+    return `
+      <form class="quote-form">
+        ${quote ? `<p class="field-help">Your quote: <strong>${escapeHtml(formatPence(quote.pricePence))}</strong> (sent ${escapeHtml(formatDate(quote.quotedAt))}). You can change it until the tender closes.</p>` : ''}
+        <div class="form-row">
+          <label for="price-${id}">${quote ? 'New price' : 'Your quote'} for this job (£)</label>
+          <input id="price-${id}" type="number" min="1" step="0.01" inputmode="decimal" required />
+        </div>
+        <div class="form-row">
+          <label for="note-${id}">Note to the customer (optional)</label>
+          <textarea id="note-${id}" rows="2" maxlength="1500" placeholder="What's included, when you could start…"></textarea>
+          <span class="field-help">Phone numbers, emails, postcodes and links are hidden to keep the work on CleanOps Connect.</span>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+          <button type="submit">${quote ? 'Update quote' : 'Send quote'}</button>
+          <button type="button" class="secondary decline-btn">Not interested</button>
+        </div>
+      </form>`;
+  }
+  return `
+    <form class="accept-form">
+      <div class="form-row">
+        <label for="price-${id}">Your price for this job (£)</label>
+        <input id="price-${id}" type="number" min="1" step="0.01" inputmode="decimal" required />
+      </div>
+      <div style="display: flex; gap: 0.75rem;">
+        <button type="submit">Accept at this price</button>
+        <button type="button" class="secondary decline-btn">Decline</button>
+      </div>
+    </form>`;
+}
+
 async function loadOffers() {
   hideAlert('offers-alert');
   const container = document.getElementById('offers-list');
   container.innerHTML = '<div class="table-empty">Loading…</div>';
   try {
-    const offers = await apiRequest('/cleaners/me/offers?status=sent', { auth: true });
-    const open = offers.filter((o) => !o.job.booked);
+    const offers = await apiRequest('/cleaners/me/offers', { auth: true });
+    // Open offers, plus quotes still waiting on a tender's result.
+    const open = offers.filter(
+      (o) =>
+        !o.job.booked &&
+        (o.status === 'quoted' || (o.status === 'sent' && (o.job.procurement !== 'tender' || isOpenTender(o.job))))
+    );
     if (!open.length) {
       container.innerHTML = '<div class="table-empty">No open offers right now. We email you when a new one arrives.</div>';
       return;
@@ -50,64 +92,94 @@ async function loadOffers() {
     container.innerHTML = open
       .map((o) => {
         const j = o.job;
+        const tender = j.procurement === 'tender';
+        const tenderOpen = isOpenTender(j);
         return `
         <article class="card offer-card" data-offer="${escapeHtml(o._id)}" data-job="${escapeHtml(j._id)}">
-          <h3>${escapeHtml(j.serviceType?.name || 'Cleaning')} · ${escapeHtml(j.area || '')}</h3>
+          <h3>${escapeHtml(j.serviceType?.name || 'Cleaning')} · ${escapeHtml(j.area || '')} ${tender ? statusBadge('Tender', 'warn') : ''}</h3>
           <dl class="detail-grid">
             <div><dt>Distance</dt><dd>${o.distanceKm !== undefined ? `${escapeHtml(kmToMiles(o.distanceKm))} mi` : '—'}</dd></div>
             <div><dt>Customer budget</dt><dd>£${escapeHtml(j.budgetMin)}–£${escapeHtml(j.budgetMax)}</dd></div>
             <div><dt>Frequency</dt><dd>${escapeHtml(FREQUENCY[j.frequency] || 'One-off')}</dd></div>
             <div><dt>Estimated hours</dt><dd>${j.estimatedHours ? escapeHtml(j.estimatedHours) : '—'}</dd></div>
             <div><dt>Category</dt><dd>${escapeHtml(j.category)}</dd></div>
-            <div><dt>Offered</dt><dd>${formatDate(o.createdAt)}</dd></div>
+            ${tender ? `<div><dt>Quotes close</dt><dd>${formatDate(j.tender.closesAt)}</dd></div>` : `<div><dt>Offered</dt><dd>${formatDate(o.createdAt)}</dd></div>`}
           </dl>
           ${j.description ? `<p>${escapeHtml(j.description)}</p>` : ''}
-          <form class="accept-form">
-            <div class="form-row">
-              <label for="price-${escapeHtml(o._id)}">Your price for this job (£)</label>
-              <input id="price-${escapeHtml(o._id)}" type="number" min="1" step="0.01" inputmode="decimal" required />
-            </div>
-            <div style="display: flex; gap: 0.75rem;">
-              <button type="submit">Accept at this price</button>
-              <button type="button" class="secondary decline-btn">Decline</button>
-            </div>
-          </form>
+          ${tender && j.tender.requirements ? `<p><strong>Site and requirements:</strong> ${escapeHtml(j.tender.requirements)}</p>` : ''}
+          ${tender && !tenderOpen ? `<p class="field-help">Quotes have closed. You sent ${escapeHtml(formatPence(o.quote?.pricePence))}; we'll tell you if the customer awards you the job.</p>` : offerForm(o)}
         </article>`;
       })
       .join('');
 
     container.querySelectorAll('.offer-card').forEach((card) => {
       const { offer, job } = card.dataset;
-      card.querySelector('.accept-form').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        hideAlert('offers-alert');
-        hideAlert('offers-success');
-        const pricePence = Math.round(Number(card.querySelector('input[type="number"]').value) * 100);
-        if (!Number.isInteger(pricePence) || pricePence <= 0) {
-          showAlert('offers-alert', 'Enter your price in pounds.');
-          return;
-        }
-        if (!window.confirm(`Accept this job for ${formatPence(pricePence)}? The customer will be asked to pay this amount.`)) return;
-        event.target.querySelectorAll('button').forEach((b) => { b.disabled = true; });
-        try {
-          await apiRequest(`/jobs/${job}/offers/${offer}/accept`, { method: 'POST', body: { pricePence }, auth: true });
-          showAlert('offers-success', 'Job accepted. We have asked the customer to pay; you will get an email when they do.');
-          await Promise.all([loadOffers(), loadMyJobs()]);
-        } catch (err) {
-          showAlert('offers-alert', err.message);
-          event.target.querySelectorAll('button').forEach((b) => { b.disabled = false; });
-        }
-      });
-      card.querySelector('.decline-btn').addEventListener('click', async (event) => {
-        event.target.disabled = true;
-        try {
-          await apiRequest(`/jobs/${job}/offers/${offer}/decline`, { method: 'POST', auth: true });
-          await loadOffers();
-        } catch (err) {
-          showAlert('offers-alert', err.message);
-          event.target.disabled = false;
-        }
-      });
+
+      const acceptForm = card.querySelector('.accept-form');
+      if (acceptForm) {
+        acceptForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          hideAlert('offers-alert');
+          hideAlert('offers-success');
+          const pricePence = Math.round(Number(card.querySelector('input[type="number"]').value) * 100);
+          if (!Number.isInteger(pricePence) || pricePence <= 0) {
+            showAlert('offers-alert', 'Enter your price in pounds.');
+            return;
+          }
+          if (!window.confirm(`Accept this job for ${formatPence(pricePence)}? The customer will be asked to pay this amount.`)) return;
+          event.target.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+          try {
+            await apiRequest(`/jobs/${job}/offers/${offer}/accept`, { method: 'POST', body: { pricePence }, auth: true });
+            showAlert('offers-success', 'Job accepted. We have asked the customer to pay; you will get an email when they do.');
+            await Promise.all([loadOffers(), loadMyJobs()]);
+          } catch (err) {
+            showAlert('offers-alert', err.message);
+            event.target.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+          }
+        });
+      }
+
+      const quoteForm = card.querySelector('.quote-form');
+      if (quoteForm) {
+        quoteForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          hideAlert('offers-alert');
+          hideAlert('offers-success');
+          const pricePence = Math.round(Number(card.querySelector('input[type="number"]').value) * 100);
+          if (!Number.isInteger(pricePence) || pricePence <= 0) {
+            showAlert('offers-alert', 'Enter your quote in pounds.');
+            return;
+          }
+          const message = card.querySelector('textarea').value.trim();
+          event.target.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+          try {
+            await apiRequest(`/jobs/${job}/offers/${offer}/quote`, {
+              method: 'POST',
+              body: message ? { pricePence, message } : { pricePence },
+              auth: true,
+            });
+            showAlert('offers-success', `Quote of ${formatPence(pricePence)} sent. The customer will compare quotes and award the job.`);
+            await loadOffers();
+          } catch (err) {
+            showAlert('offers-alert', err.message);
+            event.target.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+          }
+        });
+      }
+
+      const decline = card.querySelector('.decline-btn');
+      if (decline) {
+        decline.addEventListener('click', async (event) => {
+          event.target.disabled = true;
+          try {
+            await apiRequest(`/jobs/${job}/offers/${offer}/decline`, { method: 'POST', auth: true });
+            await loadOffers();
+          } catch (err) {
+            showAlert('offers-alert', err.message);
+            event.target.disabled = false;
+          }
+        });
+      }
     });
   } catch (err) {
     container.innerHTML = '';

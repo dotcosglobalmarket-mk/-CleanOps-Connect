@@ -150,6 +150,50 @@ paths:
           description: Suggested bio
         '503':
           description: AI writing help unavailable
+  /jobs/{id}/offers/{offerId}/quote:
+    post:
+      summary: Send or revise a tender quote (invited cleaner only)
+      description: For industrial jobs posted as a tender. The cleaner sets their own price (`pricePence`); the platform never sets or suggests one. The optional note has contact details hidden. Allowed until the tender's closing time, and only while the job is unawarded.
+      tags: [Jobs]
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: offerId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pricePence]
+              properties:
+                pricePence: { type: integer, minimum: 1 }
+                message: { type: string, maxLength: 1500 }
+      responses:
+        '200':
+          description: The updated offer, now `quoted`
+        '400':
+          description: Not a tender, tender closed or already awarded
+        '403':
+          description: This invitation was not sent to you
+  /jobs/{id}/offers/{offerId}/award:
+    post:
+      summary: Award a tender to one quote (the job's customer)
+      description: Books the job at the cleaner's quoted price using the same atomic booking as accepting an offer, declines all other offers, and emails the unsuccessful bidders. The customer then pays to confirm.
+      tags: [Jobs]
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: offerId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The booked job (paymentStatus BOOKED)
+        '400':
+          description: Not a tender, no quote from that cleaner, or already awarded
+        '409':
+          description: The job was just booked another way
   /chat/unread:
     get:
       summary: Unread chat message counts for the signed-in customer or cleaner

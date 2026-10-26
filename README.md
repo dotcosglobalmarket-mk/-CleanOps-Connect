@@ -128,7 +128,13 @@ npm run dev
 - `POST /jobs` 🔒 (customer) – Create a new job
 - `POST /jobs/:id/allocate` 🔒 (job owner or admin) – Run AI allocation and send offers
 - `POST /jobs/:id/offers/:offerId/accept` 🔒 (the offered cleaner) – Accept an offer **at the price the cleaner sets** (`pricePence` — the platform never sets or suggests a rate). Books the job (creates the Stripe PaymentIntent, see Payments below) and automatically declines every other outstanding offer on the job.
-- `POST /jobs/:id/offers/:offerId/decline` 🔒 (the offered cleaner) – Decline an offer
+- `POST /jobs/:id/offers/:offerId/decline` 🔒 (the offered cleaner) – Decline an offer, or withdraw a tender quote you have already sent
+- `POST /jobs/:id/offers/:offerId/quote` 🔒 (an invited cleaner) – **Tender:** send or revise a quote at your own price (`pricePence`) with an optional note (contact details are hidden). Allowed until the tender closes.
+- `POST /jobs/:id/offers/:offerId/award` 🔒 (the job's customer) – **Tender:** award the job to one quote. Books at that cleaner's quoted price with the same atomic booking as accept, declines the other offers and emails the unsuccessful bidders.
+
+#### Industrial tenders
+
+An **industrial** job can be posted as a tender: `POST /jobs` with `tender: { closesAt, requirements? }` (closing time between 1 hour and 30 days away; domestic jobs cannot be tenders). `POST /jobs/:id/allocate` then invites up to 10 matching, insured cleaners (each cleaner is invited once). Invited cleaners send quotes — they cannot use first-to-accept on a tender — and the customer compares the quotes (cheapest first in the dashboard) and awards one. The price is always the cleaner's own quote; the platform never sets or suggests it.
 - `GET /jobs/:id` – View job details
 
 ### Cleaners
@@ -325,7 +331,6 @@ No GitHub secrets are required for this deploy path; environment variables are c
 
 - Customer mobile app
 - Cleaner mobile app
-- Industrial tendering module
 - Escrow payments
 - Automated compliance document generation
 - AI‑powered job pricing suggestions

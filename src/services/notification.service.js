@@ -69,6 +69,63 @@ module.exports = {
     );
   }),
 
+  tenderInvited: safely('tenderInvited', async (job, offers) => {
+    const service = await serviceName(job);
+    const closes = job.tender && job.tender.closesAt ? new Date(job.tender.closesAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    await Promise.all(
+      offers.map(async (offer) =>
+        emailService.send({
+          to: await cleanerEmail(offer.cleaner),
+          subject: `Invitation to quote: ${service} in ${area(job.postcode)}`,
+          paragraphs: [
+            `A business customer in ${area(job.postcode)} has invited you to quote for ${service}.${closes ? ` Quotes close ${closes}.` : ''}`,
+            'You set your own price. The customer compares quotes and awards the job to one cleaner.',
+          ],
+          action: cleanerLink('See the tender', 'offers'),
+        })
+      )
+    );
+  }),
+
+  quoteReceived: safely('quoteReceived', async (job, cleaner) => {
+    await emailService.send({
+      to: await customerEmail(job),
+      subject: 'You have a new quote for your job',
+      paragraphs: [
+        `${cleaner.companyName || cleaner.name || 'A cleaner'} has sent a quote for your ${await serviceName(job)} job.`,
+        'Compare the quotes you have and award the job when you are ready.',
+      ],
+      action: customerJobLink(job),
+    });
+  }),
+
+  tenderAwarded: safely('tenderAwarded', async (job, cleaner) => {
+    await emailService.send({
+      to: await cleanerEmail(cleaner._id),
+      subject: 'You have been awarded the job',
+      paragraphs: [
+        `The customer has awarded you the ${await serviceName(job)} job at your quote of ${pounds(job.pricePence)}.`,
+        'They now need to pay to confirm the booking. You will be told when they have, and you can message them from your dashboard.',
+      ],
+      action: cleanerLink('Open my jobs', 'jobs'),
+    });
+  }),
+
+  tenderNotAwarded: safely('tenderNotAwarded', async (job, offers) => {
+    await Promise.all(
+      offers.map(async (offer) =>
+        emailService.send({
+          to: await cleanerEmail(offer.cleaner),
+          subject: 'Your quote was not chosen',
+          paragraphs: [
+            `The customer has awarded the ${await serviceName(job)} job in ${area(job.postcode)} to another cleaner. Thank you for quoting.`,
+          ],
+          action: cleanerLink('See new offers', 'offers'),
+        })
+      )
+    );
+  }),
+
   jobBooked: safely('jobBooked', async (job) => {
     await emailService.send({
       to: await customerEmail(job),

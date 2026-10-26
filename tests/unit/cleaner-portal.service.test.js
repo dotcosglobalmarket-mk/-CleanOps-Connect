@@ -115,6 +115,39 @@ describe('offers inbox', () => {
     expect(offer.distanceKm).toBeGreaterThan(0);
   });
 
+  it('shows a tender\'s closing time and requirements, and the cleaner\'s own quote only', async () => {
+    CleanerProfile.findOne.mockResolvedValue(profile());
+    const closesAt = new Date('2026-11-01T12:00:00Z');
+    JobOffer.find.mockReturnValue(
+      chainable([
+        {
+          _id: 'offer2',
+          status: 'quoted',
+          quotePricePence: 125000,
+          quoteMessage: 'Can start Monday',
+          quotedAt: new Date('2026-10-26T10:00:00Z'),
+          job: {
+            _id: 'job2',
+            postcode: 'LS12 1AB',
+            lat: 53.79,
+            lng: -1.59,
+            procurement: 'tender',
+            tender: { closesAt, requirements: 'Warehouse, 2 floors' },
+            serviceType: { name: 'Industrial Deep Clean' },
+          },
+        },
+      ])
+    );
+
+    const [offer] = await portal.listMyOffers('user1');
+
+    expect(offer.job.procurement).toBe('tender');
+    expect(offer.job.tender).toEqual({ closesAt, requirements: 'Warehouse, 2 floors' });
+    expect(offer.quote).toMatchObject({ pricePence: 125000, message: 'Can start Monday' });
+    expect(offer.job.area).toBe('LS12');
+    expect(offer.job.postcode).toBeUndefined();
+  });
+
   it('returns 404 when the cleaner has no profile', async () => {
     CleanerProfile.findOne.mockResolvedValue(null);
     await expect(portal.listMyOffers('user1')).rejects.toMatchObject({ status: 404 });

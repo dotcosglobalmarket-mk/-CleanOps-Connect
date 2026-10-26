@@ -12,6 +12,7 @@ const CONFIRM_WINDOW_HOURS = 48;
 // What the customer sees for each payment state: [short label, badge kind, explanation].
 const STATUS = {
   none_open: ['Posted', 'warn', 'Your job is posted. Find cleaners to send it to cleaners who cover your area.'],
+  none_tender: ['Collecting quotes', 'warn', 'Matching cleaners have been invited to quote. Compare their quotes below and award the job to one.'],
   none_allocated: ['Waiting for a cleaner', 'warn', "We've sent your job to cleaners nearby. The first to accept books it."],
   BOOKED: ['Pay to confirm', 'bad', 'A cleaner has accepted your job. Pay now to confirm the booking.'],
   PAID_HELD: ['Booked', 'good', 'Your booking is confirmed and your payment is held securely.'],
@@ -34,7 +35,8 @@ const STATUS = {
 
 function statusKey(job) {
   if (job.paymentStatus) return job.paymentStatus;
-  return job.status === 'open' ? 'none_open' : 'none_allocated';
+  if (job.status === 'open') return 'none_open';
+  return job.procurement === 'tender' ? 'none_tender' : 'none_allocated';
 }
 
 function statusInfo(job) {
@@ -69,7 +71,20 @@ async function loadServiceTypes() {
   }
 }
 
-document.getElementById('category').addEventListener('change', renderServiceTypeOptions);
+// Only industrial jobs can be run as a tender.
+function syncTenderFields() {
+  const industrial = document.getElementById('category').value === 'industrial';
+  document.getElementById('tender-fields').hidden = !industrial;
+  if (!industrial) document.getElementById('runTender').checked = false;
+  document.getElementById('tender-details').hidden = !document.getElementById('runTender').checked;
+  document.getElementById('tenderClosesAt').required = document.getElementById('runTender').checked;
+}
+
+document.getElementById('category').addEventListener('change', () => {
+  renderServiceTypeOptions();
+  syncTenderFields();
+});
+document.getElementById('runTender').addEventListener('change', syncTenderFields);
 document.getElementById('show-post-job').addEventListener('click', () => {
   const card = document.getElementById('post-job-card');
   card.hidden = !card.hidden;
@@ -90,6 +105,11 @@ document.getElementById('create-job-form').addEventListener('submit', async (eve
   const description = document.getElementById('description').value.trim();
   const estimatedHours = document.getElementById('estimatedHours').value;
   if (description) payload.description = description;
+  if (document.getElementById('runTender').checked) {
+    payload.tender = { closesAt: new Date(document.getElementById('tenderClosesAt').value).toISOString() };
+    const requirements = document.getElementById('tenderRequirements').value.trim();
+    if (requirements) payload.tender.requirements = requirements;
+  }
   if (estimatedHours) payload.estimatedHours = Number(estimatedHours);
 
   const button = event.target.querySelector('button[type="submit"]');
@@ -99,6 +119,7 @@ document.getElementById('create-job-form').addEventListener('submit', async (eve
     const result = await apiRequest(`/jobs/${job._id}/allocate`, { method: 'POST', auth: true });
     event.target.reset();
     renderServiceTypeOptions();
+    syncTenderFields();
     document.getElementById('post-job-card').hidden = true;
     showAlert(
       'page-success',
@@ -278,12 +299,29 @@ document.getElementById('close-job').addEventListener('click', () => {
 async function renderOffers(job) {
   const list = document.getElementById('offers-list');
   const find = document.getElementById('find-cleaners');
+  const isTender = job.procurement === 'tender';
+  const closesAt = isTender && job.tender?.closesAt ? new Date(job.tender.closesAt) : null;
+  const closed = Boolean(closesAt && closesAt.getTime() <= Date.now());
+
+  document.getElementById('offers-title').textContent = isTender ? 'Quotes' : "Cleaners we've asked";
+  document.getElementById('offers-help').textContent = isTender
+    ? `Cleaners send their own prices. Compare them and award the job to one; the others are told. ${
+        closesAt ? (closed ? 'Quotes closed' : 'Quotes close') + ` ${formatDate(closesAt)}.` : ''
+      }`
+    : "The first cleaner to accept books the job at their price. You'll get an email when that happens.";
+
   try {
     const offers = await apiRequest(`/jobs/${job._id}/offers`, { auth: true });
-    find.hidden = offers.some((o) => o.status === 'sent');
+    find.hidden = isTender ? closed : offers.some((o) => o.status === 'sent');
     find.textContent = offers.length ? 'Find more cleaners' : 'Find cleaners';
-    list.innerHTML = offers.length
-      ? offers
+
+    // Cheapest quote first for a tender; everyone else after.
+    const ordered = isTender
+      ? [...offers].sort((a, b) => (a.quotePricePence ?? Infinity) - (b.quotePricePence ?? Infinity))
+      : offers;
+
+    list.innerHTML = ordered.length
+      ? ordered
           .map((o) => {
             const c = o.cleaner || {};
             const badges = [c.dbsVerified && 'DBS checked', c.coshhTrained && 'COSHH trained', c.insuranceStatus && c.insuranceStatus !== 'none' && 'Insured']
@@ -291,11 +329,42 @@ async function renderOffers(job) {
               .map((b) => statusBadge(b, 'good'))
               .join(' ');
             const rating = c.ratingCount ? `★ ${Number(c.ratingAverage).toFixed(1)} (${c.ratingCount})` : 'New cleaner';
-            const state = { sent: 'Offer sent', accepted: 'Accepted', declined: 'Declined', expired: 'Expired' }[o.status] || o.status;
-            return `<li><strong>${escapeHtml(c.companyName || c.name || 'Cleaner')}</strong> · ${escapeHtml(rating)} ${badges} <span class="field-help">— ${escapeHtml(state)}</span></li>`;
+            const state = {
+              sent: isTender ? 'Invited, no quote yet' : 'Offer sent',
+              quoted: 'Quoted',
+              accepted: 'Accepted',
+              declined: 'Declined',
+              expired: 'Expired',
+            }[o.status] || o.status;
+            const who = `<strong>${escapeHtml(c.companyName || c.name || 'Cleaner')}</strong> · ${escapeHtml(rating)} ${badges}`;
+            if (isTender && o.status === 'quoted') {
+              return `<li>
+                ${who}
+                <div><strong>${escapeHtml(formatPence(o.quotePricePence))}</strong> <span class="field-help">quoted ${escapeHtml(formatDate(o.quotedAt))}</span></div>
+                ${o.quoteMessage ? `<p class="field-help" style="white-space: pre-wrap">${escapeHtml(o.quoteMessage)}</p>` : ''}
+                <button type="button" class="award-quote" data-offer="${escapeHtml(o._id)}" data-name="${escapeHtml(c.companyName || c.name || 'this cleaner')}" data-price="${escapeHtml(o.quotePricePence)}">Award the job</button>
+              </li>`;
+            }
+            return `<li>${who} <span class="field-help">— ${escapeHtml(state)}</span></li>`;
           })
           .join('')
       : '<li>No cleaners have been asked yet.</li>';
+
+    list.querySelectorAll('.award-quote').forEach((btn) =>
+      btn.addEventListener('click', async () => {
+        const price = formatPence(Number(btn.dataset.price));
+        if (!window.confirm(`Award this job to ${btn.dataset.name} at ${price}? The other cleaners will be told, and you'll be asked to pay to confirm the booking.`)) return;
+        btn.disabled = true;
+        try {
+          await apiRequest(`/jobs/${job._id}/offers/${btn.dataset.offer}/award`, { method: 'POST', auth: true });
+          await loadJobs();
+          await openJob(job._id);
+        } catch (err) {
+          showAlert('page-alert', err.message);
+          btn.disabled = false;
+        }
+      })
+    );
   } catch (err) {
     list.innerHTML = '';
     showAlert('page-alert', err.message);

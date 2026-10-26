@@ -54,6 +54,23 @@ async function declineOffer(req, res, next) {
   }
 }
 
+async function submitQuote(req, res, next) {
+  try {
+    const offer = await jobService.submitQuote(req.params.id, req.params.offerId, req.user, req.body);
+    res.status(200).json(offer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function awardQuote(req, res, next) {
+  try {
+    res.status(200).json(await jobService.awardQuote(req.params.id, req.params.offerId, req.user));
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function listMine(req, res, next) {
   try {
     res.status(200).json(await jobService.listJobsForCustomer(req.user.id));
@@ -79,4 +96,6 @@ module.exports = {
   allocate,
   acceptOffer,
   declineOffer,
+  submitQuote,
+  awardQuote,
 };
