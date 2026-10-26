@@ -13,6 +13,7 @@ const OPERATOR_PERMISSIONS = [
   'cleaners.verify',
   'cleaners.review',
   'disputes.read',
+  'chat.read',
   'disputes.resolve',
   'payments.queue.read',
   'payments.retry',

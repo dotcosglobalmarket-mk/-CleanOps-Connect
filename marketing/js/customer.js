@@ -1,6 +1,7 @@
 import { apiRequest, requireRole } from './api.js';
-import { escapeHtml } from './dom.js';
+import { escapeHtml, splitSuggestion } from './dom.js';
 import { STRIPE_PUBLISHABLE_KEY } from './config.js';
+import { mountChat, fetchUnread } from './chat.js';
 import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate } from './dashboard-ui.js';
 
 requireRole('customer');
@@ -41,6 +42,8 @@ function statusInfo(job) {
 }
 
 let jobs = [];
+let unreadByJob = {};
+let activeChat = null;
 let currentJob = null;
 let stripe = null;
 let elements = null;
@@ -135,7 +138,9 @@ describeButton.addEventListener('click', async () => {
   describeBox.hidden = true;
   try {
     const { suggestion } = await apiRequest('/jobs/describe', { method: 'POST', body, auth: true });
-    describeText.textContent = suggestion;
+    const parts = splitSuggestion(suggestion);
+    describeText.textContent = parts.text;
+    document.getElementById('describe-tip').textContent = parts.tip;
     describeBox.hidden = false;
     describeStatus.textContent = '';
   } catch (err) {
@@ -159,7 +164,9 @@ async function loadJobs() {
   hideAlert('page-alert');
   const container = document.getElementById('jobs-list');
   try {
-    jobs = await apiRequest('/jobs/mine', { auth: true });
+    let unread;
+    [jobs, unread] = await Promise.all([apiRequest('/jobs/mine', { auth: true }), fetchUnread()]);
+    unreadByJob = unread.byJob || {};
     container.innerHTML = renderTable({
       columns: ['Job', 'Posted', 'Cleaner', 'Price', 'Status', ''],
       emptyMessage: "You haven't posted any jobs yet. Use Post a job to get started.",
@@ -179,6 +186,7 @@ async function loadJobs() {
             <td class="table-actions">
               ${payNowButton}
               <button type="button" class="secondary open-job" data-id="${escapeHtml(job._id)}">Open</button>
+              ${unreadByJob[job._id] ? `<span class="unread-badge" title="Unread messages" aria-label="${escapeHtml(unreadByJob[job._id])} unread messages">${escapeHtml(unreadByJob[job._id])}</span>` : ''}
             </td>
           </tr>`;
       }),
@@ -222,6 +230,7 @@ async function openJob(jobId, { focusReview = false, focusPayment = false } = {}
     .join('');
 
   const status = job.paymentStatus;
+  mountJobChat(job);
   show('offers-section', !status);
   show('payment-section', status === 'BOOKED');
   show('confirm-section', status === 'AWAITING_CONFIRMATION');
@@ -244,7 +253,24 @@ async function openJob(jobId, { focusReview = false, focusPayment = false } = {}
   target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// Chat opens once a cleaner has accepted; the server keeps it read-only
+// after the job is finished.
+function mountJobChat(job) {
+  if (activeChat) activeChat.destroy();
+  activeChat = null;
+  show('chat-section', Boolean(job.cleaner));
+  if (!job.cleaner) return;
+  activeChat = mountChat(document.getElementById('chat-mount'), {
+    jobId: job._id,
+    onRead: () => {
+      delete unreadByJob[job._id];
+    },
+  });
+}
+
 document.getElementById('close-job').addEventListener('click', () => {
+  if (activeChat) activeChat.destroy();
+  activeChat = null;
   show('job-detail', false);
   currentJob = null;
 });

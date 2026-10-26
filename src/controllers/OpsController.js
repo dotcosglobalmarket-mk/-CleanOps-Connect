@@ -18,6 +18,10 @@ const listDisputes = wrap(async () => ({ body: await opsService.listDisputes() }
 
 const getDispute = wrap(async (req) => ({ body: await opsService.getDispute(req.params.id) }));
 
+const viewJobChat = wrap(async (req) => ({
+  body: await opsService.viewJobChat(req.params.id, req.body.reason, req),
+}));
+
 const resolveDispute = wrap(async (req) => {
   const result = await opsService.resolveDispute(req.params.id, req.body, req);
   return { status: result.status === 'pending_approval' ? 202 : 200, body: result };
@@ -55,6 +59,7 @@ module.exports = {
   summary,
   listDisputes,
   getDispute,
+  viewJobChat,
   resolveDispute,
   listCleaners,
   getCleaner,

@@ -1,5 +1,5 @@
 import { apiRequest, requireRole } from './api.js';
-import { escapeHtml } from './dom.js';
+import { escapeHtml, splitSuggestion } from './dom.js';
 import { setupTabs, formatPence } from './dashboard-ui.js';
 import { STRIPE_PUBLISHABLE_KEY } from './config.js';
 
@@ -261,7 +261,9 @@ bioHelpButton.addEventListener('click', async () => {
   bioSuggestionBox.hidden = true;
   try {
     const { suggestion } = await apiRequest('/cleaners/me/describe-bio', { method: 'POST', body, auth: true });
-    bioSuggestionText.textContent = suggestion;
+    const parts = splitSuggestion(suggestion);
+    bioSuggestionText.textContent = parts.text;
+    document.getElementById('bio-tip').textContent = parts.tip;
     bioSuggestionBox.hidden = false;
     bioHelpStatus.textContent = '';
   } catch (err) {

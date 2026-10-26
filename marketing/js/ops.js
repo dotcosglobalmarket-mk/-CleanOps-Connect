@@ -117,6 +117,8 @@ async function openDispute(jobId) {
     );
     currentDisputeId = jobId;
     refundLimitPence = limit;
+    document.getElementById('dispute-chat-log').innerHTML = '';
+    document.getElementById('dispute-chat-reason').value = '';
     document.getElementById('dispute-id').textContent = String(job._id).slice(-8);
     document.getElementById('dispute-reason').textContent = DISPUTE_REASONS[job.disputeReason] || job.disputeReason || '—';
     document.getElementById('dispute-raised').textContent = formatDate(job.disputedAt || job.updatedAt);
@@ -153,6 +155,30 @@ async function openDispute(jobId) {
     showAlert('disputes-alert', err.message);
   }
 }
+
+document.getElementById('dispute-chat-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  hideAlert('disputes-alert');
+  const reason = document.getElementById('dispute-chat-reason').value.trim();
+  try {
+    const messages = await apiRequest(`/ops/jobs/${currentDisputeId}/messages/view`, {
+      method: 'POST',
+      body: { reason },
+      auth: true,
+    });
+    document.getElementById('dispute-chat-log').innerHTML = messages.length
+      ? messages
+          .map(
+            (m) => `<li><strong>${m.senderRole === 'customer' ? 'Customer' : 'Cleaner'}</strong> · ${formatDate(m.createdAt)}${
+              m.contactMasked ? ' <span class="badge badge-warning">contact details hidden</span>' : ''
+            }<br />${escapeHtml(m.body)}</li>`
+          )
+          .join('')
+      : '<li>No messages were sent on this job.</li>';
+  } catch (err) {
+    showAlert('disputes-alert', err.message);
+  }
+});
 
 document.querySelectorAll('input[name="outcome"]').forEach((radio) => {
   radio.addEventListener('change', () => {

@@ -81,6 +81,23 @@ module.exports = {
     });
   }),
 
+  // Deliberately says nothing about the message itself: the email only tells
+  // the person to open the app.
+  newMessage: safely('newMessage', async (job, recipientRole) => {
+    const toCustomer = recipientRole === 'customer';
+    await emailService.send({
+      to: toCustomer ? await customerEmail(job) : await cleanerEmail(job.cleaner),
+      subject: 'You have a new message about your job',
+      paragraphs: [
+        `You have a new message about your ${await serviceName(job)} job. Open your dashboard to read and reply.`,
+        'For your safety and payment protection, keep all conversations on CleanOps Connect.',
+      ],
+      action: toCustomer
+        ? { label: 'Read the message', url: frontendUrl(`customer.html?job=${job._id}`) }
+        : { label: 'Read the message', url: frontendUrl(`cleaner.html?tab=messages&job=${job._id}`) },
+    });
+  }),
+
   paymentReceived: safely('paymentReceived', async (job) => {
     await emailService.send({
       to: await cleanerEmail(job.cleaner),

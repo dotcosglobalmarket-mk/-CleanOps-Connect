@@ -1,5 +1,6 @@
 import { isLoggedIn, getRole, getUser, clearSession, getImpersonator, exitImpersonation } from './api.js';
 import { escapeHtml } from './dom.js';
+import './pwa.js';
 
 // Flat, geometric enterprise-SaaS mark: solid navy shield, no gradients,
 // with a bold electric-blue checkmark as the sole internal accent.
