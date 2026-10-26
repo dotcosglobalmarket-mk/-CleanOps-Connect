@@ -26,6 +26,7 @@ const ADMIN_ONLY_PERMISSIONS = [
   'audit.read',
   'users.manage',
   'service_types.manage',
+  'cleaners.impersonate',
 ];
 
 const ROLE_PERMISSIONS = Object.freeze({

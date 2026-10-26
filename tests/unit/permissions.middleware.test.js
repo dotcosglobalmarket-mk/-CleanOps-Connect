@@ -18,15 +18,20 @@ describe('permission map', () => {
     ['disputes.resolve', 'cleaners.verify', 'cleaners.review', 'payments.retry', 'jobs.note'].forEach((p) =>
       expect(hasPermission('operator', p)).toBe(true)
     );
-    ['cleaners.suspend', 'refunds.over_limit', 'approvals.decide', 'audit.read', 'users.manage'].forEach((p) =>
-      expect(hasPermission('operator', p)).toBe(false)
+    ['cleaners.suspend', 'refunds.over_limit', 'approvals.decide', 'audit.read', 'users.manage', 'cleaners.impersonate'].forEach(
+      (p) => expect(hasPermission('operator', p)).toBe(false)
     );
   });
 
   it('gives admins every operator permission plus the separation-of-duties ones', () => {
-    ['disputes.resolve', 'cleaners.suspend', 'refunds.over_limit', 'approvals.decide', 'users.manage'].forEach((p) =>
-      expect(hasPermission('admin', p)).toBe(true)
-    );
+    [
+      'disputes.resolve',
+      'cleaners.suspend',
+      'refunds.over_limit',
+      'approvals.decide',
+      'users.manage',
+      'cleaners.impersonate',
+    ].forEach((p) => expect(hasPermission('admin', p)).toBe(true));
   });
 
   it('gives customers and cleaners no staff permissions', () => {
