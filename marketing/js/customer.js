@@ -93,6 +93,18 @@ document.getElementById('show-post-job').addEventListener('click', () => {
   if (!card.hidden) document.getElementById('postcode').focus();
 });
 
+// A postcode typed on the homepage search carries over to the post-a-job form.
+try {
+  const carried = sessionStorage.getItem('cleanops-postcode');
+  if (carried) {
+    sessionStorage.removeItem('cleanops-postcode');
+    document.getElementById('postcode').value = carried;
+    document.getElementById('post-job-card').hidden = false;
+  }
+} catch (e) {
+  // Storage unavailable: they just type it again.
+}
+
 document.getElementById('create-job-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   hideAlert('create-alert');

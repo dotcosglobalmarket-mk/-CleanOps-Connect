@@ -18,16 +18,16 @@ async function loadLatestReviews() {
           .join('')
           .slice(0, 2);
         return `
-        <div class="lp-testimonial">
-          <div class="lp-testimonial-head">
-            <div class="lp-avatar" aria-hidden="true">${escapeHtml(initials)}</div>
+        <div class="t-card">
+          <div class="stars" role="img" aria-label="${r.rating} out of 5">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
+          <p class="quote">“${escapeHtml(r.comment)}”</p>
+          <div class="t-author">
+            <div class="avatar avatar-sm" aria-hidden="true">${escapeHtml(initials)}</div>
             <div>
-              <div class="lp-testimonial-name">${escapeHtml(r.reviewer)}</div>
-              <div class="lp-testimonial-rating" aria-label="${r.rating} out of 5">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
+              <div class="t-name">${escapeHtml(r.reviewer)}</div>
+              <div class="t-meta">${r.cleaner ? `Cleaner: ${escapeHtml(r.cleaner.name)} · ` : ''}${new Date(r.createdAt).toLocaleDateString('en-GB')}</div>
             </div>
           </div>
-          <p class="lp-quote">“${escapeHtml(r.comment)}”</p>
-          <p class="field-help">${r.cleaner ? `Cleaner: ${escapeHtml(r.cleaner.name)} · ` : ''}${new Date(r.createdAt).toLocaleDateString('en-GB')}</p>
         </div>`;
       })
       .join('');

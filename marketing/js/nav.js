@@ -56,7 +56,7 @@ function renderNav() {
 // support (see admin.js "View as cleaner"). Read-only server-side — this
 // banner just makes whose session is active unambiguous and gives a
 // one-click way back.
-function renderImpersonationBanner() {
+export function renderImpersonationBanner() {
   const existing = document.getElementById('impersonation-banner');
   const impersonator = getImpersonator();
   const user = getUser();
