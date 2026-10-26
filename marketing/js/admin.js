@@ -186,9 +186,10 @@ refreshPendingBadge();
 let revenueRange = '30d';
 let revenueData = null;
 
-function revenueTile(label, value, note, kind) {
+function revenueTile(label, value, note, kind, tone, icon) {
   return `
-    <div class="stat-tile">
+    <div class="stat-tile${tone ? ` stat-tile-${tone}` : ''}">
+      ${icon ? `<span class="stat-tile-icon">${icon}</span>` : ''}
       <div class="stat-tile-label">${escapeHtml(label)}</div>
       <div class="stat-tile-value${kind ? ` revenue-${kind}` : ''}">${escapeHtml(value)}</div>
       <div class="field-help">${escapeHtml(note)}</div>
@@ -204,10 +205,10 @@ function changeNote(total, previous) {
 function renderRevenue(data) {
   const t = data.totals;
   document.getElementById('revenue-tiles').innerHTML = [
-    revenueTile('Total platform revenue', formatPence(t.totalPence), changeNote(t.totalPence, t.previousTotalPence), t.totalPence >= t.previousTotalPence && t.previousTotalPence ? 'good' : ''),
-    revenueTile('Commission on jobs', formatPence(t.commissionPence), `from ${t.jobsCount} confirmed job${t.jobsCount === 1 ? '' : 's'}`),
-    revenueTile('Subscription income', formatPence(t.subscriptionBilledPence), `${formatPence(t.mrrPence)} a month from ${t.activeSubscribers} active cleaner${t.activeSubscribers === 1 ? '' : 's'}`),
-    revenueTile('Failed payments', String(t.failedCount), `${formatPence(t.atRiskPence)} a month at risk`, t.failedCount ? 'bad' : ''),
+    revenueTile('Total platform revenue', formatPence(t.totalPence), changeNote(t.totalPence, t.previousTotalPence), t.totalPence >= t.previousTotalPence && t.previousTotalPence ? 'good' : '', 'green', '💷'),
+    revenueTile('Commission on jobs', formatPence(t.commissionPence), `from ${t.jobsCount} confirmed job${t.jobsCount === 1 ? '' : 's'}`, '', 'teal', '🧾'),
+    revenueTile('Subscription income', formatPence(t.subscriptionBilledPence), `${formatPence(t.mrrPence)} a month from ${t.activeSubscribers} active cleaner${t.activeSubscribers === 1 ? '' : 's'}`, '', 'purple', '🔁'),
+    revenueTile('Failed payments', String(t.failedCount), `${formatPence(t.atRiskPence)} a month at risk`, t.failedCount ? 'bad' : '', t.failedCount ? 'red' : 'blue', '⚠️'),
   ].join('');
 
   const top = Math.max(1, ...data.weeks.map((w) => w.commissionPence + w.subscriptionPence));
