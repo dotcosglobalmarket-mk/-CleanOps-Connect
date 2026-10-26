@@ -59,12 +59,18 @@ const acceptOfferSchema = z.object({
   pricePence: z.number().int().positive(),
 });
 
+const documentParamSchema = z.object({
+  id: objectId(),
+  kind: z.enum(['service-record', 'compliance-pack']),
+});
+
 const submitQuoteSchema = z.object({
   pricePence: z.number().int().positive().max(100000000),
   message: z.string().trim().max(1500).optional(),
 });
 
 module.exports = {
+  documentParamSchema,
   submitQuoteSchema,
   describeJobSchema,
   createJobSchema,

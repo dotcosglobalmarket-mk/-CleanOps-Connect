@@ -206,6 +206,7 @@ async function checkIn(jobId) {
   const job = await requireJob(jobId);
   transition(job, EVENTS.CHECK_IN);
   job.status = 'in_progress';
+  job.checkedInAt = new Date();
   await job.save();
   notifications.cleanerArrived(job);
   return job;
@@ -253,6 +254,8 @@ async function confirmJob(jobId) {
   }
 
   transition(job, EVENTS.CONFIRM);
+  job.confirmedAt = new Date();
+  job.confirmationMethod = 'customer';
   await job.save();
   notifications.jobConfirmed(job);
   return enterPayoutPending(job);
@@ -270,6 +273,8 @@ async function autoConfirmExpiredJobs(now = new Date()) {
   const results = [];
   for (const job of jobs) {
     transition(job, EVENTS.CONFIRM);
+    job.confirmedAt = new Date();
+    job.confirmationMethod = 'automatic';
     await job.save();
     notifications.jobConfirmed(job);
     results.push(await enterPayoutPending(job));

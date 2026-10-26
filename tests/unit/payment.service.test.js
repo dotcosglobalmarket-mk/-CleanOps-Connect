@@ -309,3 +309,29 @@ describe('cancelBooked — customer cancels before paying', () => {
     expect(job.save).not.toHaveBeenCalled();
   });
 });
+
+describe('timestamps recorded for the service record', () => {
+  it('records when the cleaner checked in', async () => {
+    const job = makeJob({ paymentStatus: STATES.PAID_HELD });
+    Job.findById.mockResolvedValue(job);
+    await paymentService.checkIn('job1');
+    expect(job.checkedInAt).toBeInstanceOf(Date);
+  });
+
+  it('records a customer confirmation, and an automatic one after 48 hours', async () => {
+    CleanerProfile.findById.mockResolvedValue(makeCleaner());
+    stripeService.createTransfer.mockResolvedValue({ id: 'tr_1' });
+
+    const byCustomer = makeJob({ paymentStatus: STATES.AWAITING_CONFIRMATION });
+    Job.findById.mockResolvedValue(byCustomer);
+    await paymentService.confirmJob('job1');
+    expect(byCustomer.confirmedAt).toBeInstanceOf(Date);
+    expect(byCustomer.confirmationMethod).toBe('customer');
+
+    const auto = makeJob({ paymentStatus: STATES.AWAITING_CONFIRMATION, awaitingConfirmationAt: new Date(0) });
+    Job.find.mockResolvedValue([auto]);
+    await paymentService.autoConfirmExpiredJobs(new Date());
+    expect(auto.confirmedAt).toBeInstanceOf(Date);
+    expect(auto.confirmationMethod).toBe('automatic');
+  });
+});

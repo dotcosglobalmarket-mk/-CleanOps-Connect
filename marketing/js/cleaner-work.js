@@ -1,4 +1,6 @@
 import { apiRequest } from './api.js';
+import { openDocument } from './documents.js';
+import { fetchGuide, renderGuide } from './price-guide.js';
 import { escapeHtml } from './dom.js';
 import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate } from './dashboard-ui.js';
 
@@ -49,6 +51,11 @@ function offerForm(o) {
           <label for="price-${id}">${quote ? 'New price' : 'Your quote'} for this job (£)</label>
           <input id="price-${id}" type="number" min="1" step="0.01" inputmode="decimal" required />
         </div>
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem;">
+          <button type="button" class="secondary guide-btn">See local rates</button>
+          <span class="field-help guide-status" aria-live="polite"></span>
+        </div>
+        <div class="card guide-panel" hidden></div>
         <div class="form-row">
           <label for="note-${id}">Note to the customer (optional)</label>
           <textarea id="note-${id}" rows="2" maxlength="1500" placeholder="What's included, when you could start…"></textarea>
@@ -66,6 +73,11 @@ function offerForm(o) {
         <label for="price-${id}">Your price for this job (£)</label>
         <input id="price-${id}" type="number" min="1" step="0.01" inputmode="decimal" required />
       </div>
+      <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem;">
+          <button type="button" class="secondary guide-btn">See local rates</button>
+          <span class="field-help guide-status" aria-live="polite"></span>
+        </div>
+        <div class="card guide-panel" hidden></div>
       <div style="display: flex; gap: 0.75rem;">
         <button type="submit">Accept at this price</button>
         <button type="button" class="secondary decline-btn">Decline</button>
@@ -167,6 +179,37 @@ async function loadOffers() {
         });
       }
 
+      // Local rate guide: shown on request, never fills the price by itself.
+      const guideBtn = card.querySelector('.guide-btn');
+      if (guideBtn) {
+        const offerData = open.find((o) => o._id === offer);
+        guideBtn.addEventListener('click', async () => {
+          const status = card.querySelector('.guide-status');
+          const panel = card.querySelector('.guide-panel');
+          guideBtn.disabled = true;
+          status.textContent = 'Looking up local rates… this can take up to a minute.';
+          panel.hidden = true;
+          try {
+            const guide = await fetchGuide({
+              serviceType: offerData.job.serviceType?._id,
+              postcode: offerData.job.area,
+              estimatedHours: offerData.job.estimatedHours,
+            });
+            renderGuide(panel, guide, {
+              audience: 'cleaner',
+              onUse: (pounds) => {
+                card.querySelector('input[type="number"]').value = pounds;
+              },
+            });
+            status.textContent = '';
+          } catch (err) {
+            status.textContent = err.message;
+          } finally {
+            guideBtn.disabled = false;
+          }
+        });
+      }
+
       const decline = card.querySelector('.decline-btn');
       if (decline) {
         decline.addEventListener('click', async (event) => {
@@ -190,14 +233,20 @@ async function loadOffers() {
 // --- My Jobs ---
 function jobActions(job) {
   const id = escapeHtml(job._id);
+  let actions = '';
   if (job.paymentStatus === 'PAID_HELD') {
-    return `<button type="button" class="job-action" data-id="${id}" data-action="check-in">Check in</button>
+    actions = `<button type="button" class="job-action" data-id="${id}" data-action="check-in">Check in</button>
             <button type="button" class="secondary job-action" data-id="${id}" data-action="cancel">Cancel</button>`;
+  } else if (job.paymentStatus === 'IN_PROGRESS') {
+    actions = `<button type="button" class="job-action" data-id="${id}" data-action="complete">Mark complete</button>`;
   }
-  if (job.paymentStatus === 'IN_PROGRESS') {
-    return `<button type="button" class="job-action" data-id="${id}" data-action="complete">Mark complete</button>`;
-  }
-  return '';
+  // Printable records for every booked job; the compliance pack is for industrial work.
+  const docs = `<button type="button" class="secondary doc-btn" data-id="${id}" data-kind="service-record">Service record</button>${
+    job.category === 'industrial'
+      ? ` <button type="button" class="secondary doc-btn" data-id="${id}" data-kind="compliance-pack">Compliance pack</button>`
+      : ''
+  }`;
+  return `${actions} ${docs}`;
 }
 
 const ACTION_CONFIRM = {
@@ -227,6 +276,16 @@ async function loadMyJobs() {
         </tr>
       `),
     });
+    container.querySelectorAll('.doc-btn').forEach((btn) =>
+      btn.addEventListener('click', async () => {
+        hideAlert('jobs-alert');
+        try {
+          await openDocument(btn.dataset.id, btn.dataset.kind);
+        } catch (err) {
+          showAlert('jobs-alert', err.message);
+        }
+      })
+    );
     container.querySelectorAll('.job-action').forEach((btn) => {
       btn.addEventListener('click', async () => {
         hideAlert('jobs-alert');
