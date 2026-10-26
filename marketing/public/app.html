@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0A1A2F" />
+  <title>CleanOps Connect</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+</head>
+<body>
+  <script>
+    // Start page of the installed app: signed-in people go straight to their
+    // dashboard, everyone else to log in.
+    (function () {
+      var role = null;
+      try {
+        role = localStorage.getItem('cleanops_token') ? localStorage.getItem('cleanops_role') : null;
+      } catch (e) {}
+      var dashboards = { admin: 'admin.html', operator: 'ops.html', cleaner: 'cleaner.html', customer: 'customer.html' };
+      window.location.replace(role && dashboards[role] ? dashboards[role] : 'login.html');
+    })();
+  </script>
+  <noscript><a href="login.html">Log in to CleanOps Connect</a></noscript>
+</body>
+</html>

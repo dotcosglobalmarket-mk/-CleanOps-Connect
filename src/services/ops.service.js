@@ -8,6 +8,7 @@ const paymentService = require('./payment.service');
 const { STATES } = require('./payment-state-machine');
 const { hasPermission } = require('../config/permissions');
 const notifications = require('./notification.service');
+const chatService = require('./chat.service');
 
 // Refunds above this need an admin's approval when an operator resolves a
 // dispute (maker-checker). Default £150.
@@ -55,6 +56,19 @@ async function listDisputes() {
     .populate('cleaner', 'name')
     .populate('serviceType', 'name')
     .sort({ disputedAt: 1, updatedAt: 1 });
+}
+
+// Reading a customer/cleaner conversation is a sensitive staff action, so it
+// needs a reason and is written to the audit log before anything is returned.
+async function viewJobChat(jobId, reason, req) {
+  await auditService.record({
+    req,
+    action: 'chat.view',
+    targetType: 'job',
+    targetId: jobId,
+    reason,
+  });
+  return chatService.listMessagesForStaff(jobId);
 }
 
 async function getDispute(jobId) {
@@ -328,6 +342,7 @@ module.exports = {
   getSummary,
   listDisputes,
   getDispute,
+  viewJobChat,
   resolveDispute,
   listApprovals,
   decideApproval,

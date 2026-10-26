@@ -8,6 +8,10 @@
   <link rel="alternate icon" href="/favicon-32.png" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#0A1A2F" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="CleanOps" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" />
@@ -23,6 +27,7 @@
       <button type="button" class="dash-nav-item is-active" data-panel="overview">Overview</button>
       <button type="button" class="dash-nav-item" data-panel="offers">Job Offers</button>
       <button type="button" class="dash-nav-item" data-panel="jobs">My Jobs</button>
+      <button type="button" class="dash-nav-item" data-panel="messages">Messages <span id="messages-unread" class="unread-badge" hidden></span></button>
       <button type="button" class="dash-nav-item" data-panel="earnings">Earnings &amp; Payouts</button>
       <button type="button" class="dash-nav-item" data-panel="profile">My Profile</button>
       <button type="button" class="dash-nav-item" data-panel="coverage">Coverage &amp; Subscription</button>
@@ -101,6 +106,26 @@
       </section>
 
       <!-- Earnings & Payouts -->
+      <!-- Messages -->
+      <section id="panel-messages" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Messages</h2>
+          <button id="messages-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Chat with the customer on a job you've accepted. Phone numbers, emails, postcodes and links are hidden in chat
+          to keep bookings and payments protected.
+        </p>
+        <div id="messages-alert" class="alert alert-error" hidden></div>
+        <div class="messages-layout">
+          <ul id="conversation-list" class="conversation-list"></ul>
+          <div id="conversation-pane" class="card" hidden>
+            <h3 id="conversation-title"></h3>
+            <div id="conversation-chat"></div>
+          </div>
+        </div>
+      </section>
+
       <section id="panel-earnings" class="dash-panel">
         <h2 class="panel-title">Earnings &amp; Payouts</h2>
         <div id="earnings-alert" class="alert alert-error" hidden></div>
@@ -170,6 +195,7 @@
               <div id="bio-suggestion" class="card" hidden>
                 <p class="field-help">Suggestion — check it's accurate before using it. Only keep what is true of you; customers see this on your public profile.</p>
                 <p id="bio-suggestion-text" style="white-space: pre-wrap"></p>
+                <p id="bio-tip" class="field-help"></p>
                 <button type="button" id="bio-use">Use this</button>
                 <button type="button" id="bio-dismiss" class="secondary">Dismiss</button>
               </div>
@@ -343,5 +369,6 @@
   <script type="module" src="js/nav.js"></script>
   <script type="module" src="js/cleaner.js"></script>
   <script type="module" src="js/cleaner-work.js"></script>
+  <script type="module" src="js/cleaner-messages.js"></script>
 </body>
 </html>

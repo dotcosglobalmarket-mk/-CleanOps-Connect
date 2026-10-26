@@ -39,6 +39,10 @@ const jobNoteSchema = z.object({
   body: z.string().trim().min(1).max(2000),
 });
 
+const viewChatSchema = z.object({
+  reason,
+});
+
 const manualRetrySchema = z.object({
   reason: reason.optional(),
 });
@@ -51,4 +55,5 @@ module.exports = {
   opsCleanerStatusSchema,
   jobNoteSchema,
   manualRetrySchema,
+  viewChatSchema,
 };

@@ -1299,3 +1299,163 @@ table.data-table tbody tr:hover {
 #payment-element {
   margin-top: 0.75rem;
 }
+
+/* --- In-app chat (customer and cleaner dashboards) --- */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 12rem;
+  max-height: 24rem;
+  overflow-y: auto;
+  padding: 0.75rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overscroll-behavior: contain;
+}
+
+.chat-bubble {
+  max-width: 85%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+
+.chat-mine {
+  align-self: flex-end;
+  background: var(--color-primary);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-theirs {
+  align-self: flex-start;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-text {
+  white-space: pre-wrap;
+}
+
+.chat-meta {
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  opacity: 0.75;
+}
+
+.chat-empty {
+  margin: auto;
+  text-align: center;
+}
+
+.chat-form {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.chat-form textarea {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  resize: vertical;
+  min-height: 2.75rem;
+  font-size: 1rem;
+}
+
+.chat-form button {
+  flex: none;
+  width: auto;
+}
+
+/* A hidden-details notice is guidance, not an error. */
+.chat-notice {
+  margin: 0;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.messages-layout {
+  display: grid;
+  grid-template-columns: minmax(12rem, 18rem) 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.conversation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.conversation-item {
+  width: 100%;
+  text-align: left;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.conversation-item.is-active {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.unread-badge {
+  display: inline-block;
+  min-width: 1.25rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .messages-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-log {
+    max-height: 60vh;
+  }
+
+  .chat-bubble {
+    max-width: 92%;
+  }
+
+  /* 16px+ stops iOS zooming into the field. */
+  .chat-form textarea {
+    font-size: 16px;
+  }
+}

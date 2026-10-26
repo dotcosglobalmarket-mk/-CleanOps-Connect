@@ -150,6 +150,86 @@ paths:
           description: Suggested bio
         '503':
           description: AI writing help unavailable
+  /chat/unread:
+    get:
+      summary: Unread chat message counts for the signed-in customer or cleaner
+      tags: [Chat]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: "{ total, byJob: { jobId: count } }"
+  /chat/jobs/{id}/messages:
+    get:
+      summary: List chat messages for a job (customer or the booked cleaner only)
+      description: Marks the other person's messages as read. `after` is a message id, for polling. The response says whether the conversation is open and writable.
+      tags: [Chat]
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: after, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: "{ open, writable, reason?, role, messages[] }"
+        '403':
+          description: Not a participant in this job
+    post:
+      summary: Send a chat message
+      description: Phone numbers, emails, full postcodes, links and handles are hidden by the server before the message is stored. The response says `masked` and gives a `notice` for the sender. Chat opens when a cleaner accepts the job and is read-only once the job is no longer active (409).
+      tags: [Chat]
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, maxLength: 1000 }
+      responses:
+        '201':
+          description: "{ message, masked, notice? }"
+        '409':
+          description: Chat is not open yet, or is read-only
+        '429':
+          description: Too many messages
+  /chat/jobs/{id}/stream:
+    get:
+      summary: Live chat stream (server-sent events)
+      description: "Sends an `event: message` frame when the other person writes. Read with fetch() so the Authorization header can be used; clients also poll as a fallback."
+      tags: [Chat]
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: text/event-stream
+  /ops/jobs/{id}/messages/view:
+    post:
+      summary: Staff read-only view of a job's chat (reason required, audited)
+      tags: [Ops]
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Messages as stored, with contactMasked and maskedKinds
   /jobs/{id}/allocate:
     post:
       summary: Allocate job to cleaners using AI scoring

@@ -9,6 +9,10 @@
   <link rel="alternate icon" href="/favicon-32.png" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#0A1A2F" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="CleanOps" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" />
@@ -44,6 +48,7 @@
         <li><strong>Cleaner profile</strong> — name, trading or company name, base postcode, coverage area, services, availability, rates, contact details you choose to add, ratings, and compliance status (DBS, COSHH training, insurance).</li>
         <li><strong>Payments</strong> — card payments are taken by Stripe. We never see or store full card numbers. We keep payment references, amounts, refunds and payout status.</li>
         <li><strong>Disputes and support</strong> — the reason code and any detail you give when raising a dispute, and records of how it was resolved.</li>
+        <li><strong>Messages</strong> — messages you send in the in-app chat with the customer or cleaner on a job. Phone numbers, email addresses, postcodes and links are hidden before a message is saved, and we keep only the hidden version plus a note that something was hidden. Our staff can read a conversation only to resolve a dispute or investigate misuse; each time they do, the reason is recorded in an audit log.</li>
         <li><strong>Reviews</strong> — the rating and comment you leave after a completed job. Reviews are published with your first name and last initial only.</li>
         <li><strong>Cleaner payouts</strong> — Stripe verifies cleaners' identity and bank details during payout set-up. We only keep the Stripe account reference and whether payouts are enabled.</li>
         <li><strong>Technical data</strong> — IP address and request logs needed to run and secure the service.</li>
@@ -59,6 +64,7 @@
           <tr><td>Checking cleaner DBS, COSHH and insurance status before showing it as verified</td><td>Legitimate interests (customer safety and trust)</td></tr>
           <tr><td>Resolving disputes and preventing fraud or misuse</td><td>Legitimate interests</td></tr>
           <tr><td>Emails about your bookings (offers, payment, check-in, completion, disputes, payouts)</td><td>Contract</td></tr>
+          <tr><td>In-app chat between a customer and the cleaner they booked, and hiding contact details so bookings and payments stay protected on the platform</td><td>Contract; legitimate interests (safety, fraud and fee avoidance)</td></tr>
           <tr><td>Publishing reviews from completed bookings</td><td>Legitimate interests (helping customers choose, and fair treatment of cleaners)</td></tr>
           <tr><td>Keeping the service secure (logs, rate limiting)</td><td>Legitimate interests</td></tr>
         </tbody>
@@ -95,6 +101,7 @@
       <ul>
         <li>Account and profile data — while your account is open, then <span class="legal-todo">[To be completed: retention period after closure]</span>.</li>
         <li>Payment and transaction records — 6 years after the end of the financial year they relate to, to meet HMRC record-keeping rules.</li>
+        <li>Chat messages — <span class="legal-todo">[To be completed: retention period]</span>.</li>
         <li>Dispute records — <span class="legal-todo">[To be completed: retention period]</span>.</li>
         <li>Security logs — <span class="legal-todo">[To be completed: retention period]</span>.</li>
       </ul>

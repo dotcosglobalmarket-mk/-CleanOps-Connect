@@ -11,6 +11,7 @@ const {
   opsVerificationSchema,
   opsCleanerStatusSchema,
   jobNoteSchema,
+  viewChatSchema,
 } = require('../validation/ops.validation');
 
 // Operator (platform ops staff) API. Admins can use it too. Every route
@@ -56,6 +57,15 @@ router.patch(
 
 router.get('/jobs', requirePermission('jobs.read'), validateQuery(listJobsQuerySchema), OpsController.listJobs);
 router.get('/jobs/:id', requirePermission('jobs.read'), validateParams(idParamSchema), OpsController.getJob);
+// Reading a conversation needs a reason and is audited (POST because it
+// writes an audit entry).
+router.post(
+  '/jobs/:id/messages/view',
+  requirePermission('chat.read'),
+  validateParams(idParamSchema),
+  validateBody(viewChatSchema),
+  OpsController.viewJobChat
+);
 router.post(
   '/jobs/:id/notes',
   requirePermission('jobs.note'),
