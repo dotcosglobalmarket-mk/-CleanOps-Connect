@@ -24,7 +24,6 @@ router.post(
   validateBody(bookJobSchema),
   PaymentController.book
 );
-router.post('/checkout-session', requireAuth, requireRole('customer'), PaymentController.checkoutSession);
 router.post('/jobs/:id/cancel', requireAuth, validateParams(jobIdParamSchema), PaymentController.cancel);
 router.get(
   '/jobs/:id/intent',
