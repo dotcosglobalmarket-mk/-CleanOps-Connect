@@ -211,6 +211,70 @@ function populatePaymentStatusFilter() {
   });
 }
 
+const FREQUENCY_LABELS = { one_off: 'One-off', weekly: 'Weekly', fortnightly: 'Fortnightly', monthly: 'Monthly' };
+
+function renderJobDetail(job) {
+  const pence = (n) => (typeof n === 'number' ? formatPence(n) : '—');
+  const budget = typeof job.budgetMin === 'number' ? `£${job.budgetMin} – £${job.budgetMax}` : '—';
+  const sections = [
+    ['Job', [
+      ['Reference', `<code>${escapeHtml(String(job._id || '').slice(-8))}</code>`],
+      ['Service', escapeHtml(job.serviceType?.name || '—')],
+      ['Category', escapeHtml(job.category || '—')],
+      ['Status', statusBadge(job.status, job.status === 'cancelled' ? 'bad' : job.status === 'completed' ? 'good' : 'warn')],
+      ['Booking type', job.procurement === 'tender' ? 'Tender (quotes)' : 'Standard'],
+      ['Created', formatDate(job.createdAt)],
+    ]],
+    ['Customer and cleaner', [
+      ['Customer', `${escapeHtml(job.customer?.name || '—')}${job.customer?.email ? ` (${escapeHtml(job.customer.email)})` : ''}`],
+      ['Cleaner', job.cleaner ? escapeHtml(job.cleaner.name || '—') : 'Not yet assigned'],
+    ]],
+    ['The work', [
+      ['Postcode', escapeHtml((job.postcode || '—').toUpperCase())],
+      ['Description', escapeHtml(job.description || '—')],
+      ['Estimated hours', escapeHtml(job.estimatedHours ?? '—')],
+      ['Frequency', escapeHtml(FREQUENCY_LABELS[job.frequency] || job.frequency || '—')],
+      ['Customer budget', budget],
+    ]],
+    ['Payment', [
+      ['Payment status', job.paymentStatus ? paymentStatusBadge(job.paymentStatus) : 'No payment yet'],
+      ['Agreed price', pence(job.pricePence)],
+      ['Platform commission', pence(job.commissionPence)],
+      ['Cleaner payout', pence(job.cleanerPayoutPence)],
+    ]],
+  ];
+  const offers = job.offers || [];
+  sections.push([`Cleaners allocated (${offers.length})`, offers.length
+    ? offers.map((o, i) => [
+        `${i + 1}. ${escapeHtml(o.cleaner?.companyName || o.cleaner?.name || 'Unknown cleaner')}`,
+        `${statusBadge(o.status, o.status === 'accepted' ? 'good' : o.status === 'declined' || o.status === 'expired' ? 'bad' : 'warn')} ` +
+          `match score ${escapeHtml(Math.round(o.score ?? 0))}` +
+          `${o.cleaner?.basePostcode ? ` · base ${escapeHtml(o.cleaner.basePostcode.toUpperCase())}` : ''}` +
+          `${typeof o.quotePricePence === 'number' ? ` · quote ${formatPence(o.quotePricePence)}` : ''}`,
+      ])
+    : [['—', 'No cleaners were matched to this job.']]]);
+  if (job.disputeReason) {
+    sections.push(['Dispute', [
+      ['Reason', escapeHtml(job.disputeReason)],
+      ['Detail', escapeHtml(job.disputeDetail || '—')],
+      ['Raised', formatDate(job.disputedAt)],
+    ]]);
+  }
+  const box = document.getElementById('job-detail');
+  box.innerHTML = `
+    <div class="job-detail-head">
+      <h3>Job details</h3>
+      <button type="button" class="secondary" id="job-detail-close">Close</button>
+    </div>
+    ${sections.map(([title, rows]) => `
+      <h4>${title}</h4>
+      <dl class="job-detail-list">
+        ${rows.map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`).join('')}
+      </dl>`).join('')}`;
+  box.hidden = false;
+  document.getElementById('job-detail-close').addEventListener('click', () => { box.hidden = true; });
+}
+
 async function loadJobs() {
   hideAlert('jobs-alert');
   document.getElementById('job-detail').hidden = true;
@@ -247,9 +311,7 @@ async function loadJobs() {
       btn.addEventListener('click', async () => {
         try {
           const job = await apiRequest(`/admin/jobs/${btn.dataset.id}`, { auth: true });
-          const pre = document.getElementById('job-detail');
-          pre.textContent = JSON.stringify(job, null, 2);
-          pre.hidden = false;
+          renderJobDetail(job);
         } catch (err) {
           showAlert('jobs-alert', err.message);
         }
