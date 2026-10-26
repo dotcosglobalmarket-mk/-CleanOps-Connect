@@ -97,6 +97,13 @@ const paymentIntent = wrap(async (req) => {
   return { body: { clientSecret: intent.client_secret, amountPence: job.pricePence, status: intent.status } };
 });
 
+// Starts a Stripe-hosted Checkout. Returns the page URL as JSON because the
+// site calls the API with fetch(), which would not follow a 303 to Stripe.
+const checkoutSession = wrap(async () => {
+  const session = await stripeService.createCheckoutSession();
+  return { status: 201, body: { url: session.url } };
+});
+
 const checkIn = wrap(async (req) => {
   await requireOwningCleaner(req);
   return { body: await paymentService.checkIn(req.params.id) };
@@ -143,6 +150,7 @@ module.exports = {
   book,
   cancel,
   paymentIntent,
+  checkoutSession,
   checkIn,
   markComplete,
   confirm,

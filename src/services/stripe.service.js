@@ -59,6 +59,33 @@ async function cancelPaymentIntent(paymentIntentId) {
   return getClient().paymentIntents.cancel(paymentIntentId);
 }
 
+// Stripe-hosted Checkout page (redirect the customer to session.url).
+// The parameters below the "fixed" comment come from the Checkout Studio
+// configuration; mode, URLs and line_items are placeholders — see
+// STRIPE_INTEGRATION_TODO.md before using this for real payments.
+async function createCheckoutSession() {
+  const base = (process.env.FRONTEND_URL || 'https://example.com').replace(/\/+$/, '');
+
+  const sessionParams = {
+    // fixed by Checkout Studio
+    ui_mode: 'hosted_page',
+    billing_address_collection: 'auto',
+    phone_number_collection: { enabled: false },
+    automatic_tax: { enabled: false },
+    allow_promotion_codes: false,
+    submit_type: 'auto',
+    integration_identifier: 'hosted_mobile_app_0001',
+    origin_context: 'mobile_app',
+    // placeholders: replace before going live
+    mode: 'payment',
+    success_url: `${base}/customer.html?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${base}/customer.html?checkout=cancelled`,
+    line_items: [{ price: 'price_...', quantity: 1 }],
+  };
+
+  return getClient().checkout.sessions.create(sessionParams);
+}
+
 // --- Stripe Connect (Express) for cleaner payouts ---
 
 // Stripe collects and verifies the cleaner's identity and bank details
@@ -127,6 +154,7 @@ module.exports = {
   createRefund,
   retrievePaymentIntent,
   cancelPaymentIntent,
+  createCheckoutSession,
   createExpressAccount,
   createAccountOnboardingLink,
   retrieveAccount,
