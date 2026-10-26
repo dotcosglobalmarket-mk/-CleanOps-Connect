@@ -7,6 +7,10 @@ import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate
 
 const FREQUENCY = { one_off: 'One-off', weekly: 'Weekly', monthly: 'Monthly', contract: 'Contract' };
 
+// Distance comes from the API in km; the UI shows miles.
+const KM_PER_MILE = 1.609344;
+const kmToMiles = (km) => Math.round((km / KM_PER_MILE) * 10) / 10;
+
 const JOB_STATUS = {
   BOOKED: ['Waiting for customer payment', 'warn'],
   PAID_HELD: ['Paid — ready to start', 'good'],
@@ -50,7 +54,7 @@ async function loadOffers() {
         <article class="card offer-card" data-offer="${escapeHtml(o._id)}" data-job="${escapeHtml(j._id)}">
           <h3>${escapeHtml(j.serviceType?.name || 'Cleaning')} · ${escapeHtml(j.area || '')}</h3>
           <dl class="detail-grid">
-            <div><dt>Distance</dt><dd>${o.distanceKm !== undefined ? `${escapeHtml(o.distanceKm)} km` : '—'}</dd></div>
+            <div><dt>Distance</dt><dd>${o.distanceKm !== undefined ? `${escapeHtml(kmToMiles(o.distanceKm))} mi` : '—'}</dd></div>
             <div><dt>Customer budget</dt><dd>£${escapeHtml(j.budgetMin)}–£${escapeHtml(j.budgetMax)}</dd></div>
             <div><dt>Frequency</dt><dd>${escapeHtml(FREQUENCY[j.frequency] || 'One-off')}</dd></div>
             <div><dt>Estimated hours</dt><dd>${j.estimatedHours ? escapeHtml(j.estimatedHours) : '—'}</dd></div>
