@@ -42,6 +42,13 @@ services:
         value: "REPLACE_WITH_JWT_SECRET"
         scope: RUN_TIME
         type: SECRET
+      - key: SUPER_ADMIN_EMAIL
+        value: "REPLACE_WITH_ADMIN_EMAIL"
+        scope: RUN_TIME
+      - key: SUPER_ADMIN_PASSWORD
+        value: "REPLACE_WITH_ADMIN_PASSWORD_12_CHARS_MIN"
+        scope: RUN_TIME
+        type: SECRET
       - key: CORS_ORIGINS
         value: "https://www.cleanop-connect.co.uk,https://cleanop-connect.co.uk"
         scope: RUN_TIME

@@ -4,6 +4,7 @@ const createApp = require('./app');
 const connectDB = require('./config/db');
 const logger = require('./utils/logger');
 const { seedDefaultServiceTypes } = require('./services/service-type-seed.service');
+const { ensureSuperAdmin } = require('./services/admin-bootstrap.service');
 const { startPaymentWorkers } = require('./workers/transfer-retry.worker');
 
 const PORT = process.env.PORT || 4000;
@@ -16,6 +17,7 @@ async function start() {
 
   await connectDB();
   await seedDefaultServiceTypes();
+  await ensureSuperAdmin().catch((err) => logger.error(`Super admin setup failed: ${err.message}`));
 
   const app = createApp();
 
