@@ -1048,6 +1048,21 @@ body:has(.lp-page) {
   .stat-grid {
     grid-template-columns: 1fr 1fr;
   }
+
+  /* The cleaner dashboard's sidebar becomes a horizontally-scrolling tab
+     bar here; without this, long labels like "Compliance Documents" wrap
+     and squash instead of scrolling. */
+  .dash-nav-item {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Chips (working days, services offered) are tappable controls, so give
+     them the same ~44px touch target as table action buttons on mobile. */
+  .chip {
+    padding: 0.55rem 1rem;
+    font-size: 0.9rem;
+  }
 }
 
 /* Admin dashboard: data tables, status badges, filter bars */
