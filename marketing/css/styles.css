@@ -1529,3 +1529,5 @@ table.data-table tbody tr:hover {
 .compliance-card h3 { margin: 0 0 0.25rem; }
 .compliance-upload { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .compliance-upload input[type="file"] { flex: 1 1 14rem; }
+.document-erase { margin: 0.75rem 0; padding: 0.6rem 0.9rem; border: 1px solid #e5eaec; border-radius: 10px; }
+.document-erase summary { cursor: pointer; font-weight: 600; }

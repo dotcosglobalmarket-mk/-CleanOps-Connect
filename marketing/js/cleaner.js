@@ -485,7 +485,7 @@ async function loadComplianceDocuments() {
     const docs = await apiRequest('/compliance-documents/mine', { auth: true });
     // The newest document of each type is the one that matters.
     const latest = {};
-    docs.forEach((d) => {
+    docs.filter((d) => d.status !== 'withdrawn').forEach((d) => {
       if (!latest[d.type] || new Date(d.uploadedAt) > new Date(latest[d.type].uploadedAt)) latest[d.type] = d;
     });
     list.innerHTML = DOCUMENT_TYPES.map(({ type, label, help }) => `

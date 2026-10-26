@@ -55,4 +55,13 @@ async function review(req, res, next) {
   }
 }
 
-module.exports = { upload, listMine, listForReview, file, review };
+async function deleteFile(req, res, next) {
+  try {
+    const doc = await complianceDocumentService.deleteFile(req.params.id, req.body, req);
+    res.status(200).json({ _id: doc._id, status: doc.status, fileDeletedAt: doc.fileDeletedAt });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { upload, listMine, listForReview, file, review, deleteFile };

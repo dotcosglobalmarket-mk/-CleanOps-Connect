@@ -7,7 +7,7 @@ const uploadQuerySchema = z.object({
 });
 
 const listReviewQuerySchema = z.object({
-  status: z.enum(['pending', 'approved', 'rejected', 'superseded', 'expired', 'all']).optional(),
+  status: z.enum(['pending', 'approved', 'rejected', 'superseded', 'expired', 'withdrawn', 'all']).optional(),
 });
 
 const reviewSchema = z.object({
@@ -16,6 +16,8 @@ const reviewSchema = z.object({
   expiresAt: z.string().max(40).optional(),
 });
 
+const deleteFileSchema = z.object({ reason: z.string().trim().min(3).max(500) });
+
 const documentIdParamSchema = z.object({ id: objectId() });
 
-module.exports = { uploadQuerySchema, listReviewQuerySchema, reviewSchema, documentIdParamSchema };
+module.exports = { uploadQuerySchema, listReviewQuerySchema, reviewSchema, deleteFileSchema, documentIdParamSchema };
