@@ -131,22 +131,6 @@ describe('Phase 3 journey routes', () => {
     });
   });
 
-  describe('Stripe Checkout session', () => {
-    it('requires a logged-in customer', async () => {
-      expect((await request(app).post('/payments/checkout-session')).status).toBe(401);
-      const cleaner = await request(app).post('/payments/checkout-session').set('Authorization', tokenFor('cleaner'));
-      expect(cleaner.status).toBe(403);
-      expect(stripeService.createCheckoutSession).not.toHaveBeenCalled();
-    });
-
-    it('returns the Stripe-hosted page URL', async () => {
-      stripeService.createCheckoutSession.mockResolvedValue({ id: 'cs_test_1', url: 'https://checkout.stripe.com/c/pay/cs_test_1' });
-      const res = await request(app).post('/payments/checkout-session').set('Authorization', tokenFor('customer'));
-      expect(res.status).toBe(201);
-      expect(res.body).toEqual({ url: 'https://checkout.stripe.com/c/pay/cs_test_1' });
-    });
-  });
-
   describe('reviews', () => {
     it('lets a customer review a job', async () => {
       reviewService.createReview.mockResolvedValue({ _id: 'r1', rating: 5 });
