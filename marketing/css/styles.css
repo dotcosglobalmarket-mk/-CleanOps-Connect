@@ -1502,3 +1502,24 @@ table.data-table tbody tr:hover {
 .job-detail-list dd { margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 560px) { .job-detail-list { grid-template-columns: 1fr; } .job-detail-list dd { margin-bottom: 0.4rem; } }
 .job-detail-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* Admin: Revenue tab */
+.revenue-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.revenue-range { display: flex; gap: 0.35rem; }
+.revenue-range button.is-active { background: #0f766e; color: #fff; border-color: #0f766e; }
+.revenue-good { color: #15803d; }
+.revenue-bad { color: #b91c1c; }
+.revenue-two { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1rem; margin: 1rem 0; }
+.revenue-card { background: #fff; border: 1px solid #e5eaec; border-radius: 14px; padding: 1.1rem; margin-bottom: 1rem; }
+.revenue-two .revenue-card { margin-bottom: 0; }
+.revenue-card h3 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+.revenue-chart { display: flex; align-items: flex-end; gap: 0.6rem; height: 150px; padding-top: 0.5rem; }
+.revenue-chart > div { flex: 1; text-align: center; font-size: 0.7rem; color: #64748b; display: flex; flex-direction: column; justify-content: flex-end; }
+.revenue-chart span { display: block; width: 100%; }
+.revenue-chart .bar-com { background: #0f766e; border-radius: 0 0 0 0; }
+.revenue-chart .bar-sub { background: #5eead4; border-radius: 6px 6px 0 0; }
+.revenue-chart .bar-com:first-child { border-radius: 6px 6px 0 0; }
+.revenue-legend { font-size: 0.78rem; color: #64748b; margin-top: 0.5rem; }
+.revenue-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 10px; background: #0f766e; }
+.revenue-legend i.s { background: #5eead4; }
+@media (max-width: 800px) { .revenue-two { grid-template-columns: 1fr; } }

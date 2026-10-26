@@ -70,6 +70,10 @@ const listJobsQuerySchema = z.object({
   paymentStatus: z.enum(Object.values(STATES)).optional(),
 });
 
+const revenueQuerySchema = z.object({
+  range: z.enum(['7d', '30d', 'year']).optional(),
+});
+
 const jobIdParamSchema = z.object({
   id: objectId(),
 });
@@ -82,6 +86,7 @@ module.exports = {
   updateCleanerDeactivationSchema,
   listJobsQuerySchema,
   jobIdParamSchema,
+  revenueQuerySchema,
   listApprovalsQuerySchema,
   approvalDecisionSchema,
   listAuditQuerySchema,

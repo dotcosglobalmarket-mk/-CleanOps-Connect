@@ -2,6 +2,7 @@ const adminService = require('../services/admin.service');
 const opsService = require('../services/ops.service');
 const auditService = require('../services/audit.service');
 const jobService = require('../services/job.service');
+const revenueService = require('../services/revenue.service');
 const staffService = require('../services/staff.service');
 const impersonationService = require('../services/impersonation.service');
 
@@ -12,6 +13,14 @@ const DEFAULT_ADMIN_REASON = 'Updated from the admin dashboard';
 async function summary(req, res, next) {
   try {
     res.status(200).json(await adminService.getSummary());
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function revenue(req, res, next) {
+  try {
+    res.status(200).json(await revenueService.getRevenue(req.query));
   } catch (err) {
     next(err);
   }
@@ -165,5 +174,6 @@ module.exports = {
   updateCleanerDeactivation,
   listJobs,
   getJob,
+  revenue,
   allocateJob,
 };

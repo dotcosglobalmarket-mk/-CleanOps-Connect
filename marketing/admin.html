@@ -25,6 +25,7 @@
   <main class="dash-layout">
     <aside class="dash-sidebar">
       <button type="button" class="dash-nav-item is-active" data-panel="overview">Overview</button>
+      <button type="button" class="dash-nav-item" data-panel="revenue">Revenue</button>
       <button type="button" class="dash-nav-item" data-panel="payments">Payments Ops Queue</button>
       <button type="button" class="dash-nav-item" data-panel="cleaners">Cleaner Verification</button>
       <button type="button" class="dash-nav-item" data-panel="jobs">Jobs</button>
@@ -87,6 +88,54 @@
       </section>
 
       <!-- Payments Ops Queue -->
+      <!-- Revenue -->
+      <section id="panel-revenue" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Revenue</h2>
+          <div class="revenue-controls">
+            <div class="revenue-range" role="group" aria-label="Period">
+              <button type="button" class="secondary" data-range="7d">7 days</button>
+              <button type="button" class="secondary is-active" data-range="30d">30 days</button>
+              <button type="button" class="secondary" data-range="year">This year</button>
+            </div>
+            <button id="revenue-export" type="button" class="secondary">Export CSV</button>
+          </div>
+        </div>
+        <p class="field-help">
+          Platform income: commission on jobs the customer has confirmed, plus cleaners' subscription fees as billed by
+          Stripe. Refunded, disputed and part-refunded jobs are not counted.
+        </p>
+        <div id="revenue-alert" class="alert alert-error" hidden></div>
+
+        <div class="stat-grid" id="revenue-tiles"></div>
+
+        <div class="revenue-two">
+          <div class="revenue-card">
+            <h3>Revenue by week</h3>
+            <p class="field-help">Commission and subscription fees, last 8 weeks.</p>
+            <div id="revenue-chart" class="revenue-chart"></div>
+            <div class="revenue-legend"><i></i>Commission <i class="s"></i>Subscriptions</div>
+          </div>
+          <div class="revenue-card">
+            <h3>Subscribers by plan</h3>
+            <p class="field-help">Active subscriptions today.</p>
+            <div id="revenue-plans" class="table-wrap"></div>
+          </div>
+        </div>
+
+        <div class="revenue-card">
+          <h3>Failed and at-risk subscription payments</h3>
+          <p class="field-help">Cleaners whose subscription is past due or unpaid. Stripe retries automatically and emails the cleaner each time.</p>
+          <div id="revenue-atrisk" class="table-wrap"></div>
+        </div>
+
+        <div class="revenue-card">
+          <h3>Recent subscription payments</h3>
+          <p id="revenue-recent-note" class="field-help">Latest charges recorded from Stripe.</p>
+          <div id="revenue-recent" class="table-wrap"></div>
+        </div>
+      </section>
+
       <section id="panel-payments" class="dash-panel">
         <div class="section-heading">
           <h2 class="panel-title">Payments Ops Queue</h2>

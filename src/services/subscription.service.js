@@ -1,5 +1,6 @@
 const CleanerProfile = require('../models/CleanerProfile');
 const Subscription = require('../models/Subscription');
+const SubscriptionPayment = require('../models/SubscriptionPayment');
 const User = require('../models/User');
 const stripeService = require('./stripe.service');
 const notificationService = require('./notification.service');
@@ -170,15 +171,62 @@ async function handleStripeSubscriptionUpdated(stripeSubscription) {
   return subscription;
 }
 
+// Newer Stripe API versions moved the subscription link from invoice.subscription
+// to invoice.parent.subscription_details.subscription; accept either.
+function invoiceSubscriptionId(invoice) {
+  const link = invoice.subscription || (invoice.parent && invoice.parent.subscription_details && invoice.parent.subscription_details.subscription);
+  if (!link) return null;
+  return typeof link === 'string' ? link : link.id || null;
+}
+
+// Keeps one row per invoice. A late "failed" event never overwrites a payment
+// that already succeeded (events can arrive out of order).
+async function recordInvoicePayment(invoice, subscription, status) {
+  const existing = await SubscriptionPayment.findOne({ stripeInvoiceId: invoice.id });
+  if (existing && existing.status === 'paid' && status === 'failed') return existing;
+
+  const fields = {
+    stripeSubscriptionId: subscription.stripeSubscriptionId,
+    cleaner: subscription.cleaner,
+    plan: subscription.plan,
+    amountPence: status === 'paid' ? invoice.amount_paid : invoice.amount_due,
+    status,
+    attemptCount: invoice.attempt_count,
+    nextRetryAt: status === 'failed' && invoice.next_payment_attempt ? new Date(invoice.next_payment_attempt * 1000) : undefined,
+    occurredAt: new Date((invoice.status_transitions && invoice.status_transitions.paid_at ? invoice.status_transitions.paid_at : invoice.created || Date.now() / 1000) * 1000),
+  };
+  if (status === 'failed') fields.occurredAt = new Date();
+
+  if (existing) {
+    Object.assign(existing, fields);
+    await existing.save();
+    return existing;
+  }
+  return SubscriptionPayment.create({ stripeInvoiceId: invoice.id, ...fields });
+}
+
 async function handleInvoicePaymentFailed(invoice) {
-  if (!invoice.subscription) return null;
-  const subscription = await Subscription.findOne({ stripeSubscriptionId: invoice.subscription });
+  const stripeSubscriptionId = invoiceSubscriptionId(invoice);
+  if (!stripeSubscriptionId) return null;
+  const subscription = await Subscription.findOne({ stripeSubscriptionId });
   if (!subscription) return null;
+
+  await recordInvoicePayment(invoice, subscription, 'failed');
 
   const cleaner = await CleanerProfile.findById(subscription.cleaner);
   if (cleaner) {
     await notificationService.subscriptionPaymentFailed(cleaner);
   }
+  return subscription;
+}
+
+async function handleInvoicePaid(invoice) {
+  const stripeSubscriptionId = invoiceSubscriptionId(invoice);
+  if (!stripeSubscriptionId) return null;
+  const subscription = await Subscription.findOne({ stripeSubscriptionId });
+  if (!subscription) return null;
+
+  await recordInvoicePayment(invoice, subscription, 'paid');
   return subscription;
 }
 
@@ -190,4 +238,5 @@ module.exports = {
   getMySubscription,
   handleStripeSubscriptionUpdated,
   handleInvoicePaymentFailed,
+  handleInvoicePaid,
 };
