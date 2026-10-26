@@ -20,10 +20,20 @@ const logger = require('../utils/logger');
 const MIN_PASSWORD_LENGTH = 12;
 const emailSchema = z.string().email();
 
+// ops@cleanop-connect.co.uk -> o**@cleanop-connect.co.uk (enough to recognise, not to reveal)
+function maskEmail(email) {
+  const [local = '', domain = ''] = String(email).split('@');
+  return `${local.slice(0, 1)}${'*'.repeat(Math.max(local.length - 1, 1))}@${domain}`;
+}
+
 async function ensureSuperAdmin() {
   const rawEmail = process.env.SUPER_ADMIN_EMAIL;
   const password = process.env.SUPER_ADMIN_PASSWORD;
-  if (!rawEmail || !password) return { status: 'not_configured' };
+  if (!rawEmail || !password) {
+    const missing = [!rawEmail && 'SUPER_ADMIN_EMAIL', !password && 'SUPER_ADMIN_PASSWORD'].filter(Boolean);
+    logger.info(`Super admin setup skipped: ${missing.join(' and ')} not set in this environment`);
+    return { status: 'not_configured', missing };
+  }
 
   const email = rawEmail.trim().toLowerCase();
   if (!emailSchema.safeParse(email).success) {
@@ -35,7 +45,22 @@ async function ensureSuperAdmin() {
     return { status: 'weak_password' };
   }
 
-  if (await User.exists({ role: 'admin' })) return { status: 'admin_exists' };
+  if (password !== password.trim()) {
+    logger.info('SUPER_ADMIN_PASSWORD starts or ends with a space; it is used exactly as typed, spaces included');
+  }
+
+  const admins = await User.find({ role: 'admin' }).select('email active').lean();
+  if (admins.length) {
+    const list = admins.map((a) => `${maskEmail(a.email)}${a.active === false ? ' (disabled)' : ''}`).join(', ');
+    const match = admins.some((a) => a.email === email);
+    logger.info(
+      `Super admin setup skipped: an admin already exists (${list}). ` +
+        (match
+          ? 'SUPER_ADMIN_EMAIL matches it, but its existing password is never overwritten by a restart.'
+          : 'SUPER_ADMIN_EMAIL does not match it, so that email has no account; log in with the existing admin.')
+    );
+    return { status: 'admin_exists' };
+  }
 
   if (await User.exists({ email })) {
     logger.error(

@@ -1,4 +1,4 @@
-jest.mock('../../src/models/User', () => ({ exists: jest.fn(), create: jest.fn() }));
+jest.mock('../../src/models/User', () => ({ exists: jest.fn(), create: jest.fn(), find: jest.fn() }));
 jest.mock('../../src/services/auth.service', () => ({ hashPassword: jest.fn(async (p) => `hashed:${p}`) }));
 jest.mock('../../src/utils/logger', () => ({ info: jest.fn(), error: jest.fn() }));
 
@@ -15,6 +15,7 @@ beforeEach(() => {
   process.env.SUPER_ADMIN_PASSWORD = PASSWORD;
   delete process.env.SUPER_ADMIN_NAME;
   User.exists.mockResolvedValue(null);
+  User.find.mockReturnValue({ select: () => ({ lean: async () => [] }) });
   User.create.mockResolvedValue({});
 });
 afterAll(() => {
@@ -27,10 +28,10 @@ const logged = () => JSON.stringify([...logger.info.mock.calls, ...logger.error.
 describe('ensureSuperAdmin', () => {
   it('does nothing when the variables are not set', async () => {
     delete process.env.SUPER_ADMIN_PASSWORD;
-    expect(await ensureSuperAdmin()).toEqual({ status: 'not_configured' });
+    expect((await ensureSuperAdmin()).status).toBe('not_configured');
     delete process.env.SUPER_ADMIN_EMAIL;
     process.env.SUPER_ADMIN_PASSWORD = PASSWORD;
-    expect(await ensureSuperAdmin()).toEqual({ status: 'not_configured' });
+    expect((await ensureSuperAdmin()).status).toBe('not_configured');
     expect(User.create).not.toHaveBeenCalled();
   });
 
@@ -72,14 +73,41 @@ describe('ensureSuperAdmin', () => {
   });
 
   it('does nothing when an admin already exists, so the password is never reset by a restart', async () => {
-    User.exists.mockResolvedValueOnce({ _id: 'a1' });
+    User.find.mockReturnValue({ select: () => ({ lean: async () => [{ email: 'boss@example.com', active: true }] }) });
     expect(await ensureSuperAdmin()).toEqual({ status: 'admin_exists' });
-    expect(User.exists).toHaveBeenCalledWith({ role: 'admin' });
+    expect(User.find).toHaveBeenCalledWith({ role: 'admin' });
     expect(User.create).not.toHaveBeenCalled();
+    const msg = logger.info.mock.calls[0][0];
+    expect(msg).toMatch(/b\*+@example\.com/);
+    expect(msg).toMatch(/does not match/);
+    expect(msg).not.toContain('boss@');
+  });
+
+  it('says so when the existing admin is the SUPER_ADMIN_EMAIL account', async () => {
+    User.find.mockReturnValue({
+      select: () => ({ lean: async () => [{ email: 'ops@cleanop-connect.co.uk', active: false }] }),
+    });
+    await ensureSuperAdmin();
+    const msg = logger.info.mock.calls[0][0];
+    expect(msg).toMatch(/\(disabled\)/);
+    expect(msg).toMatch(/never overwritten/);
+  });
+
+  it('names the missing variable when not configured', async () => {
+    delete process.env.SUPER_ADMIN_PASSWORD;
+    expect(await ensureSuperAdmin()).toEqual({ status: 'not_configured', missing: ['SUPER_ADMIN_PASSWORD'] });
+    expect(logger.info.mock.calls[0][0]).toMatch(/SUPER_ADMIN_PASSWORD not set/);
+  });
+
+  it('warns (without echoing it) when the password has leading or trailing spaces', async () => {
+    process.env.SUPER_ADMIN_PASSWORD = `${PASSWORD} `;
+    await ensureSuperAdmin();
+    expect(logger.info.mock.calls.some(([m]) => /starts or ends with a space/.test(m))).toBe(true);
+    expect(logged()).not.toContain(PASSWORD);
   });
 
   it('never promotes an existing non-admin account with that email (pre-registration takeover)', async () => {
-    User.exists.mockResolvedValueOnce(null).mockResolvedValueOnce({ _id: 'customer1' });
+    User.exists.mockResolvedValueOnce({ _id: 'customer1' });
     expect(await ensureSuperAdmin()).toEqual({ status: 'email_taken' });
     expect(User.exists).toHaveBeenLastCalledWith({ email: 'ops@cleanop-connect.co.uk' });
     expect(User.create).not.toHaveBeenCalled();
