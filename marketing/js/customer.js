@@ -2,6 +2,7 @@ import { apiRequest, requireRole } from './api.js';
 import { escapeHtml, splitSuggestion } from './dom.js';
 import { STRIPE_PUBLISHABLE_KEY } from './config.js';
 import { openDocument } from './documents.js';
+import { fetchGuide, renderGuide } from './price-guide.js';
 import { mountChat, fetchUnread, setupConversations } from './chat.js';
 import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate } from './dashboard-ui.js';
 
@@ -132,6 +133,36 @@ document.getElementById('create-job-form').addEventListener('submit', async (eve
     await openJob(job._id);
   } catch (err) {
     showAlert('create-alert', err.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+// --- Suggested budget (a guide from local prices published online) ---
+document.getElementById('budget-guide-btn').addEventListener('click', async (event) => {
+  const status = document.getElementById('budget-guide-status');
+  const serviceType = document.getElementById('serviceType').value;
+  const postcode = document.getElementById('postcode').value.trim();
+  if (!serviceType || !postcode) {
+    status.textContent = 'Choose a service type and enter your postcode first.';
+    return;
+  }
+  const button = event.target;
+  button.disabled = true;
+  status.textContent = 'Looking up local rates… this can take up to a minute.';
+  document.getElementById('budget-guide').hidden = true;
+  try {
+    const guide = await fetchGuide({ serviceType, postcode, estimatedHours: document.getElementById('estimatedHours').value });
+    renderGuide(document.getElementById('budget-guide'), guide, {
+      audience: 'customer',
+      onUse: ({ min, max }) => {
+        document.getElementById('budgetMin').value = min;
+        document.getElementById('budgetMax').value = max;
+      },
+    });
+    status.textContent = '';
+  } catch (err) {
+    status.textContent = err.message;
   } finally {
     button.disabled = false;
   }

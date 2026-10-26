@@ -1,5 +1,6 @@
 import { apiRequest } from './api.js';
 import { openDocument } from './documents.js';
+import { fetchGuide, renderGuide } from './price-guide.js';
 import { escapeHtml } from './dom.js';
 import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate } from './dashboard-ui.js';
 
@@ -50,6 +51,11 @@ function offerForm(o) {
           <label for="price-${id}">${quote ? 'New price' : 'Your quote'} for this job (£)</label>
           <input id="price-${id}" type="number" min="1" step="0.01" inputmode="decimal" required />
         </div>
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem;">
+          <button type="button" class="secondary guide-btn">See local rates</button>
+          <span class="field-help guide-status" aria-live="polite"></span>
+        </div>
+        <div class="card guide-panel" hidden></div>
         <div class="form-row">
           <label for="note-${id}">Note to the customer (optional)</label>
           <textarea id="note-${id}" rows="2" maxlength="1500" placeholder="What's included, when you could start…"></textarea>
@@ -67,6 +73,11 @@ function offerForm(o) {
         <label for="price-${id}">Your price for this job (£)</label>
         <input id="price-${id}" type="number" min="1" step="0.01" inputmode="decimal" required />
       </div>
+      <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem;">
+          <button type="button" class="secondary guide-btn">See local rates</button>
+          <span class="field-help guide-status" aria-live="polite"></span>
+        </div>
+        <div class="card guide-panel" hidden></div>
       <div style="display: flex; gap: 0.75rem;">
         <button type="submit">Accept at this price</button>
         <button type="button" class="secondary decline-btn">Decline</button>
@@ -164,6 +175,37 @@ async function loadOffers() {
           } catch (err) {
             showAlert('offers-alert', err.message);
             event.target.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+          }
+        });
+      }
+
+      // Local rate guide: shown on request, never fills the price by itself.
+      const guideBtn = card.querySelector('.guide-btn');
+      if (guideBtn) {
+        const offerData = open.find((o) => o._id === offer);
+        guideBtn.addEventListener('click', async () => {
+          const status = card.querySelector('.guide-status');
+          const panel = card.querySelector('.guide-panel');
+          guideBtn.disabled = true;
+          status.textContent = 'Looking up local rates… this can take up to a minute.';
+          panel.hidden = true;
+          try {
+            const guide = await fetchGuide({
+              serviceType: offerData.job.serviceType?._id,
+              postcode: offerData.job.area,
+              estimatedHours: offerData.job.estimatedHours,
+            });
+            renderGuide(panel, guide, {
+              audience: 'cleaner',
+              onUse: (pounds) => {
+                card.querySelector('input[type="number"]').value = pounds;
+              },
+            });
+            status.textContent = '';
+          } catch (err) {
+            status.textContent = err.message;
+          } finally {
+            guideBtn.disabled = false;
           }
         });
       }

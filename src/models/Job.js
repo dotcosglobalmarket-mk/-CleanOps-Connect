@@ -72,8 +72,10 @@ const jobSchema = new mongoose.Schema(
       ref: 'CleanerProfile',
     },
     pricePence: {
-      // Set by the cleaner at booking, immutable once booked. Never set or
-      // suggested by the platform (self-employment requirement).
+      // Set by the cleaner at booking, immutable once booked. The platform
+      // never sets, requires or negotiates it (self-employment requirement).
+      // It may show an optional, area-wide guide to typical local rates (see
+      // price-guide.service.js), which the cleaner is free to ignore.
       type: Number,
     },
     commissionRate: {

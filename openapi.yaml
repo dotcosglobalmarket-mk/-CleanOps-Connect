@@ -211,6 +211,31 @@ paths:
           description: Not a party to this job
         '409':
           description: No cleaner booked yet
+  /pricing/guide:
+    post:
+      summary: Suggested local rates for a service (customer or cleaner, informational)
+      description: A suggested range of typical local hourly rates, from prices published online for the postcode district. Only the district and service type are sent to the AI service. Cached per district and service. Never fills in or enforces anything. 503 if unavailable, 404 if no usable local figures were found.
+      tags: [Pricing]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serviceType, postcode]
+              properties:
+                serviceType: { type: string }
+                postcode: { type: string, description: Full postcode or just the district, e.g. LS12 }
+                estimatedHours: { type: number }
+      responses:
+        '200':
+          description: "{ area, hourlyLowPence, hourlyHighPence, scope, basis, confidence, sources[], asOf, job? }"
+        '404':
+          description: No usable local figures found
+        '503':
+          description: Price guide unavailable
   /chat/unread:
     get:
       summary: Unread chat message counts for the signed-in customer or cleaner

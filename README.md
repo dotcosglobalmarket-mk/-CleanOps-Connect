@@ -127,7 +127,7 @@ npm run dev
 
 - `POST /jobs` 🔒 (customer) – Create a new job
 - `POST /jobs/:id/allocate` 🔒 (job owner or admin) – Run AI allocation and send offers
-- `POST /jobs/:id/offers/:offerId/accept` 🔒 (the offered cleaner) – Accept an offer **at the price the cleaner sets** (`pricePence` — the platform never sets or suggests a rate). Books the job (creates the Stripe PaymentIntent, see Payments below) and automatically declines every other outstanding offer on the job.
+- `POST /jobs/:id/offers/:offerId/accept` 🔒 (the offered cleaner) – Accept an offer **at the price the cleaner sets** (`pricePence` — the platform never sets, requires or negotiates it; an optional local-rates guide is available, see Price guide below). Books the job (creates the Stripe PaymentIntent, see Payments below) and automatically declines every other outstanding offer on the job.
 - `POST /jobs/:id/offers/:offerId/decline` 🔒 (the offered cleaner) – Decline an offer, or withdraw a tender quote you have already sent
 - `POST /jobs/:id/offers/:offerId/quote` 🔒 (an invited cleaner) – **Tender:** send or revise a quote at your own price (`pricePence`) with an optional note (contact details are hidden). Allowed until the tender closes.
 - `POST /jobs/:id/offers/:offerId/award` 🔒 (the job's customer) – **Tender:** award the job to one quote. Books at that cleaner's quoted price with the same atomic booking as accept, declines the other offers and emails the unsuccessful bidders.
@@ -139,9 +139,18 @@ npm run dev
 - **Service record** — job, parties, timeline (posted, booked, checked in, completed, confirmed and whether the customer or the 48-hour auto-confirm did it), the cleaner's price and payment status, and the cleaner's *current* recorded DBS, COSHH and insurance status. Anything not recorded says "Not recorded". It states that it is not an invoice.
 - **Pre-start compliance pack** (industrial jobs only) — the same job details plus a COSHH substances table, a risk-assessment and method-statement outline, and sign-off lines, **left blank for the cleaner to complete**. The platform does not know which products will be used, so it never invents hazard information or claims compliance.
 
+#### Price guide (suggested local rates)
+
+`POST /pricing/guide` 🔒 (customer or cleaner) body `{ serviceType, postcode, estimatedHours? }` returns a **suggested** range of typical local hourly rates for the service in the postcode district, worked out by Claude (`claude-sonnet-5-5`, or `ANTHROPIC_MODEL`) from prices published on the web (web search tool), with the sources, the basis, a confidence level and when it was checked. With `estimatedHours` it also gives a total range.
+
+- Customers see it as a **suggested budget** (button on the post-a-job form); cleaners as a **suggested price** (button on each offer or tender quote). It is shown only on request, **never fills anything in by itself** ("Use this price" / "No thanks"), is the same for everyone in an area, and is never used for matching, ranking or any penalty.
+- Only the postcode **district** (e.g. `LS12`) and the service type are sent to the AI service, never a full postcode or any personal data.
+- Guides are cached per district and service (14 days; a "nothing found" result for 1 day), so repeat requests are free and consistent. Figures outside 5–150 £/hour, backwards ranges, and ranges wider than 3x are discarded rather than shown.
+- Returns 503 if `ANTHROPIC_API_KEY` is not set or the AI service is unavailable, and 404 if no usable local figures were found. Web search must be enabled for your Anthropic organisation.
+
 #### Industrial tenders
 
-An **industrial** job can be posted as a tender: `POST /jobs` with `tender: { closesAt, requirements? }` (closing time between 1 hour and 30 days away; domestic jobs cannot be tenders). `POST /jobs/:id/allocate` then invites up to 10 matching, insured cleaners (each cleaner is invited once). Invited cleaners send quotes — they cannot use first-to-accept on a tender — and the customer compares the quotes (cheapest first in the dashboard) and awards one. The price is always the cleaner's own quote; the platform never sets or suggests it.
+An **industrial** job can be posted as a tender: `POST /jobs` with `tender: { closesAt, requirements? }` (closing time between 1 hour and 30 days away; domestic jobs cannot be tenders). `POST /jobs/:id/allocate` then invites up to 10 matching, insured cleaners (each cleaner is invited once). Invited cleaners send quotes — they cannot use first-to-accept on a tender — and the customer compares the quotes (cheapest first in the dashboard) and awards one. The price is always the cleaner's own quote; the platform never sets it.
 - `GET /jobs/:id` – View job details
 
 ### Cleaners
@@ -340,10 +349,8 @@ No GitHub secrets are required for this deploy path; environment variables are c
 - Customer and cleaner apps, as an installable progressive web app (install from the browser; works on phones and desktop, with live in-app chat). Native App Store and Play Store apps are not built; they need Apple and Google developer accounts and signing keys.
 - Escrow payments (see Payments above).
 - Industrial tendering (see Industrial tenders above).
-- Job documents: a printable service record for every booked job, and a pre-start compliance pack for industrial jobs (see Job documents below).
-
-**On hold**
-- AI-powered job pricing suggestions. The platform deliberately never sets or suggests a cleaner's price (README, `Job.js` and the published terms all say so, to protect cleaners' self-employed status). It should only be built if that rule is changed on legal advice.
+- Suggested local rates for customers and cleaners (see Price guide above).
+- Job documents: a printable service record for every booked job, and a pre-start compliance pack for industrial jobs (see Job documents above).
 
 ## License
 
