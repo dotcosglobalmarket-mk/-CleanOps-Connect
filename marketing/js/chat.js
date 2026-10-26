@@ -12,6 +12,7 @@ import { escapeHtml } from './dom.js';
 
 const POLL_MS = 15 * 1000;
 const RECONNECT_MS = 5 * 1000;
+const MAX_RECONNECT_MS = 60 * 1000;
 const MAX_LENGTH = 1000;
 
 function formatTime(iso) {
@@ -23,11 +24,7 @@ function formatTime(iso) {
 }
 
 export async function fetchUnread() {
-  try {
-    return await apiRequest('/chat/unread', { auth: true });
-  } catch (err) {
-    return { total: 0, byJob: {} };
-  }
+  return apiRequest('/chat/unread', { auth: true });
 }
 
 export function mountChat(container, { jobId, onRead } = {}) {
@@ -123,6 +120,7 @@ export function mountChat(container, { jobId, onRead } = {}) {
   }
 
   async function openStream() {
+    let reconnectDelay = RECONNECT_MS;
     while (!stopped) {
       streamAbort = new AbortController();
       try {
@@ -130,7 +128,14 @@ export function mountChat(container, { jobId, onRead } = {}) {
           headers: { Authorization: `Bearer ${getToken()}`, Accept: 'text/event-stream' },
           signal: streamAbort.signal,
         });
-        if (!response.ok || !response.body) throw new Error(`stream ${response.status}`);
+        if (!response.ok || !response.body) {
+          const err = new Error(`stream ${response.status}`);
+          err.status = response.status;
+          throw err;
+        }
+        // Connected: reset backoff and clear any "still trying" notice.
+        reconnectDelay = RECONNECT_MS;
+        showNotice('');
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
@@ -152,8 +157,21 @@ export function mountChat(container, { jobId, onRead } = {}) {
         }
       } catch (err) {
         if (stopped) return;
+        // 401/403 won't clear on retry (expired session or chat access
+        // revoked, e.g. by a dispute) — stop hammering the server and tell
+        // the user, instead of retrying forever. The 15s poll fallback
+        // will still pick up new messages once the underlying issue (login,
+        // access) is resolved and the page is reloaded.
+        if (err.status === 401 || err.status === 403) {
+          showNotice('Live updates stopped — refresh the page to reconnect.');
+          return;
+        }
       }
-      if (!stopped) await new Promise((resolve) => setTimeout(resolve, RECONNECT_MS));
+      if (!stopped) {
+        showNotice('Reconnecting to live updates…');
+        await new Promise((resolve) => setTimeout(resolve, reconnectDelay));
+        reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_MS);
+      }
     }
   }
 

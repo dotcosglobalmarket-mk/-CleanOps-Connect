@@ -44,8 +44,24 @@ const MIN_DIGITS_UK_START = 7;
 function digitUnits(run) {
   let units = 0;
   const tokens = run.match(new RegExp(`\\d+|\\b(?:${WORD})\\b`, 'gi')) || [];
-  tokens.forEach((token) => {
-    units += /^\d/.test(token) ? token.length : NUMBER_WORDS[token.toLowerCase()];
+  tokens.forEach((token, i) => {
+    if (/^\d/.test(token)) {
+      units += token.length;
+      return;
+    }
+    const lower = token.toLowerCase();
+    // "double"/"triple" only count as digits when paired with an actual
+    // digit right after them ("double nine" = 2 digits). On their own
+    // (e.g. someone repeating the word "triple") they add nothing, so a
+    // run of these words alone is never mistaken for a phone number.
+    if (lower === 'double' || lower === 'triple') {
+      const next = tokens[i + 1];
+      if (next && (/^\d/.test(next) || (NUMBER_WORDS[next.toLowerCase()] && next.toLowerCase() !== 'double' && next.toLowerCase() !== 'triple'))) {
+        units += NUMBER_WORDS[lower];
+      }
+      return;
+    }
+    units += NUMBER_WORDS[lower];
   });
   return units;
 }
