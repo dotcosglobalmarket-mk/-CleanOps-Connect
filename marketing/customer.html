@@ -24,12 +24,34 @@
 
   <main>
     <div class="section-heading">
-      <h1>My jobs</h1>
+      <h1>My account</h1>
       <button id="show-post-job" type="button">Post a job</button>
+    </div>
+
+    <div class="tab-bar" role="tablist" aria-label="Sections">
+      <button type="button" id="tab-jobs" class="tab-button is-active" role="tab" aria-selected="true" aria-controls="view-jobs" data-view="jobs">My jobs</button>
+      <button type="button" id="tab-messages" class="tab-button" role="tab" aria-selected="false" aria-controls="view-messages" data-view="messages">Messages <span id="messages-unread" class="unread-badge" hidden></span></button>
     </div>
 
     <div id="page-alert" class="alert alert-error" hidden></div>
     <div id="page-success" class="alert alert-success" hidden></div>
+
+    <div id="view-messages" role="tabpanel" aria-labelledby="tab-messages" hidden>
+      <p class="field-help">
+        Chat with the cleaner on a job they've accepted. Phone numbers, emails, postcodes and links are hidden in chat to
+        keep bookings and payments protected.
+      </p>
+      <div id="messages-alert" class="alert alert-error" hidden></div>
+      <div class="messages-layout">
+        <ul id="conversation-list" class="conversation-list"></ul>
+        <div id="conversation-pane" class="card" hidden>
+          <h3 id="conversation-title"></h3>
+          <div id="conversation-chat"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-jobs" role="tabpanel" aria-labelledby="tab-jobs">
 
     <div class="card" id="post-job-card" hidden>
       <h2>Post a job</h2>
@@ -198,6 +220,7 @@
         <button id="cancel-button" type="button" class="secondary">Cancel this job</button>
       </section>
     </article>
+    </div>
   </main>
 
   <script type="module" src="js/nav.js"></script>
