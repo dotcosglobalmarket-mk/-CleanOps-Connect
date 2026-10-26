@@ -206,3 +206,75 @@ export function mountChat(container, { jobId, onRead } = {}) {
     },
   };
 }
+
+// A conversation list (one entry per job) beside a chat pane, with unread
+// badges. Shared by the customer and cleaner dashboards.
+export function setupConversations({ listEl, paneEl, titleEl, chatEl, badgeEl, fetchJobs, titleFor, subtitleFor, emptyText }) {
+  let jobs = [];
+  let unreadByJob = {};
+  let activeChat = null;
+  let activeJobId = null;
+
+  function setBadge() {
+    const total = Object.values(unreadByJob).reduce((sum, n) => sum + n, 0);
+    badgeEl.textContent = total;
+    badgeEl.hidden = !total;
+  }
+
+  function close() {
+    if (activeChat) activeChat.destroy();
+    activeChat = null;
+    activeJobId = null;
+    paneEl.hidden = true;
+    renderList();
+  }
+
+  function open(jobId) {
+    const job = jobs.find((j) => j._id === jobId);
+    if (!job) return;
+    if (activeChat) activeChat.destroy();
+    activeJobId = jobId;
+    titleEl.textContent = titleFor(job);
+    paneEl.hidden = false;
+    activeChat = mountChat(chatEl, {
+      jobId,
+      onRead: () => {
+        delete unreadByJob[jobId];
+        setBadge();
+        renderList();
+      },
+    });
+    renderList();
+  }
+
+  function renderList() {
+    if (!jobs.length) {
+      listEl.innerHTML = `<li class="table-empty">${escapeHtml(emptyText)}</li>`;
+      return;
+    }
+    listEl.innerHTML = jobs
+      .map((job) => {
+        const unread = unreadByJob[job._id];
+        return `
+          <li>
+            <button type="button" class="conversation-item secondary${job._id === activeJobId ? ' is-active' : ''}" data-id="${escapeHtml(job._id)}">
+              <span>${escapeHtml(titleFor(job))}<br /><span class="field-help">${escapeHtml(subtitleFor(job))}</span></span>
+              ${unread ? `<span class="unread-badge" aria-label="${escapeHtml(unread)} unread messages">${escapeHtml(unread)}</span>` : ''}
+            </button>
+          </li>`;
+      })
+      .join('');
+    listEl.querySelectorAll('.conversation-item').forEach((btn) => btn.addEventListener('click', () => open(btn.dataset.id)));
+  }
+
+  async function reload({ openJobId } = {}) {
+    const [fetched, unread] = await Promise.all([fetchJobs(), fetchUnread()]);
+    jobs = fetched;
+    unreadByJob = unread.byJob || {};
+    setBadge();
+    renderList();
+    if (openJobId && activeJobId !== openJobId) open(openJobId);
+  }
+
+  return { reload, close };
+}

@@ -1,7 +1,7 @@
 import { apiRequest, requireRole } from './api.js';
 import { escapeHtml, splitSuggestion } from './dom.js';
 import { STRIPE_PUBLISHABLE_KEY } from './config.js';
-import { mountChat, fetchUnread } from './chat.js';
+import { mountChat, fetchUnread, setupConversations } from './chat.js';
 import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate } from './dashboard-ui.js';
 
 requireRole('customer');
@@ -515,6 +515,49 @@ document.getElementById('review-form').addEventListener('submit', async (event) 
   }
 });
 
+// --- Tabs: My jobs / Messages ---
+const conversations = setupConversations({
+  listEl: document.getElementById('conversation-list'),
+  paneEl: document.getElementById('conversation-pane'),
+  titleEl: document.getElementById('conversation-title'),
+  chatEl: document.getElementById('conversation-chat'),
+  badgeEl: document.getElementById('messages-unread'),
+  // Only jobs a cleaner has accepted have a conversation.
+  fetchJobs: async () => (await apiRequest('/jobs/mine', { auth: true })).filter((job) => job.cleaner),
+  titleFor: (job) => `${job.serviceType?.name || 'Cleaning'} · ${job.cleaner?.name || 'Cleaner'}`,
+  subtitleFor: (job) => `Booked ${formatDate(job.bookedAt || job.createdAt)}`,
+  emptyText: 'No conversations yet. Chat opens when a cleaner accepts your job.',
+});
+
+async function showView(name, { openJobId } = {}) {
+  const messages = name === 'messages';
+  document.querySelectorAll('.tab-button').forEach((tab) => {
+    const active = tab.dataset.view === name;
+    tab.classList.toggle('is-active', active);
+    tab.setAttribute('aria-selected', String(active));
+  });
+  show('view-jobs', !messages);
+  show('view-messages', messages);
+  document.getElementById('show-post-job').hidden = messages;
+
+  if (messages) {
+    // Only one live chat at a time: drop the one inside the job detail.
+    if (activeChat) activeChat.destroy();
+    activeChat = null;
+    hideAlert('messages-alert');
+    try {
+      await conversations.reload({ openJobId });
+    } catch (err) {
+      showAlert('messages-alert', err.message);
+    }
+  } else {
+    conversations.close();
+    if (currentJob) mountJobChat(currentJob);
+  }
+}
+
+document.querySelectorAll('.tab-button').forEach((tab) => tab.addEventListener('click', () => showView(tab.dataset.view)));
+
 // --- Init (supports links from emails: ?job=ID[&review=1], and Stripe's return) ---
 renderRatingOptions();
 loadServiceTypes();
@@ -522,6 +565,16 @@ loadServiceTypes();
   await loadJobs();
   const params = new URLSearchParams(window.location.search);
   const jobId = params.get('job');
+  if (params.get('tab') === 'messages') {
+    await showView('messages', { openJobId: jobId });
+    return;
+  }
+  // Unread count for the Messages tab badge.
+  fetchUnread().then((unread) => {
+    const badge = document.getElementById('messages-unread');
+    badge.textContent = unread.total || 0;
+    badge.hidden = !unread.total;
+  });
   if (!jobId) return;
   if (params.get('redirect_status') === 'succeeded') {
     await afterPayment(jobId);
