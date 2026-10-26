@@ -343,6 +343,15 @@ No GitHub secrets are required for this deploy path; environment variables are c
 3. **SSL**: Cloudflare dashboard → your zone → SSL/TLS → set encryption mode to **Full** (or **Full (strict)**). Cloudflare issues and manages the edge certificate for both hostnames automatically once the custom domains are active.
 4. **Redirect `www` → apex**: Cloudflare dashboard → your zone → Rules → Redirect Rules → create a rule: When incoming requests match hostname equals `www.cleanop-connect.co.uk`, then redirect to `https://cleanop-connect.co.uk/${uri}` (Type: Dynamic, Status code: 301).
 
+## First admin account
+
+Staff accounts cannot be created from the public register page, and `POST /admin/users` needs an admin who is already logged in. So the API creates the first admin itself when it starts:
+
+- Set `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` (and optionally `SUPER_ADMIN_NAME`) in the API's environment. The password must be at least 12 characters.
+- On start-up, **if no admin account exists yet**, it creates one (password stored only as a bcrypt hash, never logged). The log line is `Super admin account created for <email>`.
+- It **only ever creates a new account**. If an account with that email already exists and is not an admin, it is left unchanged and an error is logged (registration has no email verification, so promoting an existing account would let whoever registered that address first become admin). If an admin already exists it does nothing, so restarting never resets a password.
+- Log in at `login.html` with that email and password; admins are taken to `admin.html`. Then create operators and any other admins there, change the password through "Forgot password" if you wish, and remove `SUPER_ADMIN_PASSWORD` from the environment.
+
 ## Roadmap
 
 **Delivered**
