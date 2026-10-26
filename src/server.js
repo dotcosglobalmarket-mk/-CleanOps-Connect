@@ -5,9 +5,20 @@ const connectDB = require('./config/db');
 const logger = require('./utils/logger');
 const { seedDefaultServiceTypes } = require('./services/service-type-seed.service');
 const { ensureSuperAdmin } = require('./services/admin-bootstrap.service');
+const complianceDocumentService = require('./services/compliance-document.service');
 const { startPaymentWorkers } = require('./workers/transfer-retry.worker');
 
 const PORT = process.env.PORT || 4000;
+
+// Removes the badge a certificate backs once it has passed its expiry date.
+function startComplianceDocumentExpiry() {
+  const run = () =>
+    complianceDocumentService
+      .expireLapsedDocuments()
+      .catch((err) => logger.error(`Compliance document expiry check failed: ${err.message}`));
+  run();
+  setInterval(run, 6 * 60 * 60 * 1000).unref();
+}
 
 async function start() {
   if (!process.env.JWT_SECRET) {
@@ -26,6 +37,7 @@ async function start() {
   });
 
   startPaymentWorkers();
+  startComplianceDocumentExpiry();
 }
 
 start().catch((err) => {

@@ -1,4 +1,4 @@
-import { apiRequest, requireRole } from './api.js';
+import { apiRequest, apiUpload, requireRole } from './api.js';
 import { escapeHtml, splitSuggestion } from './dom.js';
 import { setupTabs, formatPence } from './dashboard-ui.js';
 import { STRIPE_PUBLISHABLE_KEY } from './config.js';
@@ -95,6 +95,7 @@ async function loadMySubscription() {
 // --- Tab switching (a ?tab= link, e.g. from an email, opens that tab) ---
 const selectPanel = setupTabs((panel) => {
   if (panel === 'coverage') ensureSubscriptionPaymentElement().catch(() => {});
+  if (panel === 'compliance') loadComplianceDocuments();
 });
 const requestedTab = new URLSearchParams(window.location.search).get('tab');
 if (requestedTab) selectPanel(requestedTab);
@@ -454,3 +455,80 @@ document.getElementById('add-insurance-button').addEventListener('click', async 
 });
 
 loadMyProfile();
+
+
+// --- Compliance documents ---
+const DOCUMENT_TYPES = [
+  { type: 'dbs', label: 'DBS certificate', help: 'Your basic or enhanced DBS certificate.' },
+  { type: 'coshh', label: 'COSHH training certificate', help: 'Proof of COSHH (safe handling of substances) training.' },
+  { type: 'insurance', label: 'Public liability insurance', help: 'Your current certificate or policy schedule.' },
+];
+
+function documentStatusLine(doc) {
+  if (!doc) return '<span class="badge">Not uploaded</span>';
+  const date = (d) => new Date(d).toLocaleDateString('en-GB');
+  if (doc.status === 'pending') return '<span class="badge badge-warning">Waiting for review</span>';
+  if (doc.status === 'approved') {
+    return `<span class="badge badge-success">Approved</span>${doc.expiresAt ? ` <span class="field-help">Valid until ${date(doc.expiresAt)}</span>` : ''}`;
+  }
+  if (doc.status === 'rejected') {
+    return `<span class="badge badge-error">Not accepted</span> <span class="field-help">${escapeHtml(doc.rejectionReason || '')}</span>`;
+  }
+  if (doc.status === 'expired') return `<span class="badge badge-error">Expired ${date(doc.expiresAt)}</span>`;
+  return '<span class="badge">Not uploaded</span>';
+}
+
+async function loadComplianceDocuments() {
+  const list = document.getElementById('compliance-list');
+  hideAlert('compliance-alert');
+  try {
+    const docs = await apiRequest('/compliance-documents/mine', { auth: true });
+    // The newest document of each type is the one that matters.
+    const latest = {};
+    docs.forEach((d) => {
+      if (!latest[d.type] || new Date(d.uploadedAt) > new Date(latest[d.type].uploadedAt)) latest[d.type] = d;
+    });
+    list.innerHTML = DOCUMENT_TYPES.map(({ type, label, help }) => `
+      <div class="card compliance-card" data-type="${type}">
+        <h3>${escapeHtml(label)}</h3>
+        <p class="field-help">${escapeHtml(help)}</p>
+        <p>${documentStatusLine(latest[type])}</p>
+        <div class="compliance-upload">
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" aria-label="Choose your ${escapeHtml(label)}" />
+          <button type="button" class="compliance-upload-btn">${latest[type] && latest[type].status !== 'rejected' ? 'Upload a new one' : 'Upload'}</button>
+        </div>
+      </div>`).join('');
+    list.querySelectorAll('.compliance-card').forEach((card) => {
+      card.querySelector('.compliance-upload-btn').addEventListener('click', () => uploadComplianceDocument(card));
+    });
+  } catch (err) {
+    showAlert('compliance-alert', err.message);
+  }
+}
+
+async function uploadComplianceDocument(card) {
+  hideAlert('compliance-alert');
+  document.getElementById('compliance-success').hidden = true;
+  const input = card.querySelector('input[type="file"]');
+  const button = card.querySelector('.compliance-upload-btn');
+  const file = input.files[0];
+  if (!file) {
+    showAlert('compliance-alert', 'Choose a file first.');
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    showAlert('compliance-alert', 'That file is over 5 MB.');
+    return;
+  }
+  button.disabled = true;
+  try {
+    await apiUpload('/compliance-documents', file, { type: card.dataset.type, filename: file.name });
+    const success = document.getElementById('compliance-success');
+    success.textContent = 'Uploaded. We will check it and email you the result.';
+    success.hidden = false;
+    await loadComplianceDocuments();
+  } catch (err) {
+    showAlert('compliance-alert', err.message);
+    button.disabled = false;
+  }
+}

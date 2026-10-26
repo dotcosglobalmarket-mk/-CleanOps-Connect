@@ -28,6 +28,7 @@
       <button type="button" class="dash-nav-item" data-panel="revenue">Revenue</button>
       <button type="button" class="dash-nav-item" data-panel="payments">Payments Ops Queue</button>
       <button type="button" class="dash-nav-item" data-panel="cleaners">Cleaner Verification</button>
+      <button type="button" class="dash-nav-item" data-panel="documents">Document Review <span id="documents-pending" class="unread-badge" hidden></span></button>
       <button type="button" class="dash-nav-item" data-panel="jobs">Jobs</button>
       <button type="button" class="dash-nav-item" data-panel="service-types">Service Types</button>
       <button type="button" class="dash-nav-item" data-panel="approvals">Refund Approvals</button>
@@ -186,6 +187,36 @@
         </div>
 
         <div id="cleaners-table" class="table-wrap"></div>
+      </section>
+
+      <!-- Document review -->
+      <section id="panel-documents" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Document Review</h2>
+          <button id="documents-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Certificates cleaners have uploaded for their DBS, COSHH and insurance badges. Approving one switches on that
+          badge; insurance needs the date it runs out. Opening a file is recorded in the audit log. DBS copies are
+          deleted 6 months after the decision, rejected files after 30 days.
+        </p>
+        <div id="documents-alert" class="alert alert-error" hidden></div>
+        <div id="documents-success" class="alert alert-success" hidden></div>
+        <div class="filter-bar">
+          <div class="form-row">
+            <label for="documents-filter-status">Show</label>
+            <select id="documents-filter-status">
+              <option value="pending">Waiting for review</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="expired">Expired</option>
+              <option value="all">Everything</option>
+            </select>
+          </div>
+          <button id="documents-filter-apply" type="button">Apply</button>
+        </div>
+        <div id="documents-table" class="table-wrap"></div>
+        <div id="document-review" class="job-detail" hidden></div>
       </section>
 
       <!-- Jobs -->
