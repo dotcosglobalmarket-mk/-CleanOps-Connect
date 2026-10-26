@@ -17,6 +17,9 @@ jest.mock('../../src/models/ApprovalRequest', () => ({
   updateOne: jest.fn(),
 }));
 jest.mock('../../src/services/payment.service');
+jest.mock('../../src/services/revenue.service', () => ({
+  getRevenue: jest.fn().mockResolvedValue({ range: '7d', totals: { totalPence: 0 } }),
+}));
 jest.mock('../../src/models/JobOffer', () => ({ find: jest.fn() }));
 jest.mock('../../src/models/CleanerProfile', () => {
   const CleanerProfileMock = jest.fn();
@@ -324,6 +327,22 @@ describe('Admin routes', () => {
       const res = await request(app).get(`/admin/jobs/${jobId}`).set('Authorization', authHeaderFor('admin'));
 
       expect(res.status).toBe(404);
+    });
+  });
+
+  describe('GET /admin/revenue', () => {
+    it('returns the revenue figures to an admin', async () => {
+      const res = await request(app).get('/admin/revenue?range=7d').set('Authorization', authHeaderFor('admin'));
+      expect(res.status).toBe(200);
+      expect(require('../../src/services/revenue.service').getRevenue).toHaveBeenCalledWith({ range: '7d' });
+      expect(res.body.totals).toBeDefined();
+    });
+
+    it('is closed to operators and rejects an unknown range', async () => {
+      const operator = await request(app).get('/admin/revenue').set('Authorization', authHeaderFor('operator'));
+      expect(operator.status).toBe(403);
+      const bad = await request(app).get('/admin/revenue?range=forever').set('Authorization', authHeaderFor('admin'));
+      expect(bad.status).toBe(400);
     });
   });
 

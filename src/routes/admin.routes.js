@@ -10,6 +10,7 @@ const {
   updateCleanerDeactivationSchema,
   listJobsQuerySchema,
   jobIdParamSchema,
+  revenueQuerySchema,
   listApprovalsQuerySchema,
   approvalDecisionSchema,
   listAuditQuerySchema,
@@ -24,6 +25,7 @@ const router = express.Router();
 router.use(requireAuth, requireRole('admin'), requireActiveStaff);
 
 router.get('/summary', AdminController.summary);
+router.get('/revenue', validateQuery(revenueQuerySchema), AdminController.revenue);
 
 router.get('/cleaners', validateQuery(listCleanersQuerySchema), AdminController.listCleaners);
 router.get('/cleaners/:id', validateParams(cleanerIdParamSchema), AdminController.getCleaner);

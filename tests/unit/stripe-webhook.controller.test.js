@@ -121,4 +121,15 @@ describe('StripeWebhookController.handle', () => {
 
     expect(subscriptionService.handleInvoicePaymentFailed).toHaveBeenCalledWith(invoice);
   });
+
+  it('routes invoice.payment_succeeded and invoice.paid to the subscription service', async () => {
+    for (const type of ['invoice.payment_succeeded', 'invoice.paid']) {
+      const invoice = { id: `in_${type}`, subscription: 'sub_1' };
+      stripeService.constructWebhookEvent.mockReturnValue({ id: `evt_${type}`, type, data: { object: invoice } });
+      ProcessedWebhookEvent.create.mockResolvedValue({});
+      const req = { body: Buffer.from('{}'), headers: { 'stripe-signature': 'good' } };
+      await StripeWebhookController.handle(req, makeRes(), jest.fn());
+      expect(subscriptionService.handleInvoicePaid).toHaveBeenCalledWith(invoice);
+    }
+  });
 });

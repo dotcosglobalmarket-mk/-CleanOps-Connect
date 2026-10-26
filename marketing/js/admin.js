@@ -15,7 +15,136 @@ import {
 
 requireRole('admin');
 
-setupTabs();
+setupTabs((panel) => {
+  if (panel === 'revenue') loadRevenue();
+});
+
+// --- Revenue ---
+let revenueRange = '30d';
+let revenueData = null;
+
+function revenueTile(label, value, note, kind) {
+  return `
+    <div class="stat-tile">
+      <div class="stat-tile-label">${escapeHtml(label)}</div>
+      <div class="stat-tile-value${kind ? ` revenue-${kind}` : ''}">${escapeHtml(value)}</div>
+      <div class="field-help">${escapeHtml(note)}</div>
+    </div>`;
+}
+
+function changeNote(total, previous) {
+  if (!previous) return total ? 'No earlier period to compare' : 'Nothing yet this period';
+  const pct = Math.round(((total - previous) / previous) * 100);
+  return `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}% vs the previous period`;
+}
+
+function renderRevenue(data) {
+  const t = data.totals;
+  document.getElementById('revenue-tiles').innerHTML = [
+    revenueTile('Total platform revenue', formatPence(t.totalPence), changeNote(t.totalPence, t.previousTotalPence), t.totalPence >= t.previousTotalPence && t.previousTotalPence ? 'good' : ''),
+    revenueTile('Commission on jobs', formatPence(t.commissionPence), `from ${t.jobsCount} confirmed job${t.jobsCount === 1 ? '' : 's'}`),
+    revenueTile('Subscription income', formatPence(t.subscriptionBilledPence), `${formatPence(t.mrrPence)} a month from ${t.activeSubscribers} active cleaner${t.activeSubscribers === 1 ? '' : 's'}`),
+    revenueTile('Failed payments', String(t.failedCount), `${formatPence(t.atRiskPence)} a month at risk`, t.failedCount ? 'bad' : ''),
+  ].join('');
+
+  const top = Math.max(1, ...data.weeks.map((w) => w.commissionPence + w.subscriptionPence));
+  document.getElementById('revenue-chart').innerHTML = data.weeks
+    .map((w) => {
+      const label = new Date(w.from).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      const total = formatPence(w.commissionPence + w.subscriptionPence);
+      const c = Math.round((w.commissionPence / top) * 120);
+      const sub = Math.round((w.subscriptionPence / top) * 120);
+      return `<div title="Week from ${label}: ${total}"><span class="bar-sub" style="height:${sub}px"></span><span class="bar-com" style="height:${c}px"></span>${escapeHtml(label)}</div>`;
+    })
+    .join('');
+
+  document.getElementById('revenue-plans').innerHTML = renderTable({
+    columns: ['Plan', 'Cleaners', 'Monthly'],
+    emptyMessage: 'No active subscriptions yet.',
+    rows: data.plans.map((p) => `<tr><td>${escapeHtml(p.label)}</td><td>${p.cleaners}</td><td>${formatPence(p.monthlyPence)}</td></tr>`),
+  });
+
+  document.getElementById('revenue-atrisk').innerHTML = renderTable({
+    columns: ['Cleaner', 'Plan', 'Status', 'Failed on', 'Next retry', 'At risk', ''],
+    emptyMessage: 'No failed subscription payments right now.',
+    rows: data.atRisk.map((r) => `
+      <tr>
+        <td>${escapeHtml(r.cleaner)}</td>
+        <td>${escapeHtml(r.planLabel)}</td>
+        <td>${statusBadge(r.status.replace('_', ' '), 'bad')}</td>
+        <td>${r.failedOn ? formatDate(r.failedOn) : '—'}</td>
+        <td>${r.nextRetryAt ? formatDate(r.nextRetryAt) : '—'}</td>
+        <td>${formatPence(r.amountPence)}</td>
+        <td class="table-actions"><button type="button" class="secondary revenue-view-cleaner">View cleaner</button></td>
+      </tr>`),
+  });
+  document.querySelectorAll('.revenue-view-cleaner').forEach((btn) =>
+    btn.addEventListener('click', () => document.querySelector('[data-panel="cleaners"]').click())
+  );
+
+  document.getElementById('revenue-recent-note').textContent = data.recentPayments.length
+    ? 'Latest charges recorded from Stripe.'
+    : 'Payments appear here from the moment Stripe starts sending invoice events to this site. Nothing recorded yet.';
+  document.getElementById('revenue-recent').innerHTML = renderTable({
+    columns: ['Date', 'Cleaner', 'Plan', 'Result', 'Amount'],
+    emptyMessage: 'No subscription payments recorded yet.',
+    rows: data.recentPayments.map((p) => `
+      <tr>
+        <td>${formatDate(p.occurredAt)}</td>
+        <td>${escapeHtml(p.cleaner)}</td>
+        <td>${escapeHtml(p.planLabel)}</td>
+        <td>${statusBadge(p.status, p.status === 'paid' ? 'good' : 'bad')}</td>
+        <td>${formatPence(p.amountPence)}</td>
+      </tr>`),
+  });
+}
+
+async function loadRevenue() {
+  hideAlert('revenue-alert');
+  try {
+    revenueData = await apiRequest(`/admin/revenue?range=${revenueRange}`, { auth: true });
+    renderRevenue(revenueData);
+  } catch (err) {
+    showAlert('revenue-alert', err.message);
+  }
+}
+
+// A cleaner name can start with =, +, - or @, which a spreadsheet would run as a formula.
+function csvCell(value) {
+  let text = String(value ?? '');
+  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function exportRevenueCsv() {
+  if (!revenueData) return;
+  const money = (p) => (typeof p === 'number' ? (p / 100).toFixed(2) : '');
+  const rows = [['Section', 'Date', 'Cleaner', 'Plan', 'Status', 'Commission (GBP)', 'Subscriptions (GBP)', 'Amount (GBP)']];
+  revenueData.weeks.forEach((w) =>
+    rows.push(['Week', new Date(w.from).toISOString().slice(0, 10), '', '', '', money(w.commissionPence), money(w.subscriptionPence), money(w.commissionPence + w.subscriptionPence)])
+  );
+  revenueData.atRisk.forEach((r) =>
+    rows.push(['At risk', r.failedOn ? new Date(r.failedOn).toISOString().slice(0, 10) : '', r.cleaner, r.planLabel, r.status, '', '', money(r.amountPence)])
+  );
+  revenueData.recentPayments.forEach((p) =>
+    rows.push(['Payment', new Date(p.occurredAt).toISOString().slice(0, 10), p.cleaner, p.planLabel, p.status, '', '', money(p.amountPence)])
+  );
+  const blob = new Blob([rows.map((r) => r.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `cleanops-revenue-${revenueRange}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+document.querySelectorAll('.revenue-range [data-range]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    revenueRange = btn.dataset.range;
+    document.querySelectorAll('.revenue-range [data-range]').forEach((b) => b.classList.toggle('is-active', b === btn));
+    loadRevenue();
+  });
+});
+document.getElementById('revenue-export').addEventListener('click', exportRevenueCsv);
 
 // --- Overview ---
 async function loadOverview() {

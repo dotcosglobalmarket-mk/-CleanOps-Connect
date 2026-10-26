@@ -46,6 +46,11 @@ async function dispatch(event) {
       await subscriptionService.handleStripeSubscriptionUpdated(subscription);
       break;
     }
+    case 'invoice.payment_succeeded':
+    case 'invoice.paid': {
+      await subscriptionService.handleInvoicePaid(event.data.object);
+      break;
+    }
     case 'invoice.payment_failed': {
       const invoice = event.data.object;
       await subscriptionService.handleInvoicePaymentFailed(invoice);
