@@ -1,10 +1,11 @@
 const express = require('express');
 const AdminController = require('../controllers/AdminController');
-const { requireAuth, requireRole, requireActiveStaff } = require('../middleware/auth');
+const { requireAuth, requireRole, requireActiveStaff, requirePermission } = require('../middleware/auth');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
 const {
   listCleanersQuerySchema,
   cleanerIdParamSchema,
+  impersonateCleanerSchema,
   updateCleanerVerificationSchema,
   updateCleanerDeactivationSchema,
   listJobsQuerySchema,
@@ -26,6 +27,15 @@ router.get('/summary', AdminController.summary);
 
 router.get('/cleaners', validateQuery(listCleanersQuerySchema), AdminController.listCleaners);
 router.get('/cleaners/:id', validateParams(cleanerIdParamSchema), AdminController.getCleaner);
+// Read-only support view: see exactly what the cleaner sees, never act on
+// their behalf (see requireAuth's impersonation handling).
+router.post(
+  '/cleaners/:id/impersonate',
+  requirePermission('cleaners.impersonate'),
+  validateParams(cleanerIdParamSchema),
+  validateBody(impersonateCleanerSchema),
+  AdminController.impersonateCleaner
+);
 router.patch(
   '/cleaners/:id/verification',
   validateParams(cleanerIdParamSchema),

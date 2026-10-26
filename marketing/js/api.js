@@ -3,6 +3,10 @@ import { API_BASE_URL } from './config.js';
 const SESSION_TOKEN_KEY = 'cleanops_token';
 const SESSION_ROLE_KEY = 'cleanops_role';
 const SESSION_USER_KEY = 'cleanops_user';
+// The admin's own session, stashed while viewing a cleaner's dashboard as
+// support (see admin.js "View as cleaner" and nav.js's banner). Restored
+// by exitImpersonation().
+const IMPERSONATOR_KEY = 'cleanops_impersonator';
 
 export function getToken() {
   return localStorage.getItem(SESSION_TOKEN_KEY);
@@ -31,6 +35,28 @@ export function clearSession() {
 
 export function isLoggedIn() {
   return Boolean(getToken());
+}
+
+// Switches the active session to a read-only impersonation token, stashing
+// the admin's own session so exitImpersonation() can restore it.
+export function startImpersonation(token, cleanerUser) {
+  localStorage.setItem(IMPERSONATOR_KEY, JSON.stringify({ token: getToken(), user: getUser() }));
+  setSession(token, cleanerUser);
+}
+
+export function getImpersonator() {
+  const raw = localStorage.getItem(IMPERSONATOR_KEY);
+  return raw ? JSON.parse(raw) : null;
+}
+
+// Restores the admin's own session. Returns false if there was nothing to
+// restore (not currently impersonating).
+export function exitImpersonation() {
+  const impersonator = getImpersonator();
+  if (!impersonator) return false;
+  localStorage.removeItem(IMPERSONATOR_KEY);
+  setSession(impersonator.token, impersonator.user);
+  return true;
 }
 
 export function requireRole(role) {

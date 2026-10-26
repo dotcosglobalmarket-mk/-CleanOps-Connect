@@ -121,6 +121,64 @@ describe('Admin routes', () => {
     });
   });
 
+  describe('POST /admin/cleaners/:id/impersonate', () => {
+    const cleanerId = '507f1f77bcf86cd799439011';
+    const cleanerUser = { _id: 'cleanerUser1', name: 'Sarah K.', email: 'sarah@example.com', role: 'cleaner', phone: null };
+
+    it('operators cannot impersonate', async () => {
+      const res = await request(app)
+        .post(`/admin/cleaners/${cleanerId}/impersonate`)
+        .set('Authorization', authHeaderFor('operator'))
+        .send({ reason: 'Support ticket #42' });
+      expect(res.status).toBe(403);
+    });
+
+    it('issues a read-only token and records it on the audit log', async () => {
+      CleanerProfile.findById.mockReturnValue(chainable({ _id: cleanerId, user: cleanerUser }, ['populate']));
+
+      const res = await request(app)
+        .post(`/admin/cleaners/${cleanerId}/impersonate`)
+        .set('Authorization', authHeaderFor('admin', 'admin1'))
+        .send({ reason: 'Support ticket #42' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.cleaner).toMatchObject({ name: 'Sarah K.', email: 'sarah@example.com', role: 'cleaner' });
+      expect(res.body.token).toEqual(expect.any(String));
+      expect(res.body.expiresInSeconds).toBe(1800);
+
+      const payload = jwt.verify(res.body.token, process.env.JWT_SECRET);
+      expect(payload).toMatchObject({ sub: 'cleanerUser1', role: 'cleaner', imp: 'admin1' });
+
+      expect(AuditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'cleaner.impersonation.start', reason: 'Support ticket #42' })
+      );
+    });
+
+    it('rejects a missing reason', async () => {
+      const res = await request(app)
+        .post(`/admin/cleaners/${cleanerId}/impersonate`)
+        .set('Authorization', authHeaderFor('admin'))
+        .send({});
+      expect(res.status).toBe(400);
+    });
+
+    it('the resulting token can read cleaner routes but not write to them', async () => {
+      CleanerProfile.findById.mockReturnValue(chainable({ _id: cleanerId, user: cleanerUser }, ['populate']));
+      const issued = await request(app)
+        .post(`/admin/cleaners/${cleanerId}/impersonate`)
+        .set('Authorization', authHeaderFor('admin', 'admin1'))
+        .send({ reason: 'Support ticket #42' });
+      const impersonationToken = issued.body.token;
+
+      const write = await request(app)
+        .patch('/cleaners/me')
+        .set('Authorization', `Bearer ${impersonationToken}`)
+        .send({ bio: 'Changed while impersonating' });
+      expect(write.status).toBe(403);
+      expect(write.body.message).toMatch(/read-only/i);
+    });
+  });
+
   describe('PATCH /admin/cleaners/:id/verification', () => {
     const cleanerId = '507f1f77bcf86cd799439011';
 

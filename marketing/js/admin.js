@@ -1,4 +1,4 @@
-import { apiRequest, requireRole } from './api.js';
+import { apiRequest, requireRole, startImpersonation } from './api.js';
 import { escapeHtml } from './dom.js';
 import {
   PAYMENT_STATES,
@@ -126,6 +126,7 @@ async function loadCleaners() {
           </td>
           <td class="table-actions">
             <button type="button" class="save-verification-btn">Save</button>
+            <button type="button" class="secondary view-as-cleaner-btn">View as cleaner</button>
           </td>
         </tr>
       `),
@@ -159,6 +160,30 @@ async function loadCleaners() {
           const successEl = document.getElementById('cleaners-success');
           successEl.textContent = 'Cleaner updated.';
           successEl.hidden = false;
+        } catch (err) {
+          showAlert('cleaners-alert', err.message);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      row.querySelector('.view-as-cleaner-btn').addEventListener('click', async (event) => {
+        const btn = event.target;
+        const reason = window.prompt(
+          'Why are you viewing this cleaner’s dashboard? (e.g. a support ticket reference)'
+        );
+        if (!reason || !reason.trim()) return;
+
+        btn.disabled = true;
+        hideAlert('cleaners-alert');
+        try {
+          const { token, cleaner } = await apiRequest(`/admin/cleaners/${id}/impersonate`, {
+            method: 'POST',
+            body: { reason: reason.trim() },
+            auth: true,
+          });
+          startImpersonation(token, cleaner);
+          window.location.href = 'cleaner.html';
         } catch (err) {
           showAlert('cleaners-alert', err.message);
         } finally {

@@ -2,6 +2,7 @@ const adminService = require('../services/admin.service');
 const opsService = require('../services/ops.service');
 const auditService = require('../services/audit.service');
 const staffService = require('../services/staff.service');
+const impersonationService = require('../services/impersonation.service');
 
 // The admin dashboard's verification and status forms predate the audit
 // log and do not ask for a reason, so a default one is recorded.
@@ -18,6 +19,14 @@ async function summary(req, res, next) {
 async function listCleaners(req, res, next) {
   try {
     res.status(200).json(await adminService.listCleaners(req.query));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function impersonateCleaner(req, res, next) {
+  try {
+    res.status(201).json(await impersonationService.start(req.params.id, req.body.reason, req));
   } catch (err) {
     next(err);
   }
@@ -133,6 +142,7 @@ module.exports = {
   updateStaff,
   listCleaners,
   getCleaner,
+  impersonateCleaner,
   updateCleanerVerification,
   updateCleanerDeactivation,
   listJobs,

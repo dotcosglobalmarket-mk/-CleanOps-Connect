@@ -214,6 +214,7 @@ All routes below require `requireRole('admin')`. This is the platform's super-ad
 - `GET /admin/summary` – Aggregate counts for the overview screen: cleaner verification/review/suspension counts, job totals, and the payments ops queue size
 - `GET /admin/cleaners` – List cleaners, optionally `?deactivationStatus=active|under_review|suspended` and/or `?verified=true|false` (a cleaner counts as verified once `dbsVerified` is true and `insuranceStatus` isn't `none`)
 - `GET /admin/cleaners/:id` – View a single cleaner
+- `POST /admin/cleaners/:id/impersonate` – Requires `cleaners.impersonate` (admin-only) and a `reason`. Issues a 30-minute, read-only JWT scoped to the cleaner's own account (role claim `cleaner`) so a support admin can see exactly what the cleaner sees. `requireAuth` rejects any non-`GET` request made with this token, regardless of the route's normal permissions. Logged to the audit trail as `cleaner.impersonation.start`
 - `PATCH /admin/cleaners/:id/verification` – Update `dbsVerified` / `coshhTrained` / `insuranceStatus` (at least one field required)
 - `PATCH /admin/cleaners/:id/deactivation` – Set `deactivationStatus`. This is the human review step itself — any rating/algorithm-triggered suspension must land here as `under_review` first, never straight to `suspended` (see `CleanerProfile.deactivationStatus`)
 - `GET /admin/jobs` – List jobs across every status, optionally `?status=` (the lead-allocation status) and/or `?paymentStatus=` (the escrow state machine status)
