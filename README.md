@@ -71,11 +71,12 @@ MAPBOX_API_KEY=
 JWT_SECRET=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
+STRIPE_CONNECT_WEBHOOK_SECRET=
 ```
 
-`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` are placeholders — no live Stripe
-account is connected yet. See the Payments section below for the escrow model
-this key pair supports.
+`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_CONNECT_WEBHOOK_SECRET`
+are placeholders — no live Stripe account is connected yet. See the Payments
+section below for the escrow model this key pair supports.
 
 ## Installation
 
@@ -113,6 +114,8 @@ npm run dev
 
 - `POST /auth/register` – Register a customer, cleaner, or admin account
 - `POST /auth/login` – Log in and obtain a JWT
+- `POST /auth/request-password-reset` – Request a password reset email (`{ email }`). Always returns the same response whether or not the email is registered, so the endpoint can't be used to enumerate accounts. The reset link is only emailed if Resend is configured (`RESEND_API_KEY`/`EMAIL_FROM`) — otherwise it's logged server-side for local development.
+- `POST /auth/reset-password` – Complete a reset (`{ token, password }`) using the token from that email. Tokens are single-use, expire after 1 hour, and only a SHA-256 hash of the token is ever stored.
 
 ### Service Types
 
@@ -138,8 +141,19 @@ npm run dev
 
 ### Subscriptions
 
-- `POST /subscriptions` 🔒 (cleaner or admin) – Activate plan
-- `POST /subscriptions/insurance` 🔒 (cleaner or admin) – Add insurance add‑on
+A monthly **platform fee**, charged to the cleaner, separate from and never affecting the per-job commission rate (see Payments below). It covers platform running costs (SMS notifications, payment processing). Billed as a real recurring Stripe Subscription — not a DB-only flag.
+
+- **Starter**: £2.50/month
+- **Pro** and **Industrial Pro**: £10/month
+
+Flow: `POST /subscriptions/setup-intent` returns a Stripe SetupIntent client secret; the cleaner enters card details client-side via the Stripe Payment Element (card details never touch our servers) and confirms it; the resulting `paymentMethodId` is then passed to `POST /subscriptions` to actually start billing.
+
+- `POST /subscriptions/setup-intent` 🔒 (cleaner or admin) – Create (or reuse) the cleaner's Stripe Customer and return a SetupIntent client secret to collect a card
+- `POST /subscriptions` 🔒 (cleaner or admin) – Activate a plan using a payment method confirmed via the setup intent above. Verifies the payment method actually belongs to the cleaner's Stripe Customer before trusting it. Cancels any existing active subscription first — a cleaner has at most one live platform-fee subscription at a time
+- `POST /subscriptions/insurance` 🔒 (cleaner or admin) – Add insurance add‑on to the active subscription
+- `GET /subscriptions/me` 🔒 (cleaner) – View your own active subscription (or `null`)
+
+`customer.subscription.updated`/`.deleted` and `invoice.payment_failed` webhooks keep `isActive`/`stripeStatus`/`renewsAt` in sync and email the cleaner if a monthly charge fails.
 
 ### Payments (Escrow & Commission)
 

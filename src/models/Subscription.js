@@ -16,6 +16,20 @@ const subscriptionSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // Monthly platform fee actually billed via Stripe (see
+    // subscription.service.js PLAN_PRICES_PENCE) — snapshotted here so a
+    // later price change doesn't rewrite the history of what was charged.
+    pricePence: {
+      type: Number,
+    },
+    stripeSubscriptionId: {
+      type: String,
+    },
+    // Stripe's own subscription.status (active/past_due/canceled/...),
+    // synced from customer.subscription.updated/deleted webhooks.
+    stripeStatus: {
+      type: String,
+    },
     insuranceAddOn: {
       type: Boolean,
       default: false,

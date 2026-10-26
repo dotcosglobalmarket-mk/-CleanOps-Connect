@@ -14,6 +14,8 @@ export default defineConfig({
         index: resolve(__dirname, 'index.html'),
         register: resolve(__dirname, 'register.html'),
         login: resolve(__dirname, 'login.html'),
+        forgotPassword: resolve(__dirname, 'forgot-password.html'),
+        resetPassword: resolve(__dirname, 'reset-password.html'),
         customer: resolve(__dirname, 'customer.html'),
         cleaner: resolve(__dirname, 'cleaner.html'),
         admin: resolve(__dirname, 'admin.html'),

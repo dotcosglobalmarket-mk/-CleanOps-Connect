@@ -220,6 +220,31 @@ module.exports = {
     });
   }),
 
+  subscriptionPaymentFailed: safely('subscriptionPaymentFailed', async (cleanerProfile) => {
+    await emailService.send({
+      to: await cleanerEmail(cleanerProfile._id),
+      subject: 'Your CleanOps subscription payment failed',
+      paragraphs: [
+        "We couldn't charge your card for this month's CleanOps subscription fee.",
+        'Please update your payment details to keep your subscription active.',
+      ],
+      action: cleanerLink('Update billing', 'coverage'),
+    });
+  }),
+
+  passwordResetRequested: safely('passwordResetRequested', async (user, token) => {
+    await emailService.send({
+      to: user.email,
+      subject: 'Reset your CleanOps Connect password',
+      paragraphs: [
+        'We received a request to reset your password.',
+        "If you didn't request this, you can safely ignore this email — your password won't change.",
+        'This link expires in 1 hour.',
+      ],
+      action: { label: 'Reset password', url: frontendUrl(`reset-password.html?token=${token}`) },
+    });
+  }),
+
   opsAlert: safely('opsAlert', async (subject, message) => {
     if (!process.env.OPS_NOTIFICATION_EMAIL) {
       logger.error(`[ops-alert] ${subject}: ${message}`);

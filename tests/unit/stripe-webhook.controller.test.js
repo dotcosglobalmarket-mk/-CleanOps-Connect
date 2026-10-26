@@ -3,10 +3,12 @@ jest.mock('../../src/services/notification.service');
 jest.mock('../../src/services/stripe.service');
 jest.mock('../../src/models/ProcessedWebhookEvent');
 jest.mock('../../src/services/payment.service');
+jest.mock('../../src/services/subscription.service');
 
 const stripeService = require('../../src/services/stripe.service');
 const ProcessedWebhookEvent = require('../../src/models/ProcessedWebhookEvent');
 const paymentService = require('../../src/services/payment.service');
+const subscriptionService = require('../../src/services/subscription.service');
 const StripeWebhookController = require('../../src/controllers/StripeWebhookController');
 
 function makeRes() {
@@ -89,5 +91,34 @@ describe('StripeWebhookController.handle', () => {
     await StripeWebhookController.handle(req, res, jest.fn());
 
     expect(paymentService.handlePayoutFailed).toHaveBeenCalledWith('acct_1');
+  });
+
+  it('syncs subscription status from customer.subscription.updated', async () => {
+    const subscriptionObject = { id: 'sub_1', status: 'past_due' };
+    const event = { id: 'evt_3', type: 'customer.subscription.updated', data: { object: subscriptionObject } };
+    stripeService.constructWebhookEvent.mockReturnValue(event);
+    ProcessedWebhookEvent.create.mockResolvedValue({ eventId: 'evt_3' });
+
+    const req = { body: Buffer.from('{}'), headers: { 'stripe-signature': 'good' } };
+    const res = makeRes();
+
+    await StripeWebhookController.handle(req, res, jest.fn());
+
+    expect(subscriptionService.handleStripeSubscriptionUpdated).toHaveBeenCalledWith(subscriptionObject);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('routes invoice.payment_failed to the subscription service', async () => {
+    const invoice = { id: 'in_1', subscription: 'sub_1' };
+    const event = { id: 'evt_4', type: 'invoice.payment_failed', data: { object: invoice } };
+    stripeService.constructWebhookEvent.mockReturnValue(event);
+    ProcessedWebhookEvent.create.mockResolvedValue({ eventId: 'evt_4' });
+
+    const req = { body: Buffer.from('{}'), headers: { 'stripe-signature': 'good' } };
+    const res = makeRes();
+
+    await StripeWebhookController.handle(req, res, jest.fn());
+
+    expect(subscriptionService.handleInvoicePaymentFailed).toHaveBeenCalledWith(invoice);
   });
 });

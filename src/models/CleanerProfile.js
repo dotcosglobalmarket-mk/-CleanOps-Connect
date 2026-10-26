@@ -128,7 +128,12 @@ const cleanerProfileSchema = new mongoose.Schema(
     stripeConnectedAccountId: {
       type: String,
     },
-    payoutsEnabled: {
+    // Separate from stripeConnectedAccountId above: this is a platform-
+    // account Customer the cleaner is billed FROM (monthly subscription
+    // fee), not a Connect account funds are paid INTO.
+    stripeCustomerId: {
+      type: String,
+    },    payoutsEnabled: {
       // Synced from the account.updated webhook. A Transfer must never be
       // attempted while this is false.
       type: Boolean,
