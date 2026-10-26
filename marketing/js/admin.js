@@ -1,4 +1,4 @@
-import { apiRequest, requireRole, startImpersonation } from './api.js';
+import { apiRequest, apiFetchBlob, requireRole, startImpersonation } from './api.js';
 import { escapeHtml } from './dom.js';
 import {
   PAYMENT_STATES,
@@ -17,7 +17,142 @@ requireRole('admin');
 
 setupTabs((panel) => {
   if (panel === 'revenue') loadRevenue();
+  if (panel === 'documents') loadDocuments();
 });
+
+// --- Document review ---
+const DOC_LABELS = { dbs: 'DBS certificate', coshh: 'COSHH certificate', insurance: 'Insurance certificate' };
+const ALLOWED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+
+function documentBadge(status) {
+  const kind = { pending: 'warn', approved: 'good', rejected: 'bad', expired: 'bad' }[status];
+  return statusBadge(status === 'pending' ? 'waiting' : status, kind);
+}
+
+async function refreshPendingBadge() {
+  try {
+    const pending = await apiRequest('/admin/compliance-documents?status=pending', { auth: true });
+    const badge = document.getElementById('documents-pending');
+    badge.textContent = pending.length;
+    badge.hidden = pending.length === 0;
+  } catch (err) {
+    // The badge is a convenience; the panel shows any real error.
+  }
+}
+
+async function loadDocuments() {
+  hideAlert('documents-alert');
+  document.getElementById('document-review').hidden = true;
+  const container = document.getElementById('documents-table');
+  container.innerHTML = '<div class="table-empty">Loading…</div>';
+  const status = document.getElementById('documents-filter-status').value;
+  try {
+    const docs = await apiRequest(`/admin/compliance-documents?status=${status}`, { auth: true });
+    container.innerHTML = renderTable({
+      columns: ['Cleaner', 'Document', 'File', 'Uploaded', 'Status', ''],
+      emptyMessage: status === 'pending' ? 'Nothing waiting for review.' : 'No documents match this filter.',
+      rows: docs.map((d) => `
+        <tr>
+          <td>${escapeHtml(d.cleaner ? d.cleaner.name : 'Unknown')}</td>
+          <td>${escapeHtml(DOC_LABELS[d.type] || d.type)}</td>
+          <td>${escapeHtml(d.originalName || '')}</td>
+          <td>${formatDate(d.uploadedAt)}</td>
+          <td>${documentBadge(d.status)}${d.status === 'approved' && d.expiresAt ? ` <span class="field-help">to ${new Date(d.expiresAt).toLocaleDateString('en-GB')}</span>` : ''}</td>
+          <td class="table-actions"><button type="button" class="secondary document-open-btn" data-id="${d._id}">${d.status === 'pending' ? 'Review' : 'View'}</button></td>
+        </tr>`),
+    });
+    container.querySelectorAll('.document-open-btn').forEach((btn) => {
+      const doc = docs.find((d) => d._id === btn.dataset.id);
+      btn.addEventListener('click', () => openDocumentReview(doc));
+    });
+    refreshPendingBadge();
+  } catch (err) {
+    container.innerHTML = '';
+    showAlert('documents-alert', err.message);
+  }
+}
+
+// Opens the file in a new tab. The tab is opened first, on the click, so the
+// browser does not block it, then pointed at the file once it has downloaded.
+async function viewDocumentFile(doc) {
+  const tab = window.open('', '_blank');
+  try {
+    const blob = await apiFetchBlob(`/admin/compliance-documents/${doc._id}/file`);
+    if (!ALLOWED_FILE_TYPES.includes(blob.type)) throw new Error('This file is not a PDF or image, so it was not opened.');
+    const url = URL.createObjectURL(blob);
+    if (tab) tab.location.href = url;
+    else window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (err) {
+    if (tab) tab.close();
+    showAlert('documents-alert', err.message);
+  }
+}
+
+function openDocumentReview(doc) {
+  const box = document.getElementById('document-review');
+  const c = doc.cleaner || {};
+  const yes = (v) => (v ? statusBadge('yes', 'good') : statusBadge('no', 'warn'));
+  const pending = doc.status === 'pending';
+  box.innerHTML = `
+    <div class="job-detail-head">
+      <h3>${escapeHtml(DOC_LABELS[doc.type] || doc.type)} — ${escapeHtml(c.name || 'Unknown')}</h3>
+      <button type="button" class="secondary" id="document-review-close">Close</button>
+    </div>
+    <dl class="job-detail-list">
+      <dt>File</dt><dd>${escapeHtml(doc.originalName || '')} (${Math.round(doc.sizeBytes / 1024)} KB)</dd>
+      <dt>Uploaded</dt><dd>${formatDate(doc.uploadedAt)}</dd>
+      <dt>Status</dt><dd>${documentBadge(doc.status)}${doc.rejectionReason ? ` — ${escapeHtml(doc.rejectionReason)}` : ''}</dd>
+      <dt>Cleaner today</dt><dd>DBS ${yes(c.dbsVerified)} · COSHH ${yes(c.coshhTrained)} · Insurance ${statusBadge(c.insuranceStatus || 'none', c.insuranceStatus && c.insuranceStatus !== 'none' ? 'good' : 'warn')}</dd>
+    </dl>
+    ${doc.fileAvailable
+      ? '<p><button type="button" id="document-view-file">Open the file</button> <span class="field-help">Opening it is recorded in the audit log.</span></p>'
+      : '<p class="field-help">The file has been deleted under the retention policy. The decision record is kept.</p>'}
+    ${pending ? `
+      <h4>Decision</h4>
+      ${doc.type !== 'dbs' ? `<div class="form-row"><label for="document-expiry">Expiry date on the certificate${doc.type === 'insurance' ? '' : ' (if it has one)'}</label><input id="document-expiry" type="date" /></div>` : ''}
+      <div class="form-row"><label for="document-reason">Reason (needed to reject)</label><textarea id="document-reason" rows="2" maxlength="500" placeholder="e.g. The name on the certificate does not match the profile"></textarea></div>
+      <p><button type="button" id="document-approve">Approve</button> <button type="button" class="secondary" id="document-reject">Reject</button></p>` : ''}`;
+  box.hidden = false;
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  document.getElementById('document-review-close').addEventListener('click', () => { box.hidden = true; });
+  const viewBtn = document.getElementById('document-view-file');
+  if (viewBtn) viewBtn.addEventListener('click', () => viewDocumentFile(doc));
+  if (pending) {
+    const decide = async (decision) => {
+      hideAlert('documents-alert');
+      const expiry = document.getElementById('document-expiry');
+      const reason = document.getElementById('document-reason').value.trim();
+      if (decision === 'reject' && reason.length < 3) {
+        showAlert('documents-alert', 'Say why it is being rejected.');
+        return;
+      }
+      if (decision === 'approve' && doc.type === 'insurance' && !expiry.value) {
+        showAlert('documents-alert', 'Enter the date the insurance runs out.');
+        return;
+      }
+      const body = { decision };
+      if (reason) body.reason = reason;
+      if (decision === 'approve' && expiry && expiry.value) body.expiresAt = expiry.value;
+      try {
+        await apiRequest(`/admin/compliance-documents/${doc._id}/review`, { method: 'POST', body, auth: true });
+        const ok = document.getElementById('documents-success');
+        ok.textContent = decision === 'approve' ? 'Approved. The badge is now on their profile.' : 'Rejected. The cleaner has been emailed the reason.';
+        ok.hidden = false;
+        await loadDocuments();
+      } catch (err) {
+        showAlert('documents-alert', err.message);
+      }
+    };
+    document.getElementById('document-approve').addEventListener('click', () => decide('approve'));
+    document.getElementById('document-reject').addEventListener('click', () => decide('reject'));
+  }
+}
+
+document.getElementById('documents-refresh').addEventListener('click', loadDocuments);
+document.getElementById('documents-filter-apply').addEventListener('click', loadDocuments);
+refreshPendingBadge();
 
 // --- Revenue ---
 let revenueRange = '30d';

@@ -11,6 +11,7 @@ const opsRoutes = require('./ops.routes');
 const reviewsRoutes = require('./reviews.routes');
 const chatRoutes = require('./chat.routes');
 const pricingRoutes = require('./pricing.routes');
+const complianceDocumentsRoutes = require('./compliance-documents.routes');
 
 const router = express.Router();
 
@@ -25,5 +26,6 @@ router.use('/ops', opsRoutes);
 router.use('/reviews', reviewsRoutes);
 router.use('/chat', chatRoutes);
 router.use('/pricing', pricingRoutes);
+router.use('/compliance-documents', complianceDocumentsRoutes);
 
 module.exports = router;

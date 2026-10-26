@@ -100,3 +100,37 @@ export async function apiRequest(path, { method = 'GET', body, auth = false } = 
 
   return data;
 }
+
+// Sends a file as the raw request body (the API reads the Content-Type, so the
+// browser's own file type is what gets checked server-side).
+export async function apiUpload(path, file, query = {}) {
+  const token = getToken();
+  if (!token) throw new Error('You must be logged in to do that.');
+  const qs = new URLSearchParams(query).toString();
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}${qs ? `?${qs}` : ''}`, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type, Authorization: `Bearer ${token}` },
+      body: file,
+    });
+  } catch (networkErr) {
+    throw new Error(`Could not reach the API at ${API_BASE_URL}.`);
+  }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || `Upload failed with status ${response.status}`);
+  return data;
+}
+
+// Fetches a protected file (needs the Authorization header, so it cannot be a plain link)
+// and returns it as a blob.
+export async function apiFetchBlob(path) {
+  const token = getToken();
+  if (!token) throw new Error('You must be logged in to do that.');
+  const response = await fetch(`${API_BASE_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || `Request failed with status ${response.status}`);
+  }
+  return response.blob();
+}

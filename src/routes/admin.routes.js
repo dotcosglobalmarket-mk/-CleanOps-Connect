@@ -18,6 +18,12 @@ const {
   createStaffSchema,
   updateStaffSchema,
 } = require('../validation/admin.validation');
+const ComplianceDocumentController = require('../controllers/ComplianceDocumentController');
+const {
+  listReviewQuerySchema,
+  reviewSchema,
+  documentIdParamSchema,
+} = require('../validation/compliance-document.validation');
 const { idParamSchema } = require('../validation/ops.validation');
 
 const router = express.Router();
@@ -25,6 +31,14 @@ const router = express.Router();
 router.use(requireAuth, requireRole('admin'), requireActiveStaff);
 
 router.get('/summary', AdminController.summary);
+router.get('/compliance-documents', validateQuery(listReviewQuerySchema), ComplianceDocumentController.listForReview);
+router.get('/compliance-documents/:id/file', validateParams(documentIdParamSchema), ComplianceDocumentController.file);
+router.post(
+  '/compliance-documents/:id/review',
+  validateParams(documentIdParamSchema),
+  validateBody(reviewSchema),
+  ComplianceDocumentController.review
+);
 router.get('/revenue', validateQuery(revenueQuerySchema), AdminController.revenue);
 
 router.get('/cleaners', validateQuery(listCleanersQuerySchema), AdminController.listCleaners);

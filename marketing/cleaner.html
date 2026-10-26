@@ -30,6 +30,7 @@
       <button type="button" class="dash-nav-item" data-panel="messages">Messages <span id="messages-unread" class="unread-badge" hidden></span></button>
       <button type="button" class="dash-nav-item" data-panel="earnings">Earnings &amp; Payouts</button>
       <button type="button" class="dash-nav-item" data-panel="profile">My Profile</button>
+      <button type="button" class="dash-nav-item" data-panel="compliance">Compliance Documents</button>
       <button type="button" class="dash-nav-item" data-panel="coverage">Coverage &amp; Subscription</button>
     </aside>
 
@@ -163,6 +164,21 @@
       </section>
 
       <!-- My Profile -->
+      <section id="panel-compliance" class="dash-panel">
+        <h2 class="panel-title">Compliance Documents</h2>
+        <p class="field-help">
+          Upload your certificates and our team will check them. Once one is approved, the matching badge shows on your
+          profile and you can be offered jobs that need it. PDF, JPG or PNG, up to 5 MB.
+        </p>
+        <p class="field-help">
+          Only CleanOps admins can open your documents, and every time one is opened it is recorded. A DBS certificate
+          copy is deleted 6 months after we check it; a rejected file is deleted after 30 days.
+        </p>
+        <div id="compliance-alert" class="alert alert-error" hidden></div>
+        <div id="compliance-success" class="alert alert-success" hidden></div>
+        <div id="compliance-list"></div>
+      </section>
+
       <section id="panel-profile" class="dash-panel">
         <h2 class="panel-title">My Profile</h2>
         <div id="profile-alert" class="alert alert-error" hidden></div>

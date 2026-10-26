@@ -306,6 +306,32 @@ module.exports = {
     });
   }),
 
+  complianceDocumentReviewed: safely('complianceDocumentReviewed', async (cleanerProfileId, doc) => {
+    const label = { dbs: 'DBS certificate', coshh: 'COSHH certificate', insurance: 'insurance certificate' }[doc.type] || 'document';
+    const approved = doc.status === 'approved';
+    await emailService.send({
+      to: await cleanerEmail(cleanerProfileId),
+      subject: approved ? `Your ${label} has been approved` : `Your ${label} was not accepted`,
+      paragraphs: approved
+        ? [`We've checked your ${label} and the matching badge now shows on your profile.`]
+        : [`We couldn't accept your ${label}.`, `Reason: ${doc.rejectionReason}`, 'You can upload a new one from the Compliance Documents tab.'],
+      action: cleanerLink('Compliance documents', 'compliance'),
+    });
+  }),
+
+  complianceDocumentExpired: safely('complianceDocumentExpired', async (cleanerProfileId, doc) => {
+    const label = { dbs: 'DBS certificate', coshh: 'COSHH certificate', insurance: 'insurance certificate' }[doc.type] || 'document';
+    await emailService.send({
+      to: await cleanerEmail(cleanerProfileId),
+      subject: `Your ${label} has expired`,
+      paragraphs: [
+        `Your ${label} has passed its expiry date, so the matching badge has been removed from your profile.`,
+        'Upload a current one to get it back. Until then you may not be offered jobs that need it.',
+      ],
+      action: cleanerLink('Upload a new one', 'compliance'),
+    });
+  }),
+
   passwordResetRequested: safely('passwordResetRequested', async (user, token) => {
     await emailService.send({
       to: user.email,

@@ -1523,3 +1523,9 @@ table.data-table tbody tr:hover {
 .revenue-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 10px; background: #0f766e; }
 .revenue-legend i.s { background: #5eead4; }
 @media (max-width: 800px) { .revenue-two { grid-template-columns: 1fr; } }
+
+/* Compliance documents */
+.compliance-card { margin-bottom: 1rem; }
+.compliance-card h3 { margin: 0 0 0.25rem; }
+.compliance-upload { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.compliance-upload input[type="file"] { flex: 1 1 14rem; }
