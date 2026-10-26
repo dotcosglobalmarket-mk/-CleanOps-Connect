@@ -410,6 +410,13 @@ document.getElementById('activate-subscription-button').addEventListener('click'
       return;
     }
 
+    // The SetupIntent has now succeeded on Stripe's side and can never be
+    // confirmed again. Clear it here, before the next step, so that if
+    // creating the subscription below fails for any reason, retrying fetches
+    // a fresh SetupIntent instead of re-confirming this one and failing with
+    // Stripe's "already succeeded" error.
+    subSetupClientSecret = null;
+
     await apiRequest('/subscriptions', {
       method: 'POST',
       body: { cleanerId, plan: document.getElementById('plan').value, paymentMethodId: setupIntent.payment_method },
@@ -419,9 +426,6 @@ document.getElementById('activate-subscription-button').addEventListener('click'
     const successEl = document.getElementById('subscription-success');
     successEl.textContent = 'Subscription activated.';
     successEl.hidden = false;
-    // A used SetupIntent can't be confirmed again — force a fresh one if
-    // the cleaner changes plan or re-enters their card later.
-    subSetupClientSecret = null;
     await loadMySubscription();
   } catch (err) {
     showAlert('subscription-alert', err.message);
