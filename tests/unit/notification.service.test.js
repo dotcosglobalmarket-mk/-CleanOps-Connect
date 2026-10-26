@@ -51,4 +51,16 @@ describe('notification.service', () => {
     User.findById.mockRejectedValue(new Error('db down'));
     await expect(notifications.jobCompleted({ _id: 'job1', customer: 'cust1' })).resolves.toBeUndefined();
   });
+
+  it('emails a password reset link containing the raw token', async () => {
+    await notifications.passwordResetRequested({ email: 'alice@example.com' }, 'raw-token-123');
+
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'alice@example.com',
+        subject: 'Reset your CleanOps Connect password',
+        action: { label: 'Reset password', url: 'https://www.cleanop-connect.co.uk/reset-password.html?token=raw-token-123' },
+      })
+    );
+  });
 });

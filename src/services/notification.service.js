@@ -232,6 +232,19 @@ module.exports = {
     });
   }),
 
+  passwordResetRequested: safely('passwordResetRequested', async (user, token) => {
+    await emailService.send({
+      to: user.email,
+      subject: 'Reset your CleanOps Connect password',
+      paragraphs: [
+        'We received a request to reset your password.',
+        "If you didn't request this, you can safely ignore this email — your password won't change.",
+        'This link expires in 1 hour.',
+      ],
+      action: { label: 'Reset password', url: frontendUrl(`reset-password.html?token=${token}`) },
+    });
+  }),
+
   opsAlert: safely('opsAlert', async (subject, message) => {
     if (!process.env.OPS_NOTIFICATION_EMAIL) {
       logger.error(`[ops-alert] ${subject}: ${message}`);

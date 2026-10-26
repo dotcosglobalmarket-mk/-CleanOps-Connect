@@ -30,6 +30,15 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
     },
+    // Single-use password reset token — only the SHA-256 hash is stored,
+    // never the raw token the user receives by email, so a database
+    // compromise alone can't be used to reset anyone's password.
+    resetPasswordTokenHash: {
+      type: String,
+    },
+    resetPasswordExpiresAt: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );

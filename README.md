@@ -114,6 +114,8 @@ npm run dev
 
 - `POST /auth/register` – Register a customer, cleaner, or admin account
 - `POST /auth/login` – Log in and obtain a JWT
+- `POST /auth/request-password-reset` – Request a password reset email (`{ email }`). Always returns the same response whether or not the email is registered, so the endpoint can't be used to enumerate accounts. The reset link is only emailed if Resend is configured (`RESEND_API_KEY`/`EMAIL_FROM`) — otherwise it's logged server-side for local development.
+- `POST /auth/reset-password` – Complete a reset (`{ token, password }`) using the token from that email. Tokens are single-use, expire after 1 hour, and only a SHA-256 hash of the token is ever stored.
 
 ### Service Types
 

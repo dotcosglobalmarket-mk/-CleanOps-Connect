@@ -18,7 +18,28 @@ async function login(req, res, next) {
   }
 }
 
+async function requestPasswordReset(req, res, next) {
+  try {
+    await authService.requestPasswordReset(req.body.email);
+    // Same response whether or not the email is registered.
+    res.status(200).json({ message: 'If that email is registered, a reset link has been sent.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function resetPassword(req, res, next) {
+  try {
+    const result = await authService.resetPassword(req.body.token, req.body.password);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   register,
   login,
+  requestPasswordReset,
+  resetPassword,
 };
