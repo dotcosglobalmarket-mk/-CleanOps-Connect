@@ -329,11 +329,10 @@ No GitHub secrets are required for this deploy path; environment variables are c
 
 ## Future Roadmap
 
-- Customer mobile app
-- Cleaner mobile app
-- Escrow payments
-- Automated compliance document generation
-- AI‑powered job pricing suggestions
+- Native customer mobile app (the site is already an installable PWA, so there's a home-screen app experience, but no App Store/Play Store listing)
+- Native cleaner mobile app (same caveat as above)
+- Automated compliance document generation (auto-generated DBS/COSHH/insurance packs)
+- AI‑powered job pricing suggestions (AI help currently covers job descriptions and cleaner bios only, not price)
 
 ## License
 
