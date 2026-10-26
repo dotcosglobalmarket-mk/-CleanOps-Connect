@@ -26,9 +26,13 @@ const jobOfferSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['sent', 'accepted', 'declined', 'expired'],
+      enum: ['sent', 'quoted', 'accepted', 'declined', 'expired'],
       default: 'sent',
     },
+    // Tender quotes only: the cleaner's own price and note to the customer.
+    quotePricePence: { type: Number },
+    quoteMessage: { type: String, maxlength: 1500 },
+    quotedAt: { type: Date },
   },
   { timestamps: true }
 );

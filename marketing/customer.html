@@ -77,6 +77,29 @@
           </div>
         </div>
 
+        <!-- Industrial jobs can be run as a tender -->
+        <div id="tender-fields" hidden>
+          <div class="form-row">
+            <label><input id="runTender" type="checkbox" /> Ask cleaners to send quotes (tender)</label>
+            <span class="field-help">
+              Matching cleaners each send you their own price. You compare the quotes and award the job to one. Nothing
+              is booked or charged until you award it and pay.
+            </span>
+          </div>
+          <div id="tender-details" hidden>
+            <div class="form-row">
+              <label for="tenderClosesAt">Quotes close</label>
+              <input id="tenderClosesAt" type="datetime-local" />
+              <span class="field-help">At least an hour from now, and within 30 days.</span>
+            </div>
+            <div class="form-row">
+              <label for="tenderRequirements">Site and requirements (optional)</label>
+              <textarea id="tenderRequirements" rows="3" maxlength="3000" placeholder="e.g. 2-floor warehouse, out-of-hours access, COSHH products to be supplied by the cleaner"></textarea>
+              <span class="field-help">Cleaners see this and your area. Please don't include names, phone numbers or your address.</span>
+            </div>
+          </div>
+        </div>
+
         <div class="two-column">
           <div class="form-row">
             <label for="postcode">Postcode</label>
@@ -143,8 +166,8 @@
 
       <!-- Offers -->
       <section id="offers-section" hidden>
-        <h3>Cleaners we've asked</h3>
-        <p class="field-help">The first cleaner to accept books the job at their price. You'll get an email when that happens.</p>
+        <h3 id="offers-title">Cleaners we've asked</h3>
+        <p id="offers-help" class="field-help">The first cleaner to accept books the job at their price. You'll get an email when that happens.</p>
         <ul id="offers-list" class="offer-list"></ul>
         <button id="find-cleaners" type="button" hidden>Find cleaners</button>
       </section>

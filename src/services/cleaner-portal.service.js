@@ -115,7 +115,14 @@ function offerView(offer, cleaner) {
       budgetMin: job.budgetMin,
       budgetMax: job.budgetMax,
       booked: Boolean(job.cleaner),
+      procurement: job.procurement || 'standard',
+      tender:
+        job.procurement === 'tender' && job.tender
+          ? { closesAt: job.tender.closesAt, requirements: job.tender.requirements }
+          : undefined,
     },
+    // The cleaner's own quote, if they have sent one.
+    quote: offer.status === 'quoted' ? { pricePence: offer.quotePricePence, message: offer.quoteMessage, quotedAt: offer.quotedAt } : undefined,
   };
 }
 
@@ -126,7 +133,7 @@ async function listMyOffers(userId, { status } = {}) {
   const offers = await JobOffer.find(filter)
     .populate({
       path: 'job',
-      select: 'serviceType category postcode lat lng description estimatedHours frequency budgetMin budgetMax cleaner',
+      select: 'serviceType category postcode lat lng description estimatedHours frequency budgetMin budgetMax cleaner procurement tender',
       populate: { path: 'serviceType', select: 'name' },
     })
     .sort({ createdAt: -1 })

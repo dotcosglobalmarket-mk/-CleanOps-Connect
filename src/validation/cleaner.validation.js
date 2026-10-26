@@ -71,7 +71,7 @@ const updateMyProfileSchema = z.object({
 });
 
 const listMyOffersQuerySchema = z.object({
-  status: z.enum(['sent', 'accepted', 'declined', 'expired']).optional(),
+  status: z.enum(['sent', 'quoted', 'accepted', 'declined', 'expired']).optional(),
 });
 
 module.exports = {

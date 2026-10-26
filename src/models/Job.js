@@ -46,6 +46,18 @@ const jobSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    // Industrial jobs can be run as a tender: invited cleaners each send a
+    // quote (their own price) and the customer awards one. Standard jobs are
+    // first-to-accept.
+    procurement: {
+      type: String,
+      enum: ['standard', 'tender'],
+      default: 'standard',
+    },
+    tender: {
+      closesAt: { type: Date },
+      requirements: { type: String, maxlength: 3000 },
+    },
     status: {
       type: String,
       enum: ['open', 'allocated', 'in_progress', 'completed', 'cancelled'],

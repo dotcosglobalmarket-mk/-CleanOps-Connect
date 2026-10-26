@@ -11,6 +11,7 @@ const {
   jobIdParamSchema,
   offerIdParamSchema,
   acceptOfferSchema,
+  submitQuoteSchema,
 } = require('../validation/job.validation');
 
 const router = express.Router();
@@ -50,6 +51,23 @@ router.post(
   validateParams(offerIdParamSchema),
   validateBody(acceptOfferSchema),
   JobController.acceptOffer
+);
+// Tenders (industrial jobs): invited cleaners send a quote at their own
+// price, and the customer awards one.
+router.post(
+  '/:id/offers/:offerId/quote',
+  requireAuth,
+  requireRole('cleaner'),
+  validateParams(offerIdParamSchema),
+  validateBody(submitQuoteSchema),
+  JobController.submitQuote
+);
+router.post(
+  '/:id/offers/:offerId/award',
+  requireAuth,
+  requireRole('customer', 'admin'),
+  validateParams(offerIdParamSchema),
+  JobController.awardQuote
 );
 router.post(
   '/:id/offers/:offerId/decline',
