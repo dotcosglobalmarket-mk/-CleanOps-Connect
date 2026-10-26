@@ -59,3 +59,16 @@ describe('ai-description.service', () => {
     await expect(suggestDescription({ category: 'domestic' })).rejects.toMatchObject({ status: 503 });
   });
 });
+
+describe('model selection', () => {
+  it('defaults to Sonnet 5.5 and honours ANTHROPIC_MODEL', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text: 'ok' }] });
+    await suggestDescription({ category: 'domestic' });
+    expect(mockCreate.mock.calls[0][0].model).toBe('claude-sonnet-5-5');
+
+    process.env.ANTHROPIC_MODEL = 'claude-haiku-5-5';
+    await suggestDescription({ category: 'domestic' });
+    expect(mockCreate.mock.calls[1][0].model).toBe('claude-haiku-5-5');
+    delete process.env.ANTHROPIC_MODEL;
+  });
+});

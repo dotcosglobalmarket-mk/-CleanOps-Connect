@@ -1,7 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const ServiceType = require('../models/ServiceType');
 
-const DEFAULT_MODEL = 'claude-opus-5-5';
+const DEFAULT_MODEL = 'claude-sonnet-5-5';
 const MAX_OUTPUT_CHARS = 1500;
 
 const FREQUENCY_LABELS = {
