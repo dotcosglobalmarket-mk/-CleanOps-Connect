@@ -22,6 +22,7 @@ const ComplianceDocumentController = require('../controllers/ComplianceDocumentC
 const {
   listReviewQuerySchema,
   reviewSchema,
+  deleteFileSchema,
   documentIdParamSchema,
 } = require('../validation/compliance-document.validation');
 const { idParamSchema } = require('../validation/ops.validation');
@@ -33,6 +34,12 @@ router.use(requireAuth, requireRole('admin'), requireActiveStaff);
 router.get('/summary', AdminController.summary);
 router.get('/compliance-documents', validateQuery(listReviewQuerySchema), ComplianceDocumentController.listForReview);
 router.get('/compliance-documents/:id/file', validateParams(documentIdParamSchema), ComplianceDocumentController.file);
+router.delete(
+  '/compliance-documents/:id/file',
+  validateParams(documentIdParamSchema),
+  validateBody(deleteFileSchema),
+  ComplianceDocumentController.deleteFile
+);
 router.post(
   '/compliance-documents/:id/review',
   validateParams(documentIdParamSchema),

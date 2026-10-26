@@ -9,6 +9,7 @@ jest.mock('../../src/services/compliance-document.service', () => ({
   listForAdmin: jest.fn(),
   getFileForReview: jest.fn(),
   review: jest.fn(),
+  deleteFile: jest.fn(),
 }));
 
 const request = require('supertest');
@@ -116,6 +117,24 @@ describe('compliance document routes', () => {
       expect(res.headers['content-disposition']).not.toMatch(/"cert"/);
       const cleaner = await request(app).get(`/admin/compliance-documents/${DOC}/file`).set('Authorization', auth('cleaner'));
       expect(cleaner.status).toBe(403);
+    });
+
+    it('deletes a file only for an admin who gives a reason', async () => {
+      service.deleteFile.mockResolvedValue({ _id: DOC, status: 'approved', fileDeletedAt: new Date() });
+      const ok = await request(app)
+        .delete(`/admin/compliance-documents/${DOC}/file`)
+        .set('Authorization', auth('admin'))
+        .send({ reason: 'Cleaner withdrew consent' });
+      expect(ok.status).toBe(200);
+      expect(service.deleteFile).toHaveBeenCalledWith(DOC, { reason: 'Cleaner withdrew consent' }, expect.anything());
+
+      const noReason = await request(app).delete(`/admin/compliance-documents/${DOC}/file`).set('Authorization', auth('admin')).send({});
+      expect(noReason.status).toBe(400);
+      const operator = await request(app)
+        .delete(`/admin/compliance-documents/${DOC}/file`)
+        .set('Authorization', auth('operator'))
+        .send({ reason: 'because' });
+      expect(operator.status).toBe(403);
     });
 
     it('passes a decision to the service and validates it', async () => {

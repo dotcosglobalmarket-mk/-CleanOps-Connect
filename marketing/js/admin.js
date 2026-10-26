@@ -25,7 +25,7 @@ const DOC_LABELS = { dbs: 'DBS certificate', coshh: 'COSHH certificate', insuran
 const ALLOWED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
 function documentBadge(status) {
-  const kind = { pending: 'warn', approved: 'good', rejected: 'bad', expired: 'bad' }[status];
+  const kind = { pending: 'warn', approved: 'good', rejected: 'bad', expired: 'bad', withdrawn: 'warn' }[status];
   return statusBadge(status === 'pending' ? 'waiting' : status, kind);
 }
 
@@ -107,7 +107,14 @@ function openDocumentReview(doc) {
     </dl>
     ${doc.fileAvailable
       ? '<p><button type="button" id="document-view-file">Open the file</button> <span class="field-help">Opening it is recorded in the audit log.</span></p>'
-      : '<p class="field-help">The file has been deleted under the retention policy. The decision record is kept.</p>'}
+      : '<p class="field-help">The file has been deleted. The decision record is kept.</p>'}
+    ${doc.fileAvailable ? `
+      <details class="document-erase">
+        <summary>Delete this file (cleaner withdrew consent or asked for erasure)</summary>
+        <p class="field-help">The file is removed straight away and cannot be recovered. The decision record stays. The cleaner's badge is not changed: do that under Cleaner Verification if it should go too.</p>
+        <div class="form-row"><label for="document-delete-reason">Reason</label><input id="document-delete-reason" type="text" maxlength="500" placeholder="e.g. Cleaner emailed to withdraw consent" /></div>
+        <p><button type="button" class="secondary" id="document-delete">Delete the file</button></p>
+      </details>` : ''}
     ${pending ? `
       <h4>Decision</h4>
       ${doc.type !== 'dbs' ? `<div class="form-row"><label for="document-expiry">Expiry date on the certificate${doc.type === 'insurance' ? '' : ' (if it has one)'}</label><input id="document-expiry" type="date" /></div>` : ''}
@@ -119,6 +126,27 @@ function openDocumentReview(doc) {
   document.getElementById('document-review-close').addEventListener('click', () => { box.hidden = true; });
   const viewBtn = document.getElementById('document-view-file');
   if (viewBtn) viewBtn.addEventListener('click', () => viewDocumentFile(doc));
+  const deleteBtn = document.getElementById('document-delete');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', async () => {
+      hideAlert('documents-alert');
+      const reason = document.getElementById('document-delete-reason').value.trim();
+      if (reason.length < 3) {
+        showAlert('documents-alert', 'Say why the file is being deleted.');
+        return;
+      }
+      if (!window.confirm('Delete this file permanently? This cannot be undone.')) return;
+      try {
+        await apiRequest(`/admin/compliance-documents/${doc._id}/file`, { method: 'DELETE', body: { reason }, auth: true });
+        const ok = document.getElementById('documents-success');
+        ok.textContent = 'The file has been deleted. The decision record is kept.';
+        ok.hidden = false;
+        await loadDocuments();
+      } catch (err) {
+        showAlert('documents-alert', err.message);
+      }
+    });
+  }
   if (pending) {
     const decide = async (decision) => {
       hideAlert('documents-alert');

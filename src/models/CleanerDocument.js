@@ -9,7 +9,7 @@ const cleanerDocumentSchema = new mongoose.Schema(
     type: { type: String, enum: ['dbs', 'coshh', 'insurance'], required: true },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected', 'superseded', 'expired'],
+      enum: ['pending', 'approved', 'rejected', 'superseded', 'expired', 'withdrawn'],
       default: 'pending',
       index: true,
     },
@@ -21,6 +21,8 @@ const cleanerDocumentSchema = new mongoose.Schema(
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     reviewedAt: { type: Date },
     rejectionReason: { type: String, maxlength: 500 },
+    // Set when an admin deletes the stored file on the cleaner's request; the review record stays.
+    fileDeletedAt: { type: Date },
     // Insurance (always) and COSHH (optional): the date the certificate runs out.
     expiresAt: { type: Date },
   },

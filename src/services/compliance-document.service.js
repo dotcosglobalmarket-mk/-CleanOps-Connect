@@ -144,6 +144,33 @@ async function getFileForReview(id, req) {
   return { doc, file };
 }
 
+// Erasure on request (or withdrawn consent): deletes the stored copy at once.
+// The decision record stays, and so does the profile badge: removing that is a
+// separate decision made in Cleaner Verification. A document still waiting for
+// review has nothing left to review, so it is marked withdrawn.
+async function deleteFile(id, { reason }, req) {
+  if (!reason || String(reason).trim().length < 3) throw httpError(400, 'Say why the file is being deleted');
+  const doc = await CleanerDocument.findById(id);
+  if (!doc) throw httpError(404, 'Document not found');
+  if (!doc.file) throw httpError(409, 'This file has already been deleted');
+
+  await DocumentFile.deleteMany({ _id: doc.file });
+  const wasPending = doc.status === 'pending';
+  doc.fileDeletedAt = new Date();
+  if (wasPending) doc.status = 'withdrawn';
+  await doc.save();
+
+  await auditService.record({
+    req,
+    action: 'compliance_document.delete_file',
+    targetType: 'cleaner',
+    targetId: doc.cleaner,
+    after: { type: doc.type, documentId: String(doc._id), status: doc.status },
+    reason: String(reason).trim().slice(0, 500),
+  });
+  return doc;
+}
+
 const FLAG_FOR = { dbs: 'dbsVerified', coshh: 'coshhTrained', insurance: 'insuranceStatus' };
 
 async function review(id, { decision, reason, expiresAt }, req) {
@@ -251,5 +278,6 @@ module.exports = {
   listForAdmin,
   getFileForReview,
   review,
+  deleteFile,
   expireLapsedDocuments,
 };

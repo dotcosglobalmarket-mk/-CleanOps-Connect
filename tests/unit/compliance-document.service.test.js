@@ -175,6 +175,38 @@ describe('review', () => {
   });
 });
 
+describe('deleteFile', () => {
+  const doc = (extra = {}) => ({ _id: 'd1', cleaner: 'cp1', type: 'dbs', status: 'approved', file: 'f1', save: jest.fn().mockResolvedValue(undefined), ...extra });
+
+  it('deletes the stored copy, keeps the record and the badge, and audits the reason', async () => {
+    const d = doc();
+    CleanerDocument.findById.mockResolvedValue(d);
+    await svc.deleteFile('d1', { reason: 'Cleaner withdrew consent' }, req);
+    expect(DocumentFile.deleteMany).toHaveBeenCalledWith({ _id: 'f1' });
+    expect(d.fileDeletedAt).toBeInstanceOf(Date);
+    expect(d.status).toBe('approved');
+    expect(CleanerProfile.findById).not.toHaveBeenCalled();
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'compliance_document.delete_file', targetId: 'cp1', reason: 'Cleaner withdrew consent' }));
+  });
+
+  it('marks a document still waiting for review as withdrawn', async () => {
+    const d = doc({ status: 'pending' });
+    CleanerDocument.findById.mockResolvedValue(d);
+    await svc.deleteFile('d1', { reason: 'Uploaded by mistake' }, req);
+    expect(d.status).toBe('withdrawn');
+  });
+
+  it('needs a reason, an existing document, and a file that is still there', async () => {
+    await expect(svc.deleteFile('d1', {}, req)).rejects.toMatchObject({ status: 400 });
+    CleanerDocument.findById.mockResolvedValue(null);
+    await expect(svc.deleteFile('d1', { reason: 'because' }, req)).rejects.toMatchObject({ status: 404 });
+    CleanerDocument.findById.mockResolvedValue(doc({ file: undefined }));
+    await expect(svc.deleteFile('d1', { reason: 'because' }, req)).rejects.toMatchObject({ status: 409 });
+    expect(DocumentFile.deleteMany).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+  });
+});
+
 describe('expireLapsedDocuments', () => {
   it('removes the badge an expired insurance or COSHH certificate backed, and tells the cleaner', async () => {
     const ins = { _id: 'a', cleaner: 'cp1', type: 'insurance', status: 'approved', save: jest.fn() };
