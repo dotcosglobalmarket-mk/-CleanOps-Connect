@@ -163,7 +163,9 @@ textarea {
   padding: 0.6rem 0.7rem;
   border: 1px solid var(--color-border);
   border-radius: 6px;
-  font-size: 0.95rem;
+  /* 16px+ stops iOS Safari zooming the whole page in when a field is
+     focused — every form on the site gets this, not just chat. */
+  font-size: 1rem;
   font-family: inherit;
 }
 
@@ -1261,6 +1263,15 @@ table.data-table tbody tr:hover {
     border-top: none;
     margin-top: 0;
     white-space: nowrap;
+  }
+
+  /* Admin/ops tables pack several small action buttons per row (Save,
+     View, Approve, Reject…). At desktop widths that density is fine, but
+     on a touch screen anything under ~44px tall is easy to mis-tap — so
+     only here, not on the dense desktop layout, give them more room. */
+  .table-actions button {
+    padding: 0.55rem 0.8rem;
+    font-size: 0.85rem;
   }
 }
 
