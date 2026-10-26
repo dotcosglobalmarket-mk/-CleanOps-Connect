@@ -162,7 +162,18 @@
             </div>
             <div class="form-row">
               <label for="bio">Bio</label>
-              <textarea id="bio" rows="3" placeholder="Tell customers about your experience and specialties…"></textarea>
+              <textarea id="bio" rows="3" placeholder="Tell customers about your experience and specialties…" maxlength="2000"></textarea>
+              <div class="ai-help">
+                <button type="button" id="bio-help" class="secondary">✨ Help me write this</button>
+                <span class="field-help" id="bio-help-status" aria-live="polite"></span>
+              </div>
+              <div id="bio-suggestion" class="card" hidden>
+                <p class="field-help">Suggestion — check it's accurate before using it. Only keep what is true of you; customers see this on your public profile.</p>
+                <p id="bio-suggestion-text" style="white-space: pre-wrap"></p>
+                <button type="button" id="bio-use">Use this</button>
+                <button type="button" id="bio-dismiss" class="secondary">Dismiss</button>
+              </div>
+              <span class="field-help">"Help me write this" sends your services, travel distance and bio text to our AI provider, Anthropic. Don't include contact details.</span>
             </div>
             <div class="two-column">
               <div class="form-row">

@@ -1,4 +1,5 @@
 const cleanerService = require('../services/cleaner.service');
+const aiDescriptionService = require('../services/ai-description.service');
 
 async function create(req, res, next) {
   try {
@@ -16,6 +17,14 @@ async function getById(req, res, next) {
       return res.status(404).json({ message: 'Cleaner not found' });
     }
     res.status(200).json(cleaner);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function describeBio(req, res, next) {
+  try {
+    res.status(200).json(await aiDescriptionService.suggestBio(req.body));
   } catch (err) {
     next(err);
   }
@@ -53,6 +62,7 @@ async function setCoverage(req, res, next) {
 }
 
 module.exports = {
+  describeBio,
   create,
   getById,
   getMe,

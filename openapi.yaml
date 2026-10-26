@@ -126,6 +126,30 @@ paths:
           description: Suggested description
         '503':
           description: AI writing help unavailable
+  /cleaners/me/describe-bio:
+    post:
+      summary: Suggest wording for the cleaner's public bio (cleaner only, AI-assisted)
+      description: Sends the cleaner's service names, travel distance and draft bio to Anthropic. Returns 503 when AI help is not configured or unavailable. Shares the AI writing rate limit with /jobs/describe.
+      tags: [Cleaners]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                services: { type: array, items: { type: string } }
+                customServices: { type: array, items: { type: string } }
+                travelDistanceMiles: { type: number }
+                acceptEmergencyBookings: { type: boolean }
+                draft: { type: string, maxLength: 2000 }
+      responses:
+        '200':
+          description: Suggested bio
+        '503':
+          description: AI writing help unavailable
   /jobs/{id}/allocate:
     post:
       summary: Allocate job to cleaners using AI scoring

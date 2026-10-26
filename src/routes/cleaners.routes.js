@@ -3,12 +3,14 @@ const CleanerController = require('../controllers/CleanerController');
 const CleanerPortalController = require('../controllers/CleanerPortalController');
 const ReviewController = require('../controllers/ReviewController');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { aiWritingLimiter } = require('../middleware/ai-rate-limit');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
 const {
   createCleanerSchema,
   coverageSchema,
   cleanerIdParamSchema,
   updateMyProfileSchema,
+  describeBioSchema,
   listMyOffersQuerySchema,
 } = require('../validation/cleaner.validation');
 
@@ -27,6 +29,14 @@ router.post(
   requireRole('cleaner', 'admin'),
   validateBody(coverageSchema),
   CleanerController.setCoverage
+);
+router.post(
+  '/me/describe-bio',
+  requireAuth,
+  requireRole('cleaner'),
+  aiWritingLimiter,
+  validateBody(describeBioSchema),
+  CleanerController.describeBio
 );
 router.get('/me', requireAuth, requireRole('cleaner'), CleanerController.getMe);
 router.patch(

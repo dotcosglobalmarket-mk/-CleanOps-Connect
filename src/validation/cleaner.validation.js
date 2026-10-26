@@ -29,6 +29,14 @@ const coverageSchema = z.discriminatedUnion('coverageType', [
   }),
 ]);
 
+const describeBioSchema = z.object({
+  services: z.array(objectId()).max(30).optional(),
+  customServices: z.array(z.string().trim().min(1).max(60)).max(10).optional(),
+  travelDistanceMiles: z.number().nonnegative().max(500).optional(),
+  acceptEmergencyBookings: z.boolean().optional(),
+  draft: z.string().trim().max(2000).optional(),
+});
+
 const cleanerIdParamSchema = z.object({
   id: objectId(),
 });
@@ -67,6 +75,7 @@ const listMyOffersQuerySchema = z.object({
 });
 
 module.exports = {
+  describeBioSchema,
   createCleanerSchema,
   listMyOffersQuerySchema,
   coverageSchema,
