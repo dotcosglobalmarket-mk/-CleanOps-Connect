@@ -36,6 +36,17 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: DO_API_TOKEN
+    timeout-minutes: 25
+
+    # One production deploy at a time. If another push arrives while one is
+    # running, the newer run waits and replaces any older run that is still
+    # waiting, so the newest commit is always the one that ends up live.
+    # Without this, two merges a few seconds apart both asked DigitalOcean to
+    # deploy at once and the second sat in "pending build" until it timed out.
+    # Pull-request runs get a unique group so they can never delay a deploy.
+    concurrency:
+      group: ${{ github.event_name == 'push' && 'deploy-production' || format('deploy-{0}', github.run_id) }}
+      cancel-in-progress: false
 
     steps:
       - name: Install doctl
@@ -62,4 +73,5 @@ jobs:
             echo "::error::DO_APP_ID must be the app's UUID (like 1a2b3c4d-1111-2222-3333-444455556666). Copy it from the app's page address, cloud.digitalocean.com/apps/<uuid>, or run 'doctl apps list'."
             exit 1
           fi
-          doctl apps create-deployment "$APP_ID" --wait
+          # A normal deploy takes a few minutes; fail after 15 instead of the 30-minute default.
+          doctl apps create-deployment "$APP_ID" --wait --wait-timeout 15m
