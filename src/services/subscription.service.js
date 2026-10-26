@@ -117,6 +117,7 @@ async function activateSubscription(cleanerId, plan, paymentMethodId, requesting
   const pricePence = PLAN_PRICES_PENCE[plan];
   const stripeSubscription = await stripeService.createSubscription({
     customerId: cleaner.stripeCustomerId,
+    planId: plan,
     pricePence,
     productName: PLAN_LABELS[plan],
     paymentMethodId,

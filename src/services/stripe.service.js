@@ -129,9 +129,30 @@ async function setDefaultPaymentMethod({ customerId, paymentMethodId }) {
   });
 }
 
-// No pre-created Stripe Price/Product is required — price_data defines an
-// inline recurring price for a product named after the plan.
-async function createSubscription({ customerId, pricePence, productName, paymentMethodId, metadata }) {
+// Subscription item price_data takes a Product ID, not inline product
+// details (unlike one-off PaymentIntent/Checkout prices) — Stripe rejects
+// `product_data` here with "Received unknown parameter". Each plan's
+// Product is created once, with a deterministic id, and reused after that.
+const planProductIds = new Map();
+
+async function getOrCreatePlanProduct(planId, productName) {
+  if (planProductIds.has(planId)) return planProductIds.get(planId);
+
+  const id = `cleanops-plan-${planId}`;
+  const client = getClient();
+  let product;
+  try {
+    product = await client.products.retrieve(id);
+  } catch (err) {
+    if (err.statusCode !== 404) throw err;
+    product = await client.products.create({ id, name: productName });
+  }
+  planProductIds.set(planId, product.id);
+  return product.id;
+}
+
+async function createSubscription({ customerId, planId, pricePence, productName, paymentMethodId, metadata }) {
+  const productId = await getOrCreatePlanProduct(planId, productName);
   return getClient().subscriptions.create({
     customer: customerId,
     items: [
@@ -140,7 +161,7 @@ async function createSubscription({ customerId, pricePence, productName, payment
           currency: 'gbp',
           unit_amount: pricePence,
           recurring: { interval: 'month' },
-          product_data: { name: productName },
+          product: productId,
         },
       },
     ],
