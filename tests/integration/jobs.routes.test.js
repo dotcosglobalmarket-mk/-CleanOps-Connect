@@ -9,6 +9,7 @@ jest.mock('../../src/models/Job', () => {
 });
 jest.mock('../../src/models/JobOffer', () => ({
   insertMany: jest.fn(),
+  find: jest.fn(),
   findById: jest.fn(),
   findOneAndUpdate: jest.fn(),
   updateOne: jest.fn(),
@@ -228,6 +229,7 @@ describe('Jobs routes', () => {
         dbsVerified: false,
       };
       CleanerProfile.find.mockResolvedValue([weakCleaner, strongCleaner]);
+      JobOffer.find.mockResolvedValue([]);
       JobOffer.insertMany.mockResolvedValue([
         { cleaner: 'cleaner-strong', score: 90, status: 'sent' },
         { cleaner: 'cleaner-weak', score: 20, status: 'sent' },
@@ -245,12 +247,86 @@ describe('Jobs routes', () => {
       expect(insertedOffers).toHaveLength(2);
       expect(insertedOffers[0].cleaner).toBe('cleaner-strong');
       expect(insertedOffers[0].score).toBeGreaterThan(insertedOffers[1].score);
-      expect(CleanerProfile.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          deactivationStatus: { $ne: 'suspended' },
-          available: { $ne: false },
-        })
-      );
+      expect(CleanerProfile.find).toHaveBeenCalledWith({ services: job.serviceType });
+    });
+
+    const baseJob = (overrides = {}) => ({
+      _id: jobId,
+      customer: { toString: () => 'owner1' },
+      serviceType: '507f1f77bcf86cd799439011',
+      category: 'domestic',
+      lat: 53.77,
+      lng: -1.55,
+      budgetMax: 100,
+      status: 'open',
+      save: jest.fn().mockResolvedValue(undefined),
+      ...overrides,
+    });
+    const profile = (id, overrides = {}) => ({
+      _id: id,
+      lat: 53.77,
+      lng: -1.55,
+      coverageType: 'radius',
+      coverageRadiusKm: 10,
+      insuranceStatus: 'own',
+      ...overrides,
+    });
+
+    it('leaves the job open and sends nothing when no cleaner matches', async () => {
+      const job = baseJob();
+      Job.findById.mockResolvedValue(job);
+      CleanerProfile.find.mockResolvedValue([profile('c1', { coverageRadiusKm: undefined })]);
+      JobOffer.find.mockResolvedValue([]);
+
+      const res = await request(app).post(`/jobs/${jobId}/allocate`).set('Authorization', authHeaderFor('customer', 'owner1'));
+
+      expect(res.status).toBe(200);
+      expect(res.body.offers).toEqual([]);
+      expect(res.body.diagnostics).toBeUndefined(); // staff-only
+      expect(job.status).toBe('open');
+      expect(job.save).not.toHaveBeenCalled();
+      expect(JobOffer.insertMany).not.toHaveBeenCalled();
+    });
+
+    it('tells an admin which rule stopped each cleaner, and does not offer twice to the same cleaner', async () => {
+      const job = baseJob();
+      Job.findById.mockResolvedValue(job);
+      CleanerProfile.find.mockResolvedValue([
+        profile('ok'),
+        profile('away', { available: false }),
+        profile('banned', { deactivationStatus: 'suspended' }),
+        profile('far', { lat: 51.5, lng: -0.12 }),
+        profile('norad', { coverageRadiusKm: undefined }),
+        profile('offered'),
+      ]);
+      JobOffer.find.mockResolvedValue([{ cleaner: { toString: () => 'offered' } }]);
+      JobOffer.insertMany.mockImplementation(async (docs) => docs);
+
+      const res = await request(app).post(`/jobs/${jobId}/allocate`).set('Authorization', authHeaderFor('admin'));
+
+      expect(res.status).toBe(200);
+      expect(JobOffer.insertMany.mock.calls[0][0].map((o) => o.cleaner)).toEqual(['ok']);
+      expect(res.body.diagnostics).toEqual({
+        offeringService: 6,
+        suspended: 1,
+        unavailable: 1,
+        alreadyOffered: 1,
+        outOfCoverage: 2,
+        coverageNotSet: 1,
+        uninsured: 0,
+        eligible: 1,
+      });
+      expect(job.status).toBe('allocated');
+    });
+
+    it('refuses to re-run allocation for a job that is already booked or cancelled', async () => {
+      Job.findById.mockResolvedValue(baseJob({ cleaner: 'someone' }));
+      const booked = await request(app).post(`/jobs/${jobId}/allocate`).set('Authorization', authHeaderFor('customer', 'owner1'));
+      expect(booked.status).toBe(400);
+
+      Job.findById.mockResolvedValue(baseJob({ status: 'cancelled' }));
+      const cancelled = await request(app).post(`/jobs/${jobId}/allocate`).set('Authorization', authHeaderFor('customer', 'owner1'));
+      expect(cancelled.status).toBe(400);
     });
   });
 

@@ -1,6 +1,7 @@
 const adminService = require('../services/admin.service');
 const opsService = require('../services/ops.service');
 const auditService = require('../services/audit.service');
+const jobService = require('../services/job.service');
 const staffService = require('../services/staff.service');
 const impersonationService = require('../services/impersonation.service');
 
@@ -84,6 +85,23 @@ async function getJob(req, res, next) {
   }
 }
 
+async function allocateJob(req, res, next) {
+  try {
+    const result = await jobService.allocateJob(req.params.id, req.user);
+    await auditService.record({
+      req,
+      action: 'job.allocate',
+      targetType: 'job',
+      targetId: req.params.id,
+      after: { offers: result.offers.length },
+      reason: 'Allocation re-run from the admin dashboard',
+    });
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function listApprovals(req, res, next) {
   try {
     res.status(200).json(await opsService.listApprovals(req.query));
@@ -147,4 +165,5 @@ module.exports = {
   updateCleanerDeactivation,
   listJobs,
   getJob,
+  allocateJob,
 };

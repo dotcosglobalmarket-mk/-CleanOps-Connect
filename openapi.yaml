@@ -319,6 +319,13 @@ paths:
   /jobs/{id}/allocate:
     post:
       summary: Allocate job to cleaners using AI scoring
+      description: >
+        Offers the job to the best-matching cleaners who offer the service, are
+        available and not suspended, cover the job location and (for high-risk
+        jobs) are insured. Cleaners already offered the job are skipped, so it
+        is safe to run again. If nobody matches, no offers are created and the
+        job stays open. Admins also get a `diagnostics` object counting the
+        cleaners stopped by each rule.
       tags: [Jobs]
       security:
         - bearerAuth: []

@@ -1501,3 +1501,4 @@ table.data-table tbody tr:hover {
 .job-detail-list dt { color: #64748b; }
 .job-detail-list dd { margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 560px) { .job-detail-list { grid-template-columns: 1fr; } .job-detail-list dd { margin-bottom: 0.4rem; } }
+.job-detail-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }

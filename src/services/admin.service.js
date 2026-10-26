@@ -1,6 +1,7 @@
 const CleanerProfile = require('../models/CleanerProfile');
 const Job = require('../models/Job');
 const JobOffer = require('../models/JobOffer');
+const jobService = require('./job.service');
 const { STATES } = require('./payment-state-machine');
 
 const JOBS_LIST_LIMIT = 200;
@@ -55,7 +56,11 @@ async function getJobById(id) {
     .populate('cleaner', 'name companyName basePostcode')
     .sort({ score: -1 })
     .lean();
-  return { ...(typeof job.toObject === 'function' ? job.toObject() : job), offers };
+  const plain = typeof job.toObject === 'function' ? job.toObject() : job;
+
+  // Why a job that is not booked has (or has not) reached cleaners.
+  const allocation = job.cleaner || job.paymentStatus ? undefined : await jobService.diagnoseAllocation(job);
+  return { ...plain, offers, allocation };
 }
 
 async function getSummary() {
