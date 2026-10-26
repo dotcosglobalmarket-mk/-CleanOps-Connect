@@ -101,6 +101,31 @@ paths:
         '404':
           description: Job not found
 
+  /jobs/describe:
+    post:
+      summary: Suggest wording for a job description (customer only, AI-assisted)
+      description: Sends the job type, frequency, hours and the customer's draft text to Anthropic. Returns 503 when AI help is not configured or unavailable.
+      tags: [Jobs]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [category]
+              properties:
+                category: { type: string, enum: [domestic, industrial] }
+                serviceType: { type: string }
+                frequency: { type: string, enum: [one_off, weekly, monthly, contract] }
+                estimatedHours: { type: number }
+                draft: { type: string, maxLength: 2000 }
+      responses:
+        '200':
+          description: Suggested description
+        '503':
+          description: AI writing help unavailable
   /jobs/{id}/allocate:
     post:
       summary: Allocate job to cleaners using AI scoring

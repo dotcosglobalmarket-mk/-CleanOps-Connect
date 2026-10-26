@@ -1,9 +1,18 @@
 const jobService = require('../services/job.service');
+const aiDescriptionService = require('../services/ai-description.service');
 
 async function create(req, res, next) {
   try {
     const job = await jobService.createJob({ ...req.body, customer: req.user.id });
     res.status(201).json(job);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function describe(req, res, next) {
+  try {
+    res.status(200).json(await aiDescriptionService.suggestDescription(req.body));
   } catch (err) {
     next(err);
   }
@@ -63,6 +72,7 @@ async function listOffers(req, res, next) {
 
 module.exports = {
   create,
+  describe,
   listMine,
   listOffers,
   getById,

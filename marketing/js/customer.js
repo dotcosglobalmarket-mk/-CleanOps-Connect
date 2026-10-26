@@ -112,6 +112,48 @@ document.getElementById('create-job-form').addEventListener('submit', async (eve
   }
 });
 
+// --- AI writing help for the job description ---
+const describeButton = document.getElementById('describe-help');
+const describeStatus = document.getElementById('describe-status');
+const describeBox = document.getElementById('describe-suggestion');
+const describeText = document.getElementById('describe-suggestion-text');
+
+describeButton.addEventListener('click', async () => {
+  const body = {
+    category: document.getElementById('category').value,
+    frequency: document.getElementById('frequency').value,
+  };
+  const serviceType = document.getElementById('serviceType').value;
+  const estimatedHours = document.getElementById('estimatedHours').value;
+  const draft = document.getElementById('description').value.trim();
+  if (serviceType) body.serviceType = serviceType;
+  if (estimatedHours && Number(estimatedHours) > 0) body.estimatedHours = Number(estimatedHours);
+  if (draft) body.draft = draft;
+
+  describeButton.disabled = true;
+  describeStatus.textContent = 'Writing a suggestion…';
+  describeBox.hidden = true;
+  try {
+    const { suggestion } = await apiRequest('/jobs/describe', { method: 'POST', body, auth: true });
+    describeText.textContent = suggestion;
+    describeBox.hidden = false;
+    describeStatus.textContent = '';
+  } catch (err) {
+    describeStatus.textContent = err.message;
+  } finally {
+    describeButton.disabled = false;
+  }
+});
+
+document.getElementById('describe-use').addEventListener('click', () => {
+  document.getElementById('description').value = describeText.textContent.slice(0, 2000);
+  describeBox.hidden = true;
+});
+
+document.getElementById('describe-dismiss').addEventListener('click', () => {
+  describeBox.hidden = true;
+});
+
 // --- Jobs list ---
 async function loadJobs() {
   hideAlert('page-alert');
