@@ -3,16 +3,26 @@
 // payment lands in the platform's own Stripe balance, and funds only move
 // to the cleaner via an explicit, later Transfer.create() call — that gap
 // is the escrow window.
+const https = require('https');
 const Stripe = require('stripe');
 
 let stripeClient;
+
+// DigitalOcean App Platform (and several other container hosts) have been
+// seen to advertise IPv6 egress that doesn't actually route to the public
+// internet: Node tries the AAAA address first, it hangs/fails, and every
+// outbound HTTPS call times out even though the service is otherwise up and
+// IPv4 works fine. Forcing IPv4 here is the fix for exactly that failure
+// mode (seen as Stripe's SDK reporting "An error occurred with our
+// connection to Stripe" after exhausting its retries).
+const stripeHttpAgent = new https.Agent({ family: 4 });
 
 function getClient() {
   if (!stripeClient) {
     if (!process.env.STRIPE_SECRET_KEY) {
       throw new Error('STRIPE_SECRET_KEY is not set in the environment');
     }
-    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
+    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, { httpAgent: stripeHttpAgent });
   }
   return stripeClient;
 }
