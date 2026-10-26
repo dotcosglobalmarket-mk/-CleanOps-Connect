@@ -266,12 +266,43 @@ describe('Admin routes', () => {
     it('returns a single job for admins', async () => {
       Job.findById.mockReturnValue(chainable({ _id: jobId }, ['populate']));
       JobOffer.find.mockReturnValue(chainable([], ['populate', 'sort', 'lean']));
+      CleanerProfile.find.mockResolvedValue([]);
 
       const res = await request(app).get(`/admin/jobs/${jobId}`).set('Authorization', authHeaderFor('admin'));
 
       expect(res.status).toBe(200);
       expect(res.body._id).toBe(jobId);
       expect(res.body.offers).toEqual([]);
+      expect(res.body.allocation).toMatchObject({ offeringService: 0, eligible: 0 });
+    });
+
+    it('re-runs allocation for a job and records it in the audit log', async () => {
+      const job = {
+        _id: jobId,
+        customer: { toString: () => 'c1' },
+        serviceType: 'st1',
+        category: 'domestic',
+        lat: 53.77,
+        lng: -1.55,
+        budgetMax: 100,
+        status: 'open',
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      Job.findById.mockResolvedValue(job);
+      CleanerProfile.find.mockResolvedValue([]);
+      JobOffer.find.mockResolvedValue([]);
+
+      const res = await request(app).post(`/admin/jobs/${jobId}/allocate`).set('Authorization', authHeaderFor('admin'));
+
+      expect(res.status).toBe(200);
+      expect(res.body.offers).toEqual([]);
+      expect(res.body.diagnostics).toMatchObject({ offeringService: 0 });
+      expect(AuditLog.create).toHaveBeenCalledWith(expect.objectContaining({ action: 'job.allocate', targetType: 'job' }));
+    });
+
+    it('does not let an operator re-run allocation', async () => {
+      const res = await request(app).post(`/admin/jobs/${jobId}/allocate`).set('Authorization', authHeaderFor('operator'));
+      expect(res.status).toBe(403);
     });
 
     it('includes the cleaners the job was allocated to, best match first', async () => {

@@ -51,6 +51,7 @@ router.patch(
 
 router.get('/jobs', validateQuery(listJobsQuerySchema), AdminController.listJobs);
 router.get('/jobs/:id', validateParams(jobIdParamSchema), AdminController.getJob);
+router.post('/jobs/:id/allocate', validateParams(jobIdParamSchema), AdminController.allocateJob);
 
 // Maker-checker: refunds above the ops limit raised by operators.
 router.get('/approvals', validateQuery(listApprovalsQuerySchema), AdminController.listApprovals);

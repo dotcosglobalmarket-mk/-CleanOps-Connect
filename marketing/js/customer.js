@@ -13,7 +13,7 @@ const CONFIRM_WINDOW_HOURS = 48;
 
 // What the customer sees for each payment state: [short label, badge kind, explanation].
 const STATUS = {
-  none_open: ['Posted', 'warn', 'Your job is posted. Find cleaners to send it to cleaners who cover your area.'],
+  none_open: ['Posted', 'warn', "Your job is posted but hasn't been sent to a cleaner yet. If no cleaner covering your area was available, press Find cleaners to try again later."],
   none_tender: ['Collecting quotes', 'warn', 'Matching cleaners have been invited to quote. Compare their quotes below and award the job to one.'],
   none_allocated: ['Waiting for a cleaner', 'warn', "We've sent your job to cleaners nearby. The first to accept books it."],
   BOOKED: ['Pay to confirm', 'bad', 'A cleaner has accepted your job. Pay now to confirm the booking.'],

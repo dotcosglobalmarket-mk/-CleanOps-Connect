@@ -145,48 +145,92 @@ async function allocateJob(jobId, requestingUser) {
   }
 
   const isTender = job.procurement === 'tender';
-  if (isTender) {
-    if (job.cleaner || job.paymentStatus) throw badRequest('This tender has already been awarded');
-    if (!tenderIsOpen(job)) throw badRequest('This tender has closed');
+  if (job.cleaner || job.paymentStatus) {
+    throw badRequest(isTender ? 'This tender has already been awarded' : 'This job has already been booked');
+  }
+  if (job.status === 'completed' || job.status === 'cancelled') {
+    throw badRequest(`A ${job.status} job cannot be sent to cleaners`);
+  }
+  if (isTender && !tenderIsOpen(job)) throw badRequest('This tender has closed');
+
+  const { ranked, diagnostics } = await matchCleanersForJob(job);
+  const chosen = ranked.slice(0, isTender ? MAX_TENDER_INVITES : MAX_OFFERS);
+
+  // Nobody matched: leave the job as it is (still open) so the customer is
+  // not told it has been sent anywhere, and so it can be tried again.
+  const offers = chosen.length
+    ? await JobOffer.insertMany(
+        chosen.map(({ cleaner, score, scoreBreakdown }) => ({
+          job: job._id,
+          cleaner: cleaner._id,
+          score,
+          scoreBreakdown,
+          status: 'sent',
+        }))
+      )
+    : [];
+
+  if (offers.length) {
+    job.status = 'allocated';
+    await job.save();
+    if (isTender) notifications.tenderInvited(job, offers);
+    else notifications.offersSent(job, offers);
   }
 
-  // Suspended cleaners and cleaners who have switched themselves to
-  // unavailable must never be sent offers.
-  const candidates = await CleanerProfile.find({
-    services: job.serviceType,
-    deactivationStatus: { $ne: 'suspended' },
-    available: { $ne: false },
+  const result = { jobId: job._id, offers };
+  // The per-filter counts are for staff; customers do not need them.
+  if (requestingUser.role === 'admin') result.diagnostics = diagnostics;
+  return result;
+}
+
+// Works out which cleaners a job can go to, and, for every cleaner offering
+// the service that it cannot, the first rule that stopped them. Each cleaner
+// is counted once, in this order: suspended, switched to unavailable,
+// already offered this job, outside their coverage, uninsured for a
+// high-risk job. Used to allocate and to explain an empty result.
+async function matchCleanersForJob(job) {
+  const offering = await CleanerProfile.find({ services: job.serviceType });
+  const alreadyOffered = new Set((await JobOffer.find({ job: job._id })).map((o) => o.cleaner.toString()));
+
+  const diagnostics = {
+    offeringService: offering.length,
+    suspended: 0,
+    unavailable: 0,
+    alreadyOffered: 0,
+    outOfCoverage: 0,
+    coverageNotSet: 0,
+    uninsured: 0,
+    eligible: 0,
+  };
+
+  const open = [];
+  offering.forEach((cleaner) => {
+    if (cleaner.deactivationStatus === 'suspended') diagnostics.suspended += 1;
+    else if (cleaner.available === false) diagnostics.unavailable += 1;
+    else if (alreadyOffered.has(cleaner._id.toString())) diagnostics.alreadyOffered += 1;
+    else open.push(cleaner);
   });
 
-  // A tender is invited once per cleaner: anyone already invited is skipped.
-  let eligible = candidates;
-  if (isTender) {
-    const alreadyInvited = new Set((await JobOffer.find({ job: job._id })).map((o) => o.cleaner.toString()));
-    eligible = candidates.filter((c) => !alreadyInvited.has(c._id.toString()));
-  }
+  const inCoverage = coverageService.filterCleanersByCoverage(job.lat, job.lng, open);
+  const covered = new Set(inCoverage);
+  open.forEach((cleaner) => {
+    if (covered.has(cleaner)) return;
+    diagnostics.outOfCoverage += 1;
+    const radiusUnset =
+      cleaner.coverageType !== 'polygon' &&
+      (typeof cleaner.lat !== 'number' || typeof cleaner.lng !== 'number' || typeof cleaner.coverageRadiusKm !== 'number');
+    if (radiusUnset) diagnostics.coverageNotSet += 1;
+  });
 
-  const inCoverage = coverageService.filterCleanersByCoverage(job.lat, job.lng, eligible);
   const insured = inCoverage.filter((cleaner) => insuranceService.validateInsuranceForJob(job, cleaner));
-  const ranked = aiScoringService
-    .rankCleanersForJob(job, insured)
-    .slice(0, isTender ? MAX_TENDER_INVITES : MAX_OFFERS);
+  diagnostics.uninsured = inCoverage.length - insured.length;
+  diagnostics.eligible = insured.length;
 
-  const offers = await JobOffer.insertMany(
-    ranked.map(({ cleaner, score, scoreBreakdown }) => ({
-      job: job._id,
-      cleaner: cleaner._id,
-      score,
-      scoreBreakdown,
-      status: 'sent',
-    }))
-  );
+  return { ranked: aiScoringService.rankCleanersForJob(job, insured), diagnostics };
+}
 
-  job.status = 'allocated';
-  await job.save();
-  if (isTender) notifications.tenderInvited(job, offers);
-  else notifications.offersSent(job, offers);
-
-  return { jobId: job._id, offers };
+async function diagnoseAllocation(job) {
+  return (await matchCleanersForJob(job)).diagnostics;
 }
 
 function tenderIsOpen(job) {
@@ -349,6 +393,7 @@ module.exports = {
   listJobsForCustomer,
   listOffersForCustomer,
   allocateJob,
+  diagnoseAllocation,
   acceptOffer,
   declineOffer,
   submitQuote,

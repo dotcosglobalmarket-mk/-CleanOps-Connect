@@ -244,6 +244,7 @@ function renderJobDetail(job) {
     ]],
   ];
   const offers = job.offers || [];
+  const canRerun = !job.cleaner && !job.paymentStatus && !['completed', 'cancelled'].includes(job.status);
   sections.push([`Cleaners allocated (${offers.length})`, offers.length
     ? offers.map((o, i) => [
         `${i + 1}. ${escapeHtml(o.cleaner?.companyName || o.cleaner?.name || 'Unknown cleaner')}`,
@@ -253,6 +254,7 @@ function renderJobDetail(job) {
           `${typeof o.quotePricePence === 'number' ? ` · quote ${formatPence(o.quotePricePence)}` : ''}`,
       ])
     : [['—', 'No cleaners were matched to this job.']]]);
+  if (job.allocation) sections.push(['Why cleaners were or were not matched', allocationRows(job.allocation)]);
   if (job.disputeReason) {
     sections.push(['Dispute', [
       ['Reason', escapeHtml(job.disputeReason)],
@@ -264,7 +266,10 @@ function renderJobDetail(job) {
   box.innerHTML = `
     <div class="job-detail-head">
       <h3>Job details</h3>
-      <button type="button" class="secondary" id="job-detail-close">Close</button>
+      <div class="job-detail-actions">
+        ${canRerun ? '<button type="button" id="job-detail-rerun">Re-run allocation</button>' : ''}
+        <button type="button" class="secondary" id="job-detail-close">Close</button>
+      </div>
     </div>
     ${sections.map(([title, rows]) => `
       <h4>${title}</h4>
@@ -273,6 +278,42 @@ function renderJobDetail(job) {
       </dl>`).join('')}`;
   box.hidden = false;
   document.getElementById('job-detail-close').addEventListener('click', () => { box.hidden = true; });
+  const rerun = document.getElementById('job-detail-rerun');
+  if (rerun) {
+    rerun.addEventListener('click', async () => {
+      rerun.disabled = true;
+      hideAlert('jobs-alert');
+      try {
+        const result = await apiRequest(`/admin/jobs/${job._id}/allocate`, { method: 'POST', auth: true });
+        const sent = result.offers.length;
+        showAlert('jobs-alert', sent ? `Sent to ${sent} cleaner${sent === 1 ? '' : 's'}.` : 'Still no cleaner matches. See the reasons below.');
+        renderJobDetail(await apiRequest(`/admin/jobs/${job._id}`, { auth: true }));
+      } catch (err) {
+        showAlert('jobs-alert', err.message);
+        rerun.disabled = false;
+      }
+    });
+  }
+}
+
+// One line per rule that can stop a cleaner who offers the service. Each
+// cleaner is counted once, against the first rule that stopped them.
+function allocationRows(a) {
+  const rows = [['Offer this service', `${a.offeringService} cleaner${a.offeringService === 1 ? '' : 's'}`]];
+  const reasons = [
+    [a.suspended, 'Suspended'],
+    [a.unavailable, 'Switched to unavailable'],
+    [a.alreadyOffered, 'Already offered this job'],
+    [a.outOfCoverage - a.coverageNotSet, 'Job is outside their coverage area'],
+    [a.coverageNotSet, 'No coverage radius or location saved on their profile'],
+    [a.uninsured, 'No insurance, which this job requires'],
+  ];
+  reasons.forEach(([count, label]) => {
+    if (count > 0) rows.push([escapeHtml(label), String(count)]);
+  });
+  rows.push(['Could be offered the job now', String(a.eligible)]);
+  if (a.offeringService === 0) rows.push(['Note', 'No cleaner has this service ticked on their profile.']);
+  return rows;
 }
 
 async function loadJobs() {
