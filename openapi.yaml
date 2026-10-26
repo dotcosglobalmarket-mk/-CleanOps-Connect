@@ -194,6 +194,23 @@ paths:
           description: Not a tender, no quote from that cleaner, or already awarded
         '409':
           description: The job was just booked another way
+  /jobs/{id}/documents/{kind}:
+    get:
+      summary: Printable job document (service record, or compliance pack for industrial jobs)
+      description: Returns an HTML page (never cached). Only the job's customer, its booked cleaner or an admin; 409 until a cleaner is booked; the compliance pack is 400 for non-industrial jobs. States only recorded facts, and leaves the COSHH and risk sections blank for the cleaner.
+      tags: [Jobs]
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: kind, in: path, required: true, schema: { type: string, enum: [service-record, compliance-pack] } }
+      responses:
+        '200':
+          description: text/html document
+        '403':
+          description: Not a party to this job
+        '409':
+          description: No cleaner booked yet
   /chat/unread:
     get:
       summary: Unread chat message counts for the signed-in customer or cleaner

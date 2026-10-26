@@ -1,6 +1,7 @@
 import { apiRequest, requireRole } from './api.js';
 import { escapeHtml, splitSuggestion } from './dom.js';
 import { STRIPE_PUBLISHABLE_KEY } from './config.js';
+import { openDocument } from './documents.js';
 import { mountChat, fetchUnread, setupConversations } from './chat.js';
 import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate } from './dashboard-ui.js';
 
@@ -252,6 +253,8 @@ async function openJob(jobId, { focusReview = false, focusPayment = false } = {}
 
   const status = job.paymentStatus;
   mountJobChat(job);
+  show('documents-section', Boolean(job.cleaner));
+  document.getElementById('compliance-pack-btn').hidden = job.category !== 'industrial';
   show('offers-section', !status);
   show('payment-section', status === 'BOOKED');
   show('confirm-section', status === 'AWAITING_CONFIRMATION');
@@ -288,6 +291,17 @@ function mountJobChat(job) {
     },
   });
 }
+
+document.querySelectorAll('.doc-btn').forEach((btn) =>
+  btn.addEventListener('click', async () => {
+    hideAlert('page-alert');
+    try {
+      await openDocument(currentJob._id, btn.dataset.kind);
+    } catch (err) {
+      showAlert('page-alert', err.message);
+    }
+  })
+);
 
 document.getElementById('close-job').addEventListener('click', () => {
   if (activeChat) activeChat.destroy();

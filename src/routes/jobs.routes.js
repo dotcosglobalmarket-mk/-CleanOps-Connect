@@ -12,6 +12,7 @@ const {
   offerIdParamSchema,
   acceptOfferSchema,
   submitQuoteSchema,
+  documentParamSchema,
 } = require('../validation/job.validation');
 
 const router = express.Router();
@@ -26,6 +27,14 @@ router.post(
 );
 router.post('/', requireAuth, requireRole('customer'), validateBody(createJobSchema), JobController.create);
 router.get('/mine', requireAuth, requireRole('customer'), JobController.listMine);
+// Printable service record, and a pre-start compliance pack for industrial jobs.
+router.get(
+  '/:id/documents/:kind',
+  requireAuth,
+  requireRole('customer', 'cleaner', 'admin'),
+  validateParams(documentParamSchema),
+  JobController.document
+);
 router.get('/:id', requireAuth, validateParams(jobIdParamSchema), JobController.getById);
 router.get(
   '/:id/offers',

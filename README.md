@@ -132,6 +132,13 @@ npm run dev
 - `POST /jobs/:id/offers/:offerId/quote` 🔒 (an invited cleaner) – **Tender:** send or revise a quote at your own price (`pricePence`) with an optional note (contact details are hidden). Allowed until the tender closes.
 - `POST /jobs/:id/offers/:offerId/award` 🔒 (the job's customer) – **Tender:** award the job to one quote. Books at that cleaner's quoted price with the same atomic booking as accept, declines the other offers and emails the unsuccessful bidders.
 
+#### Job documents
+
+`GET /jobs/:id/documents/service-record` and `GET /jobs/:id/documents/compliance-pack` 🔒 (the job's customer, its booked cleaner, or an admin) return a printable HTML page (open it, then print or save as PDF). Both are `Cache-Control: no-store`, and need a cleaner to be booked on the job.
+
+- **Service record** — job, parties, timeline (posted, booked, checked in, completed, confirmed and whether the customer or the 48-hour auto-confirm did it), the cleaner's price and payment status, and the cleaner's *current* recorded DBS, COSHH and insurance status. Anything not recorded says "Not recorded". It states that it is not an invoice.
+- **Pre-start compliance pack** (industrial jobs only) — the same job details plus a COSHH substances table, a risk-assessment and method-statement outline, and sign-off lines, **left blank for the cleaner to complete**. The platform does not know which products will be used, so it never invents hazard information or claims compliance.
+
 #### Industrial tenders
 
 An **industrial** job can be posted as a tender: `POST /jobs` with `tender: { closesAt, requirements? }` (closing time between 1 hour and 30 days away; domestic jobs cannot be tenders). `POST /jobs/:id/allocate` then invites up to 10 matching, insured cleaners (each cleaner is invited once). Invited cleaners send quotes — they cannot use first-to-accept on a tender — and the customer compares the quotes (cheapest first in the dashboard) and awards one. The price is always the cleaner's own quote; the platform never sets or suggests it.
@@ -327,13 +334,16 @@ No GitHub secrets are required for this deploy path; environment variables are c
 3. **SSL**: Cloudflare dashboard → your zone → SSL/TLS → set encryption mode to **Full** (or **Full (strict)**). Cloudflare issues and manages the edge certificate for both hostnames automatically once the custom domains are active.
 4. **Redirect `www` → apex**: Cloudflare dashboard → your zone → Rules → Redirect Rules → create a rule: When incoming requests match hostname equals `www.cleanop-connect.co.uk`, then redirect to `https://cleanop-connect.co.uk/${uri}` (Type: Dynamic, Status code: 301).
 
-## Future Roadmap
+## Roadmap
 
-- Customer mobile app
-- Cleaner mobile app
-- Escrow payments
-- Automated compliance document generation
-- AI‑powered job pricing suggestions
+**Delivered**
+- Customer and cleaner apps, as an installable progressive web app (install from the browser; works on phones and desktop, with live in-app chat). Native App Store and Play Store apps are not built; they need Apple and Google developer accounts and signing keys.
+- Escrow payments (see Payments above).
+- Industrial tendering (see Industrial tenders above).
+- Job documents: a printable service record for every booked job, and a pre-start compliance pack for industrial jobs (see Job documents below).
+
+**On hold**
+- AI-powered job pricing suggestions. The platform deliberately never sets or suggests a cleaner's price (README, `Job.js` and the published terms all say so, to protect cleaners' self-employed status). It should only be built if that rule is changed on legal advice.
 
 ## License
 

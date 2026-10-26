@@ -1,4 +1,5 @@
 import { apiRequest } from './api.js';
+import { openDocument } from './documents.js';
 import { escapeHtml } from './dom.js';
 import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate } from './dashboard-ui.js';
 
@@ -190,14 +191,20 @@ async function loadOffers() {
 // --- My Jobs ---
 function jobActions(job) {
   const id = escapeHtml(job._id);
+  let actions = '';
   if (job.paymentStatus === 'PAID_HELD') {
-    return `<button type="button" class="job-action" data-id="${id}" data-action="check-in">Check in</button>
+    actions = `<button type="button" class="job-action" data-id="${id}" data-action="check-in">Check in</button>
             <button type="button" class="secondary job-action" data-id="${id}" data-action="cancel">Cancel</button>`;
+  } else if (job.paymentStatus === 'IN_PROGRESS') {
+    actions = `<button type="button" class="job-action" data-id="${id}" data-action="complete">Mark complete</button>`;
   }
-  if (job.paymentStatus === 'IN_PROGRESS') {
-    return `<button type="button" class="job-action" data-id="${id}" data-action="complete">Mark complete</button>`;
-  }
-  return '';
+  // Printable records for every booked job; the compliance pack is for industrial work.
+  const docs = `<button type="button" class="secondary doc-btn" data-id="${id}" data-kind="service-record">Service record</button>${
+    job.category === 'industrial'
+      ? ` <button type="button" class="secondary doc-btn" data-id="${id}" data-kind="compliance-pack">Compliance pack</button>`
+      : ''
+  }`;
+  return `${actions} ${docs}`;
 }
 
 const ACTION_CONFIRM = {
@@ -227,6 +234,16 @@ async function loadMyJobs() {
         </tr>
       `),
     });
+    container.querySelectorAll('.doc-btn').forEach((btn) =>
+      btn.addEventListener('click', async () => {
+        hideAlert('jobs-alert');
+        try {
+          await openDocument(btn.dataset.id, btn.dataset.kind);
+        } catch (err) {
+          showAlert('jobs-alert', err.message);
+        }
+      })
+    );
     container.querySelectorAll('.job-action').forEach((btn) => {
       btn.addEventListener('click', async () => {
         hideAlert('jobs-alert');

@@ -138,6 +138,18 @@ const jobSchema = new mongoose.Schema(
     disputedAt: {
       type: Date,
     },
+    // When the cleaner checked in, and when/how the job was confirmed.
+    // Recorded for the service record; older jobs simply have none.
+    checkedInAt: {
+      type: Date,
+    },
+    confirmedAt: {
+      type: Date,
+    },
+    confirmationMethod: {
+      type: String,
+      enum: ['customer', 'automatic'],
+    },
     awaitingConfirmationAt: {
       type: Date,
     },

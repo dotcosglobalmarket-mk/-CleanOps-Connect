@@ -1,5 +1,6 @@
 const jobService = require('../services/job.service');
 const aiDescriptionService = require('../services/ai-description.service');
+const documentService = require('../services/document.service');
 
 async function create(req, res, next) {
   try {
@@ -71,6 +72,17 @@ async function awardQuote(req, res, next) {
   }
 }
 
+// A printable HTML document. It names the customer and cleaner, so it is
+// never cached.
+async function document(req, res, next) {
+  try {
+    const html = await documentService.generateDocument(req.params.id, req.params.kind, req.user);
+    res.status(200).set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }).send(html);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function listMine(req, res, next) {
   try {
     res.status(200).json(await jobService.listJobsForCustomer(req.user.id));
@@ -98,4 +110,5 @@ module.exports = {
   declineOffer,
   submitQuote,
   awardQuote,
+  document,
 };
