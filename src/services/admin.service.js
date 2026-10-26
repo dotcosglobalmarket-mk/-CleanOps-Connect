@@ -1,5 +1,6 @@
 const CleanerProfile = require('../models/CleanerProfile');
 const Job = require('../models/Job');
+const JobOffer = require('../models/JobOffer');
 const { STATES } = require('./payment-state-machine');
 
 const JOBS_LIST_LIMIT = 200;
@@ -48,7 +49,13 @@ async function getJobById(id) {
     .populate('cleaner', 'name')
     .populate('serviceType', 'name');
   if (!job) throw notFound('Job not found');
-  return job;
+
+  // The cleaners the job was offered to (allocation), best match first.
+  const offers = await JobOffer.find({ job: id })
+    .populate('cleaner', 'name companyName basePostcode')
+    .sort({ score: -1 })
+    .lean();
+  return { ...(typeof job.toObject === 'function' ? job.toObject() : job), offers };
 }
 
 async function getSummary() {

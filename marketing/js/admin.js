@@ -243,6 +243,16 @@ function renderJobDetail(job) {
       ['Cleaner payout', pence(job.cleanerPayoutPence)],
     ]],
   ];
+  const offers = job.offers || [];
+  sections.push([`Cleaners allocated (${offers.length})`, offers.length
+    ? offers.map((o, i) => [
+        `${i + 1}. ${escapeHtml(o.cleaner?.companyName || o.cleaner?.name || 'Unknown cleaner')}`,
+        `${statusBadge(o.status, o.status === 'accepted' ? 'good' : o.status === 'declined' || o.status === 'expired' ? 'bad' : 'warn')} ` +
+          `match score ${escapeHtml(Math.round(o.score ?? 0))}` +
+          `${o.cleaner?.basePostcode ? ` · base ${escapeHtml(o.cleaner.basePostcode.toUpperCase())}` : ''}` +
+          `${typeof o.quotePricePence === 'number' ? ` · quote ${formatPence(o.quotePricePence)}` : ''}`,
+      ])
+    : [['—', 'No cleaners were matched to this job.']]]);
   if (job.disputeReason) {
     sections.push(['Dispute', [
       ['Reason', escapeHtml(job.disputeReason)],

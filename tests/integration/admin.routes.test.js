@@ -17,6 +17,7 @@ jest.mock('../../src/models/ApprovalRequest', () => ({
   updateOne: jest.fn(),
 }));
 jest.mock('../../src/services/payment.service');
+jest.mock('../../src/models/JobOffer', () => ({ find: jest.fn() }));
 jest.mock('../../src/models/CleanerProfile', () => {
   const CleanerProfileMock = jest.fn();
   CleanerProfileMock.find = jest.fn();
@@ -37,6 +38,7 @@ const jwt = require('jsonwebtoken');
 const createApp = require('../../src/app');
 const CleanerProfile = require('../../src/models/CleanerProfile');
 const Job = require('../../src/models/Job');
+const JobOffer = require('../../src/models/JobOffer');
 const User = require('../../src/models/User');
 const AuditLog = require('../../src/models/AuditLog');
 const ApprovalRequest = require('../../src/models/ApprovalRequest');
@@ -263,11 +265,26 @@ describe('Admin routes', () => {
 
     it('returns a single job for admins', async () => {
       Job.findById.mockReturnValue(chainable({ _id: jobId }, ['populate']));
+      JobOffer.find.mockReturnValue(chainable([], ['populate', 'sort', 'lean']));
 
       const res = await request(app).get(`/admin/jobs/${jobId}`).set('Authorization', authHeaderFor('admin'));
 
       expect(res.status).toBe(200);
       expect(res.body._id).toBe(jobId);
+      expect(res.body.offers).toEqual([]);
+    });
+
+    it('includes the cleaners the job was allocated to, best match first', async () => {
+      Job.findById.mockReturnValue(chainable({ _id: jobId }, ['populate']));
+      const offers = [{ _id: 'o1', status: 'sent', score: 82, cleaner: { name: 'Amy', basePostcode: 'LS11 5AA' } }];
+      const query = chainable(offers, ['populate', 'sort', 'lean']);
+      JobOffer.find.mockReturnValue(query);
+
+      const res = await request(app).get(`/admin/jobs/${jobId}`).set('Authorization', authHeaderFor('admin'));
+
+      expect(JobOffer.find).toHaveBeenCalledWith({ job: jobId });
+      expect(query.sort).toHaveBeenCalledWith({ score: -1 });
+      expect(res.body.offers[0]).toMatchObject({ status: 'sent', score: 82, cleaner: { name: 'Amy' } });
     });
 
     it('returns 404 when the job does not exist', async () => {
