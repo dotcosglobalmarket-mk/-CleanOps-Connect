@@ -72,6 +72,10 @@ describe('contact-filter.service', () => {
       'I will arrive at 9 and finish at 12, price £120.50',
       'Please bring 2 mops, 3 cloths and 1 bucket',
       'Is the key under the mat? Thanks!',
+      // "double"/"triple" with nothing after them are not digits — don't
+      // let repeating the word alone add up to a false phone-number match.
+      'triple triple triple triple triple check the windows please',
+      'we did a double, a double and a triple shift this week',
     ])('%j', (input) => {
       expect(masked(input)).toEqual({ text: input, masked: false, kinds: [] });
     });

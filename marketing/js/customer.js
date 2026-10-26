@@ -638,12 +638,15 @@ loadServiceTypes();
     await showView('messages', { openJobId: jobId });
     return;
   }
-  // Unread count for the Messages tab badge.
-  fetchUnread().then((unread) => {
-    const badge = document.getElementById('messages-unread');
-    badge.textContent = unread.total || 0;
-    badge.hidden = !unread.total;
-  });
+  // Unread count for the Messages tab badge. Leave it at its default
+  // (hidden) state on error rather than claiming zero unread.
+  fetchUnread()
+    .then((unread) => {
+      const badge = document.getElementById('messages-unread');
+      badge.textContent = unread.total || 0;
+      badge.hidden = !unread.total;
+    })
+    .catch(() => {});
   if (!jobId) return;
   if (params.get('redirect_status') === 'succeeded') {
     await afterPayment(jobId);

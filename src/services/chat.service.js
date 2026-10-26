@@ -94,7 +94,6 @@ async function listMessages(jobId, user, { after } = {}) {
 async function sendMessage(jobId, user, rawBody) {
   const { job, role } = await requireParticipant(jobId, user);
   const state = chatState(job);
-  if (!state.open) throw httpError(409, state.reason);
   if (!state.writable) throw httpError(409, state.reason);
 
   const trimmed = String(rawBody || '').trim();
