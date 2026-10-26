@@ -1492,3 +1492,12 @@ table.data-table tbody tr:hover {
   color: inherit;
   opacity: 0.85;
 }
+
+.job-detail { margin-top: 1rem; padding: 1rem 1.25rem; background: #fff; border: 1px solid var(--border, #e2e8f0); border-radius: 12px; }
+.job-detail-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.job-detail h3, .job-detail h4 { margin: 0; }
+.job-detail h4 { margin-top: 1rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; }
+.job-detail-list { display: grid; grid-template-columns: minmax(8rem, 12rem) 1fr; gap: 0.35rem 1rem; margin: 0.4rem 0 0; }
+.job-detail-list dt { color: #64748b; }
+.job-detail-list dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .job-detail-list { grid-template-columns: 1fr; } .job-detail-list dd { margin-bottom: 0.4rem; } }
