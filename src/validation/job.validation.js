@@ -17,6 +17,14 @@ const createJobSchema = z
     path: ['budgetMax'],
   });
 
+const describeJobSchema = z.object({
+  category: z.enum(['domestic', 'industrial']),
+  serviceType: objectId().optional(),
+  frequency: z.enum(['one_off', 'weekly', 'monthly', 'contract']).optional(),
+  estimatedHours: z.number().positive().max(1000).optional(),
+  draft: z.string().trim().max(2000).optional(),
+});
+
 const jobIdParamSchema = z.object({
   id: objectId(),
 });
@@ -31,6 +39,7 @@ const acceptOfferSchema = z.object({
 });
 
 module.exports = {
+  describeJobSchema,
   createJobSchema,
   jobIdParamSchema,
   offerIdParamSchema,

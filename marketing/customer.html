@@ -70,7 +70,17 @@
         <div class="form-row">
           <label for="description">What needs doing? (optional)</label>
           <textarea id="description" rows="3" maxlength="2000"></textarea>
-          <span class="field-help">Cleaners see this and your area (e.g. LS12). Your full postcode is only shared with the cleaner you book.</span>
+          <div class="ai-help">
+            <button type="button" id="describe-help" class="secondary">✨ Help me write this</button>
+            <span class="field-help" id="describe-status" aria-live="polite"></span>
+          </div>
+          <div id="describe-suggestion" class="card" hidden>
+            <p class="field-help">Suggestion — check it's accurate before using it. Please don't include names, phone numbers or your address.</p>
+            <p id="describe-suggestion-text" style="white-space: pre-wrap"></p>
+            <button type="button" id="describe-use">Use this</button>
+            <button type="button" id="describe-dismiss" class="secondary">Dismiss</button>
+          </div>
+          <span class="field-help">Cleaners see this and your area (e.g. LS12). Your full postcode is only shared with the cleaner you book. "Help me write this" sends the details above and your text to our AI provider, Anthropic.</span>
         </div>
 
         <div class="two-column">
