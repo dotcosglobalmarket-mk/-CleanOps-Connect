@@ -1,8 +1,15 @@
 import { apiRequest, requireRole } from './api.js';
 import { escapeHtml } from './dom.js';
-import { setupTabs } from './dashboard-ui.js';
+import { setupTabs, formatPence } from './dashboard-ui.js';
+import { STRIPE_PUBLISHABLE_KEY } from './config.js';
 
 requireRole('cleaner');
+
+const PLAN_LABELS = {
+  starter: 'Starter',
+  pro: 'Pro',
+  industrial_pro: 'Industrial Pro',
+};
 
 const WEEKDAYS = [
   { value: 'mon', label: 'Mon' },
@@ -30,8 +37,60 @@ function hideAlert(id) {
   document.getElementById(id).hidden = true;
 }
 
+// --- Subscription billing (Stripe Setup Intent; card is saved and charged
+// automatically every month, not confirmed live like a one-off job payment) ---
+let subStripe = null;
+let subElements = null;
+let subSetupClientSecret = null;
+
+function loadStripeJs() {
+  if (window.Stripe) return Promise.resolve(window.Stripe);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://js.stripe.com/v3/';
+    script.onload = () => resolve(window.Stripe);
+    script.onerror = () => reject(new Error('Could not load Stripe. Check your connection and try again.'));
+    document.head.appendChild(script);
+  });
+}
+
+// Mounts the card-entry Payment Element once per visit to this tab. The
+// same SetupIntent is reused for every click of "activate" until it's
+// actually used (a used SetupIntent can't be confirmed twice).
+async function ensureSubscriptionPaymentElement() {
+  if (subSetupClientSecret || !cleanerId || !STRIPE_PUBLISHABLE_KEY) return;
+
+  const { clientSecret } = await apiRequest('/subscriptions/setup-intent', {
+    method: 'POST',
+    body: { cleanerId },
+    auth: true,
+  });
+  subSetupClientSecret = clientSecret;
+
+  const StripeJs = await loadStripeJs();
+  subStripe = subStripe || StripeJs(STRIPE_PUBLISHABLE_KEY);
+  subElements = subStripe.elements({ clientSecret });
+  const container = document.getElementById('subscription-payment-element');
+  container.innerHTML = '';
+  subElements.create('payment').mount(container);
+}
+
+async function loadMySubscription() {
+  const statusEl = document.getElementById('subscription-status-text');
+  try {
+    const subscription = await apiRequest('/subscriptions/me', { auth: true });
+    statusEl.textContent = subscription
+      ? `Current plan: ${PLAN_LABELS[subscription.plan] || subscription.plan} — ${formatPence(subscription.pricePence)}/month.`
+      : 'No active subscription.';
+  } catch (err) {
+    statusEl.textContent = '';
+  }
+}
+
 // --- Tab switching (a ?tab= link, e.g. from an email, opens that tab) ---
-const selectPanel = setupTabs();
+const selectPanel = setupTabs((panel) => {
+  if (panel === 'coverage') ensureSubscriptionPaymentElement().catch(() => {});
+});
 const requestedTab = new URLSearchParams(window.location.search).get('tab');
 if (requestedTab) selectPanel(requestedTab);
 
@@ -110,6 +169,7 @@ async function loadServiceTypes() {
 // --- Populate profile form + overview from a cleaner profile object ---
 function populateFromProfile(cleaner) {
   cleanerId = cleaner._id || cleaner.id;
+  loadMySubscription();
 
   document.getElementById('overview-welcome').textContent = `Welcome back, ${cleaner.name || 'there'}!`;
   document.getElementById('status-value').textContent = cleaner.available === false ? 'Unavailable' : 'Available';
@@ -276,7 +336,7 @@ document.getElementById('coverage-form').addEventListener('submit', async (event
   }
 });
 
-document.getElementById('activate-subscription-button').addEventListener('click', async () => {
+document.getElementById('activate-subscription-button').addEventListener('click', async (event) => {
   hideAlert('subscription-alert');
   document.getElementById('subscription-success').hidden = true;
 
@@ -284,18 +344,40 @@ document.getElementById('activate-subscription-button').addEventListener('click'
     showAlert('subscription-alert', 'Register your profile first.');
     return;
   }
+  if (!STRIPE_PUBLISHABLE_KEY) {
+    showAlert('subscription-alert', 'Card payments are not set up on this site yet. Please contact us.');
+    return;
+  }
 
+  event.target.disabled = true;
   try {
+    await ensureSubscriptionPaymentElement();
+    const { error, setupIntent } = await subStripe.confirmSetup({
+      elements: subElements,
+      redirect: 'if_required',
+    });
+    if (error) {
+      showAlert('subscription-alert', error.message);
+      return;
+    }
+
     await apiRequest('/subscriptions', {
       method: 'POST',
-      body: { cleanerId, plan: document.getElementById('plan').value },
+      body: { cleanerId, plan: document.getElementById('plan').value, paymentMethodId: setupIntent.payment_method },
       auth: true,
     });
+
     const successEl = document.getElementById('subscription-success');
     successEl.textContent = 'Subscription activated.';
     successEl.hidden = false;
+    // A used SetupIntent can't be confirmed again — force a fresh one if
+    // the cleaner changes plan or re-enters their card later.
+    subSetupClientSecret = null;
+    await loadMySubscription();
   } catch (err) {
     showAlert('subscription-alert', err.message);
+  } finally {
+    event.target.disabled = false;
   }
 });
 

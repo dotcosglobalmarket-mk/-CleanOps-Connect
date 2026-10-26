@@ -95,6 +95,57 @@ async function createExpressDashboardLink(accountId) {
   return getClient().accounts.createLoginLink(accountId);
 }
 
+// --- Platform billing (monthly subscription fee charged TO the cleaner) ---
+// Uses a plain Customer on the platform's own account — distinct from the
+// Connect Express account above, which funds are paid OUT to.
+
+async function createCustomer({ email, metadata }) {
+  return getClient().customers.create({ email, metadata });
+}
+
+async function createSetupIntent({ customerId, metadata }) {
+  // usage: 'off_session' — this payment method is charged automatically
+  // every month, not while the cleaner is present to re-authenticate.
+  return getClient().setupIntents.create({ customer: customerId, usage: 'off_session', metadata });
+}
+
+async function retrievePaymentMethod(paymentMethodId) {
+  return getClient().paymentMethods.retrieve(paymentMethodId);
+}
+
+async function setDefaultPaymentMethod({ customerId, paymentMethodId }) {
+  return getClient().customers.update(customerId, {
+    invoice_settings: { default_payment_method: paymentMethodId },
+  });
+}
+
+// No pre-created Stripe Price/Product is required — price_data defines an
+// inline recurring price for a product named after the plan.
+async function createSubscription({ customerId, pricePence, productName, paymentMethodId, metadata }) {
+  return getClient().subscriptions.create({
+    customer: customerId,
+    items: [
+      {
+        price_data: {
+          currency: 'gbp',
+          unit_amount: pricePence,
+          recurring: { interval: 'month' },
+          product_data: { name: productName },
+        },
+      },
+    ],
+    default_payment_method: paymentMethodId,
+    // Fail the request immediately if the first charge doesn't go through,
+    // rather than silently creating a subscription that's already behind.
+    payment_behavior: 'error_if_incomplete',
+    metadata,
+  });
+}
+
+async function cancelSubscription(subscriptionId) {
+  return getClient().subscriptions.cancel(subscriptionId);
+}
+
 // Verifies the Stripe signature BEFORE the caller trusts event.id for dedup
 // or acts on the payload at all.
 //
@@ -131,5 +182,11 @@ module.exports = {
   createAccountOnboardingLink,
   retrieveAccount,
   createExpressDashboardLink,
+  createCustomer,
+  createSetupIntent,
+  retrievePaymentMethod,
+  setDefaultPaymentMethod,
+  createSubscription,
+  cancelSubscription,
   constructWebhookEvent,
 };

@@ -1,6 +1,7 @@
 const stripeService = require('../services/stripe.service');
 const ProcessedWebhookEvent = require('../models/ProcessedWebhookEvent');
 const paymentService = require('../services/payment.service');
+const subscriptionService = require('../services/subscription.service');
 
 async function dispatch(event) {
   switch (event.type) {
@@ -37,6 +38,17 @@ async function dispatch(event) {
     case 'charge.dispute.created': {
       const dispute = event.data.object;
       await paymentService.handleChargeDisputeCreated(dispute.payment_intent, dispute.reason);
+      break;
+    }
+    case 'customer.subscription.updated':
+    case 'customer.subscription.deleted': {
+      const subscription = event.data.object;
+      await subscriptionService.handleStripeSubscriptionUpdated(subscription);
+      break;
+    }
+    case 'invoice.payment_failed': {
+      const invoice = event.data.object;
+      await subscriptionService.handleInvoicePaymentFailed(invoice);
       break;
     }
     default:

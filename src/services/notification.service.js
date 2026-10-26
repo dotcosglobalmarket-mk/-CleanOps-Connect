@@ -220,6 +220,18 @@ module.exports = {
     });
   }),
 
+  subscriptionPaymentFailed: safely('subscriptionPaymentFailed', async (cleanerProfile) => {
+    await emailService.send({
+      to: await cleanerEmail(cleanerProfile._id),
+      subject: 'Your CleanOps subscription payment failed',
+      paragraphs: [
+        "We couldn't charge your card for this month's CleanOps subscription fee.",
+        'Please update your payment details to keep your subscription active.',
+      ],
+      action: cleanerLink('Update billing', 'coverage'),
+    });
+  }),
+
   opsAlert: safely('opsAlert', async (subject, message) => {
     if (!process.env.OPS_NOTIFICATION_EMAIL) {
       logger.error(`[ops-alert] ${subject}: ${message}`);
