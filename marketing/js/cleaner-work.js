@@ -261,8 +261,10 @@ async function loadMyJobs() {
   container.innerHTML = '<div class="table-empty">Loading…</div>';
   try {
     const jobs = await apiRequest('/cleaners/me/jobs', { auth: true });
+    container.classList.add('fit');
     container.innerHTML = renderTable({
-      columns: ['Job', 'Customer', 'Address', 'Price', 'Status', 'Booked', ''],
+      fit: true,
+      columns: ['Job', 'Customer', 'Address', 'Price', 'Status', 'Booked', 'Actions'],
       emptyMessage: 'No booked jobs yet. Accept an offer to get started.',
       rows: jobs.map((job) => `
         <tr>
