@@ -1585,3 +1585,57 @@ table.data-table tbody tr:hover {
 .inline-add-row input { flex: 1 1 0; min-width: 0; }
 .document-erase { margin: 0.75rem 0; padding: 0.6rem 0.9rem; border: 1px solid #e5eaec; border-radius: 10px; }
 .document-erase summary { cursor: pointer; font-weight: 600; }
+
+/* Tables that wrap to fit instead of scrolling sideways (My Jobs) */
+table.data-table.fit { table-layout: auto; }
+table.data-table.fit th,
+table.data-table.fit td {
+  white-space: normal;
+  overflow-wrap: break-word;
+  vertical-align: top;
+}
+/* The first column holds the job and its description: give it a share, so a long
+   description wraps instead of squeezing every other column. */
+table.data-table.fit td:first-child { width: 32%; }
+table.data-table.fit td.table-actions { display: table-cell; }
+table.data-table.fit td.table-actions button { margin: 0 0.35rem 0.35rem 0; }
+
+/* Below this width seven columns no longer fit (the menu takes a fifth of the page), so each job becomes a card. */
+@media (max-width: 1100px) {
+  table.data-table.fit,
+  table.data-table.fit tbody { display: block; }
+  table.data-table.fit thead { display: none; }
+  table.data-table.fit tr {
+    display: block;
+    padding: 0.5rem 0.85rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+  table.data-table.fit tbody tr:last-child { border-bottom: none; }
+  table.data-table.fit td {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.35rem 0;
+    border-bottom: none;
+    text-align: right;
+  }
+  table.data-table.fit td::before {
+    content: attr(data-label);
+    color: var(--color-muted);
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    text-align: left;
+    flex-shrink: 0;
+  }
+  table.data-table.fit td:first-child,
+  table.data-table.fit td.table-actions { display: block; text-align: left; width: auto; }
+  table.data-table.fit td:first-child::before,
+  table.data-table.fit td.table-actions::before { display: block; margin-bottom: 0.2rem; }
+}
+
+/* Collapsible dashboard menu */
+.dash-sidebar-toggle { margin-bottom: 1rem; }
+.dash-layout.sidebar-collapsed { grid-template-columns: 1fr; }
+.dash-layout.sidebar-collapsed .dash-sidebar { display: none; }

@@ -40,14 +40,26 @@ export function showSuccess(id, message) {
   showAlert(id, message);
 }
 
-export function renderTable({ columns, rows, emptyMessage }) {
+// `fit` makes the table wrap its text to the width it is given instead of
+// scrolling sideways, and on a narrow screen turns each row into a small card
+// (every cell labelled with its column).
+export function renderTable({ columns, rows, emptyMessage, fit = false }) {
   if (!rows.length) {
     return `<div class="table-empty">${escapeHtml(emptyMessage)}</div>`;
   }
+  const body = fit
+    ? rows.map((row) => {
+        let cell = -1;
+        return row.replace(/<td(?=[\s>])/g, () => {
+          cell += 1;
+          return `<td data-label="${escapeHtml(columns[cell] || '')}"`;
+        });
+      })
+    : rows;
   return `
-    <table class="data-table">
+    <table class="data-table${fit ? ' fit' : ''}">
       <thead><tr>${columns.map((c) => `<th scope="col">${escapeHtml(c)}</th>`).join('')}</tr></thead>
-      <tbody>${rows.join('')}</tbody>
+      <tbody>${body.join('')}</tbody>
     </table>
   `;
 }
@@ -80,6 +92,48 @@ export function shortId(id) {
 
 // Sidebar tabs with ARIA tab semantics. `onShow(panelName)` runs each time a
 // tab is selected so panels can load lazily.
+// A "Hide menu" button above the page content gives the content the full width;
+// the choice is remembered on this device.
+const SIDEBAR_KEY = 'cleanops-sidebar-collapsed';
+
+function setupSidebarToggle() {
+  const layout = document.querySelector('.dash-layout');
+  const sidebar = document.querySelector('.dash-sidebar');
+  const content = document.querySelector('.dash-content');
+  if (!layout || !sidebar || !content) return;
+
+  sidebar.id = sidebar.id || 'dash-sidebar';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'secondary dash-sidebar-toggle';
+  button.setAttribute('aria-controls', sidebar.id);
+  content.prepend(button);
+
+  function apply(collapsed) {
+    layout.classList.toggle('sidebar-collapsed', collapsed);
+    button.setAttribute('aria-expanded', String(!collapsed));
+    button.textContent = collapsed ? '☰ Show menu' : '« Hide menu';
+  }
+
+  let collapsed = false;
+  try {
+    collapsed = localStorage.getItem(SIDEBAR_KEY) === '1';
+  } catch (err) {
+    // Storage blocked: start with the menu open.
+  }
+  apply(collapsed);
+
+  button.addEventListener('click', () => {
+    collapsed = !collapsed;
+    apply(collapsed);
+    try {
+      localStorage.setItem(SIDEBAR_KEY, collapsed ? '1' : '0');
+    } catch (err) {
+      // Not remembered; still works for this visit.
+    }
+  });
+}
+
 export function setupTabs(onShow) {
   const tabs = Array.from(document.querySelectorAll('.dash-nav-item'));
   const sidebar = document.querySelector('.dash-sidebar');
@@ -118,6 +172,8 @@ export function setupTabs(onShow) {
   });
 
   document.querySelectorAll('.alert').forEach((el) => el.setAttribute('aria-live', 'polite'));
+
+  setupSidebarToggle();
 
   // Lets a page open a specific tab, e.g. from a ?tab= link in an email.
   return function selectPanel(name) {
