@@ -151,6 +151,14 @@ async function createStaff(req, res, next) {
   }
 }
 
+async function resetStaffTwoFactor(req, res, next) {
+  try {
+    res.status(200).json(await staffService.resetStaffTwoFactor(req.params.id, req.body.reason, req));
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function updateStaff(req, res, next) {
   try {
     res.status(200).json(await staffService.setStaffActive(req.params.id, req.body.active, req.body.reason, req));
@@ -167,6 +175,7 @@ module.exports = {
   listStaff,
   createStaff,
   updateStaff,
+  resetStaffTwoFactor,
   listCleaners,
   getCleaner,
   impersonateCleaner,

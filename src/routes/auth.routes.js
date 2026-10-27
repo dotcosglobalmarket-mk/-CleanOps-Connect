@@ -7,6 +7,9 @@ const {
   loginSchema,
   requestPasswordResetSchema,
   resetPasswordSchema,
+  twoFactorSetupSchema,
+  twoFactorEnableSchema,
+  twoFactorVerifySchema,
 } = require('../validation/auth.validation');
 
 const router = express.Router();
@@ -30,5 +33,11 @@ router.post(
   AuthController.requestPasswordReset
 );
 router.post('/reset-password', authLimiter, validateBody(resetPasswordSchema), AuthController.resetPassword);
+
+// Two-step login. These take the short-lived token the password step hands out,
+// not a session, and share the per-IP limit above (wrong codes also lock the account).
+router.post('/2fa/setup', authLimiter, validateBody(twoFactorSetupSchema), AuthController.twoFactorSetup);
+router.post('/2fa/enable', authLimiter, validateBody(twoFactorEnableSchema), AuthController.twoFactorEnable);
+router.post('/2fa/verify', authLimiter, validateBody(twoFactorVerifySchema), AuthController.twoFactorVerify);
 
 module.exports = router;

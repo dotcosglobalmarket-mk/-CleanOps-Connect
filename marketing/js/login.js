@@ -1,6 +1,9 @@
-import { apiRequest, setSession } from './api.js';
+import { apiRequest } from './api.js';
+import { continueAfterPassword } from './two-factor-ui.js';
 
-document.getElementById('login-form').addEventListener('submit', async (event) => {
+const form = document.getElementById('login-form');
+
+form.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const alertBox = document.getElementById('alert');
@@ -13,10 +16,7 @@ document.getElementById('login-form').addEventListener('submit', async (event) =
 
   try {
     const result = await apiRequest('/auth/login', { method: 'POST', body: payload });
-    setSession(result.token, result.user);
-    const role = result.user.role;
-    const dashboards = { admin: 'admin.html', operator: 'ops.html', cleaner: 'cleaner.html' };
-    window.location.href = dashboards[role] || 'customer.html';
+    continueAfterPassword(result, { form, mount: document.getElementById('two-factor-step') });
   } catch (err) {
     alertBox.textContent = err.message;
     alertBox.hidden = false;

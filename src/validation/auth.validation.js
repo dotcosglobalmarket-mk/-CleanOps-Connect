@@ -24,7 +24,23 @@ const resetPasswordSchema = z.object({
   password: z.string().min(8),
 });
 
+const twoFactorSetupSchema = z.object({ setupToken: z.string().min(1) });
+
+const twoFactorEnableSchema = z.object({
+  setupToken: z.string().min(1),
+  code: z.string().min(6).max(12),
+});
+
+const twoFactorVerifySchema = z.object({
+  challengeToken: z.string().min(1),
+  // A six-digit code, or a recovery code such as ABCDE-FGHJK.
+  code: z.string().min(6).max(20),
+});
+
 module.exports = {
+  twoFactorSetupSchema,
+  twoFactorEnableSchema,
+  twoFactorVerifySchema,
   registerSchema,
   loginSchema,
   requestPasswordResetSchema,

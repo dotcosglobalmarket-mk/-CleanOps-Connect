@@ -3,9 +3,10 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const notificationService = require('./notification.service');
+const twoFactorService = require('./two-factor.service');
+const { signToken, toPublicUser } = require('./session.service');
 
 const SALT_ROUNDS = 10;
-const TOKEN_EXPIRY = '7d';
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
 function conflict(message) {
@@ -24,22 +25,6 @@ function badRequest(message) {
   const error = new Error(message);
   error.status = 400;
   return error;
-}
-
-function signToken(user) {
-  return jwt.sign({ sub: user._id.toString(), role: user.role }, process.env.JWT_SECRET, {
-    expiresIn: TOKEN_EXPIRY,
-  });
-}
-
-function toPublicUser(user) {
-  return {
-    id: user._id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    phone: user.phone,
-  };
 }
 
 async function register({ name, email, password, role, phone }) {
@@ -69,7 +54,8 @@ async function login({ email, password }) {
     throw unauthorized('This account has been deactivated');
   }
 
-  return { user: toPublicUser(user), token: signToken(user) };
+  // Admin accounts (and anyone who has switched it on) need a second step before a session exists.
+  return twoFactorService.afterPassword(user);
 }
 
 async function hashPassword(password) {
@@ -109,7 +95,8 @@ async function resetPassword(token, newPassword) {
   user.resetPasswordExpiresAt = undefined;
   await user.save();
 
-  return { user: toPublicUser(user), token: signToken(user) };
+  // A reset link must not be a way round two-step login.
+  return twoFactorService.afterPassword(user);
 }
 
 module.exports = {

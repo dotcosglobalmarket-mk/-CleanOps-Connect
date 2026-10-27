@@ -1,4 +1,5 @@
 const authService = require('../services/auth.service');
+const twoFactorService = require('../services/two-factor.service');
 
 async function register(req, res, next) {
   try {
@@ -37,7 +38,34 @@ async function resetPassword(req, res, next) {
   }
 }
 
+async function twoFactorSetup(req, res, next) {
+  try {
+    res.status(200).json(await twoFactorService.startSetup(req.body));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function twoFactorEnable(req, res, next) {
+  try {
+    res.status(200).json(await twoFactorService.enable(req.body));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function twoFactorVerify(req, res, next) {
+  try {
+    res.status(200).json(await twoFactorService.verifyLogin(req.body));
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
+  twoFactorSetup,
+  twoFactorEnable,
+  twoFactorVerify,
   register,
   login,
   requestPasswordReset,
