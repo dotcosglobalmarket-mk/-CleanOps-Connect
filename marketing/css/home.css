@@ -201,9 +201,16 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   /* Logo + Log in + Register is all a 375px row can hold; the theme follows
      the device setting on phones. */
   .nav-menu-items .theme-toggle { display: none; }
+  /* Signed in, the row holds Dashboard + Log out; the name doesn't fit beside them. */
+  .nav-menu-items .nav-user { display: none; }
   .logo-text { font-size: 1rem; }
   .nav-links { gap: 6px; }
-  .nav-links a { padding: 8px 9px; white-space: nowrap; }
+  .nav-links a { padding: 8px 8px; white-space: nowrap; }
+  /* If the links still don't fit beside the logo (long labels, wider web
+     fonts), they drop to a second row instead of pushing the page sideways. */
+  .nav-inner { flex-wrap: wrap; row-gap: 4px; }
+  .nav-menu-items { margin-left: auto; }
+  .hero { padding-top: 150px; }
 }
 
 /* Below 360px (iPhone SE 1st gen, small Androids) even that row is too wide:
