@@ -868,6 +868,13 @@ body:has(.lp-page) {
   top: 1.5rem;
 }
 
+/* A grid item's default min-width is its content's intrinsic width, so one
+   wide child (an input, a table) would push the whole page past the phone's
+   edge. Capping it keeps every panel inside the viewport. */
+.dash-content {
+  min-width: 0;
+}
+
 .dash-nav-item {
   text-align: left;
   background: transparent;
@@ -1571,5 +1578,10 @@ table.data-table tbody tr:hover {
 .compliance-card h3 { margin: 0 0 0.25rem; }
 .compliance-upload { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .compliance-upload input[type="file"] { flex: 1 1 14rem; }
+
+/* Text input + button on one line. A text input's intrinsic width (~250px)
+   otherwise refuses to shrink and forces the whole form past a phone's edge. */
+.inline-add-row { display: flex; gap: 0.5rem; }
+.inline-add-row input { flex: 1 1 0; min-width: 0; }
 .document-erase { margin: 0.75rem 0; padding: 0.6rem 0.9rem; border: 1px solid #e5eaec; border-radius: 10px; }
 .document-erase summary { cursor: pointer; font-weight: 600; }
