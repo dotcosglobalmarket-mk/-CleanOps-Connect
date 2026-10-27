@@ -856,7 +856,7 @@ async function loadStaff() {
   try {
     const staff = await apiRequest('/admin/users', { auth: true });
     container.innerHTML = renderTable({
-      columns: ['Name', 'Email', 'Role', 'Status', 'Created', ''],
+      columns: ['Name', 'Email', 'Role', 'Status', 'Two-step login', 'Created', ''],
       emptyMessage: 'No staff accounts yet.',
       rows: staff.map((u) => `
         <tr data-id="${escapeHtml(u.id)}" data-active="${u.active}">
@@ -864,8 +864,10 @@ async function loadStaff() {
           <td>${escapeHtml(u.email)}</td>
           <td>${escapeHtml(u.role)}</td>
           <td>${u.active ? statusBadge('Active', 'good') : statusBadge('Deactivated', 'bad')}</td>
+          <td>${u.twoFactorEnabled ? statusBadge('On', 'good') : statusBadge(u.role === 'admin' ? 'Not set up' : 'Off', u.role === 'admin' ? 'warn' : '')}</td>
           <td>${formatDate(u.createdAt)}</td>
           <td class="table-actions">
+            ${u.twoFactorEnabled ? '<button type="button" class="secondary reset-2fa-btn">Reset two-step</button>' : ''}
             <button type="button" class="secondary toggle-staff-btn">${u.active ? 'Deactivate' : 'Re-activate'}</button>
           </td>
         </tr>
@@ -873,6 +875,24 @@ async function loadStaff() {
     });
 
     container.querySelectorAll('tr[data-id]').forEach((row) => {
+      const resetBtn = row.querySelector('.reset-2fa-btn');
+      if (resetBtn) {
+        resetBtn.addEventListener('click', async () => {
+          hideAlert('staff-alert');
+          hideAlert('staff-success');
+          const reason = window.prompt('Reason for resetting this person\'s two-step login (they will set it up again at their next sign-in):');
+          if (!reason || reason.trim().length < 3) return;
+          resetBtn.disabled = true;
+          try {
+            await apiRequest(`/admin/users/${row.dataset.id}/reset-two-factor`, { method: 'POST', body: { reason: reason.trim() }, auth: true });
+            showAlert('staff-success', 'Two-step login reset. They will set it up again when they next sign in.');
+            await loadStaff();
+          } catch (err) {
+            showAlert('staff-alert', err.message);
+            resetBtn.disabled = false;
+          }
+        });
+      }
       row.querySelector('.toggle-staff-btn').addEventListener('click', async (event) => {
         hideAlert('staff-alert');
         hideAlert('staff-success');

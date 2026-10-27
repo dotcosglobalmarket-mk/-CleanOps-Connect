@@ -65,6 +65,8 @@ const updateStaffSchema = z.object({
   reason,
 });
 
+const resetTwoFactorSchema = z.object({ reason });
+
 const listJobsQuerySchema = z.object({
   status: z.enum(['open', 'allocated', 'in_progress', 'completed', 'cancelled']).optional(),
   paymentStatus: z.enum(Object.values(STATES)).optional(),
@@ -93,4 +95,5 @@ module.exports = {
   listStaffQuerySchema,
   createStaffSchema,
   updateStaffSchema,
+  resetTwoFactorSchema,
 };

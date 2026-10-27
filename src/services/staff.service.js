@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const authService = require('./auth.service');
 const auditService = require('./audit.service');
+const twoFactorService = require('./two-factor.service');
 const { STAFF_ROLES } = require('../config/permissions');
 
 function httpError(status, message) {
@@ -10,7 +11,12 @@ function httpError(status, message) {
 }
 
 function toStaff(user) {
-  return { ...authService.toPublicUser(user), active: user.active !== false, createdAt: user.createdAt };
+  return {
+    ...authService.toPublicUser(user),
+    active: user.active !== false,
+    twoFactorEnabled: Boolean(user.twoFactor && user.twoFactor.enabled),
+    createdAt: user.createdAt,
+  };
 }
 
 async function listStaff({ role } = {}) {
@@ -62,7 +68,29 @@ async function setStaffActive(userId, active, reason, req) {
   return toStaff(user);
 }
 
+// For a staff member who has lost their phone and their recovery codes: they
+// are asked to set two-step login up again at their next sign-in.
+async function resetStaffTwoFactor(userId, reason, req) {
+  const user = await User.findById(userId);
+  if (!user || !STAFF_ROLES.includes(user.role)) throw httpError(404, 'Staff account not found');
+
+  const before = { twoFactorEnabled: Boolean(user.twoFactor && user.twoFactor.enabled) };
+  await twoFactorService.reset(user);
+
+  await auditService.record({
+    req,
+    action: 'user.two_factor.reset',
+    targetType: 'user',
+    targetId: user._id,
+    before,
+    after: { twoFactorEnabled: false },
+    reason,
+  });
+  return toStaff(user);
+}
+
 module.exports = {
+  resetStaffTwoFactor,
   listStaff,
   createStaff,
   setStaffActive,

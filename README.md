@@ -352,6 +352,16 @@ Staff accounts cannot be created from the public register page, and `POST /admin
 - It **only ever creates a new account**. If an account with that email already exists and is not an admin, it is left unchanged and an error is logged (registration has no email verification, so promoting an existing account would let whoever registered that address first become admin). If an admin already exists it does nothing, so restarting never resets a password.
 - Log in at `login.html` with that email and password; admins are taken to `admin.html`. Then create operators and any other admins there, change the password through "Forgot password" if you wish, and remove `SUPER_ADMIN_PASSWORD` from the environment.
 
+### Two-step login (admins)
+
+Admin accounts need a six-digit code from an authenticator app as well as the password.
+
+- The first time an admin signs in after this is switched on, they are taken through set-up: enter the key in an authenticator app, type the first code, and save the ten one-time recovery codes (shown once).
+- A correct password alone never gives an admin a session, including through "Forgot password".
+- Five wrong codes lock that account for 15 minutes; a code cannot be used twice. Authenticator secrets are stored encrypted (key: `TWO_FACTOR_ENCRYPTION_KEY`, or derived from `JWT_SECRET` if unset) and recovery codes only as hashes.
+- Lost phone and recovery codes: another admin uses **Staff Accounts → Reset two-step** (audited). If *no* admin can get in, set `ADMIN_2FA_REQUIRED=false` on the API, redeploy, sign in with the password, then remove it. Anyone who already has two-step login on is still asked for a code.
+- It is required for admins only. Operators, customers and cleaners sign in with a password, as before.
+
 ## Roadmap
 
 **Delivered**

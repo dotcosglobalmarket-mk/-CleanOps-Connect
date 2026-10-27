@@ -23,6 +23,7 @@ export default defineConfig({
         privacy: resolve(__dirname, 'privacy.html'),
         terms: resolve(__dirname, 'terms.html'),
         cookies: resolve(__dirname, 'cookies.html'),
+        criminalDataPolicy: resolve(__dirname, 'criminal-data-policy.html'),
       },
     },
   },
