@@ -6,6 +6,7 @@ const logger = require('./utils/logger');
 const { seedDefaultServiceTypes } = require('./services/service-type-seed.service');
 const { ensureSuperAdmin } = require('./services/admin-bootstrap.service');
 const complianceDocumentService = require('./services/compliance-document.service');
+const retentionService = require('./services/retention.service');
 const { startPaymentWorkers } = require('./workers/transfer-retry.worker');
 
 const PORT = process.env.PORT || 4000;
@@ -18,6 +19,16 @@ function startComplianceDocumentExpiry() {
       .catch((err) => logger.error(`Compliance document expiry check failed: ${err.message}`));
   run();
   setInterval(run, 6 * 60 * 60 * 1000).unref();
+}
+
+// Deletes the written description of a problem report 12 months after it was raised.
+function startRetentionSweep() {
+  const run = () =>
+    retentionService
+      .purgeOldDisputeText()
+      .catch((err) => logger.error(`Retention sweep failed: ${err.message}`));
+  run();
+  setInterval(run, 24 * 60 * 60 * 1000).unref();
 }
 
 async function start() {
@@ -38,6 +49,7 @@ async function start() {
 
   startPaymentWorkers();
   startComplianceDocumentExpiry();
+  startRetentionSweep();
 }
 
 start().catch((err) => {
