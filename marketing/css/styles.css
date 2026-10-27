@@ -853,7 +853,8 @@ body:has(.lp-page) {
 
 /* Cleaner dashboard layout */
 .dash-layout {
-  max-width: 1120px;
+  /* Wide enough for an eight-column staff table beside the menu on a laptop screen. */
+  max-width: 1400px;
   margin: 0 auto;
   padding: 2rem 1.5rem 4rem;
   display: grid;
@@ -1639,14 +1640,27 @@ table.data-table.fit code { overflow-wrap: anywhere; }
 table.data-table.fit th,
 table.data-table.fit td {
   white-space: normal;
-  overflow-wrap: break-word;
   vertical-align: top;
+  padding: 0.55rem 0.6rem;
 }
-/* The first column holds the job and its description: give it a share, so a long
-   description wraps instead of squeezing every other column. */
-table.data-table.fit td:first-child { width: 32%; }
+/* Words stay whole (a price or date never splits), except values with no spaces that
+   can run long: IDs (<code>) and emails (.wrap-anywhere) may break at any character,
+   and "anywhere" (unlike "break-word") also counts when the browser works out a
+   column's minimum width, so one long email can't force a scrollbar. */
+table.data-table.fit td { overflow-wrap: break-word; }
+table.data-table.fit td .wrap-anywhere { overflow-wrap: anywhere; }
+table.data-table.fit th,
+table.data-table.fit td button { overflow-wrap: normal; }
+/* In the job tables (.table-wrap.fit) the first column holds the job and its
+   description: give it a share, so a long description wraps instead of squeezing
+   every other column. Staff tables start with a short name or ID and need no such share. */
+.table-wrap.fit table.data-table.fit td:first-child { width: 32%; }
 table.data-table.fit td.table-actions { display: table-cell; }
-table.data-table.fit td.table-actions button { margin: 0 0.35rem 0.35rem 0; }
+table.data-table.fit td.table-actions button { margin: 0 0.35rem 0.35rem 0; white-space: normal; }
+/* A text input's default width (~20 characters) and a select's longest option would
+   otherwise set a floor on the column: size them to the cell instead. */
+table.data-table.fit td input[type="text"] { width: 100%; min-width: 7rem; }
+table.data-table.fit td select { max-width: 100%; }
 
 /* Below this width the columns no longer fit, so each row becomes a labelled card.
    Pages with a side menu need the room sooner (1100px); others change at phone width (760px). */

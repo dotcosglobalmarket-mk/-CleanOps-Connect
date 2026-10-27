@@ -84,6 +84,7 @@ async function loadDisputes() {
   try {
     const jobs = await apiRequest('/ops/disputes', { auth: true });
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['Job', 'Reason', 'Raised', 'Customer', 'Cleaner', 'Price', ''],
       emptyMessage: 'No open disputes.',
       rows: jobs.map((job) => `
@@ -258,12 +259,13 @@ async function loadVerification() {
   try {
     const cleaners = await apiRequest('/ops/cleaners?verified=false', { auth: true });
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['Name', 'Email', 'DBS', 'COSHH', 'Insurance', 'Evidence checked (reason)', ''],
       emptyMessage: 'Every cleaner is verified.',
       rows: cleaners.map((c) => `
         <tr data-id="${escapeHtml(c._id)}">
           <td>${escapeHtml(c.name)}</td>
-          <td>${escapeHtml(c.user?.email || '—')}</td>
+          <td><span class="wrap-anywhere">${escapeHtml(c.user?.email || '—')}</span></td>
           <td><input type="checkbox" class="dbs-checkbox" aria-label="DBS verified" ${c.dbsVerified ? 'checked' : ''} /></td>
           <td><input type="checkbox" class="coshh-checkbox" aria-label="COSHH trained" ${c.coshhTrained ? 'checked' : ''} /></td>
           <td>
@@ -324,6 +326,7 @@ async function loadPayments() {
   try {
     const jobs = await apiRequest('/payments/ops/queue', { auth: true });
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['Job', 'Status', 'Customer', 'Cleaner', 'Attempts', 'Updated', ''],
       emptyMessage: 'No stuck payouts right now.',
       rows: jobs.map((job) => `
@@ -390,6 +393,7 @@ async function loadJobs() {
   try {
     const jobs = await apiRequest(`/ops/jobs${query}`, { auth: true });
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['Job', 'Customer', 'Cleaner', 'Service', 'Status', 'Payment', 'Price', ''],
       emptyMessage: 'No jobs match this filter.',
       rows: jobs.map((job) => `
@@ -466,6 +470,7 @@ async function loadCleaners() {
   try {
     const cleaners = await apiRequest(`/ops/cleaners${query}`, { auth: true });
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['Name', 'Email', 'Rating', 'DBS', 'Insurance', 'Status', ''],
       emptyMessage: 'No cleaners match this filter.',
       rows: cleaners.map((c) => {
@@ -478,7 +483,7 @@ async function loadCleaners() {
         return `
           <tr>
             <td>${escapeHtml(c.name)}</td>
-            <td>${escapeHtml(c.user?.email || '—')}</td>
+            <td><span class="wrap-anywhere">${escapeHtml(c.user?.email || '—')}</span></td>
             <td>${c.ratingAverage ? `${Number(c.ratingAverage).toFixed(1)} (${c.ratingCount || 0})` : '—'}</td>
             <td>${c.dbsVerified ? statusBadge('Verified', 'good') : statusBadge('Not verified', 'bad')}</td>
             <td>${escapeHtml(c.insuranceStatus || 'none')}</td>
@@ -530,6 +535,7 @@ async function loadReviews() {
   try {
     const reviews = await apiRequest(`/ops/reviews${query}`, { auth: true });
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['Date', 'Customer', 'Cleaner', 'Rating', 'Comment', 'Status', ''],
       emptyMessage: 'No reviews match this filter.',
       rows: reviews.map((r) => `

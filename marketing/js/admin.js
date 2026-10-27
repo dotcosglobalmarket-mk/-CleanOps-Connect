@@ -406,7 +406,7 @@ async function loadCleaners() {
       rows: cleaners.map((c) => `
         <tr data-cleaner-id="${c._id}">
           <td>${escapeHtml(c.name)}</td>
-          <td>${escapeHtml(c.user?.email || '—')}</td>
+          <td><span class="wrap-anywhere">${escapeHtml(c.user?.email || '—')}</span></td>
           <td><input type="checkbox" class="dbs-checkbox" ${c.dbsVerified ? 'checked' : ''} /></td>
           <td><input type="checkbox" class="coshh-checkbox" ${c.coshhTrained ? 'checked' : ''} /></td>
           <td>
@@ -876,7 +876,7 @@ async function loadStaff() {
       rows: staff.map((u) => `
         <tr data-id="${escapeHtml(u.id)}" data-active="${u.active}">
           <td>${escapeHtml(u.name)}</td>
-          <td>${escapeHtml(u.email)}</td>
+          <td><span class="wrap-anywhere">${escapeHtml(u.email)}</span></td>
           <td>${escapeHtml(u.role)}</td>
           <td>${u.active ? statusBadge('Active', 'good') : statusBadge('Deactivated', 'bad')}</td>
           <td>${u.twoFactorEnabled ? statusBadge('On', 'good') : statusBadge(u.role === 'admin' ? 'Not set up' : 'Off', u.role === 'admin' ? 'warn' : '')}</td>
