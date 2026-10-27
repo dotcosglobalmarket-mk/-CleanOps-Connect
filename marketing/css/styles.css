@@ -1754,3 +1754,7 @@ table.data-table.fit td.table-actions button { margin: 0 0.35rem 0.35rem 0; }
 .photo-add input[type="file"] { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
 .photo-add .button-like { display: inline-block; padding: 0.55rem 1rem; border: 1px solid var(--color-primary, #0f766e); border-radius: 8px; font-weight: 600; color: var(--color-primary, #0f766e); }
 .photo-add:focus-within .button-like { outline: 2px solid var(--color-primary, #0f766e); outline-offset: 2px; }
+
+.legal-company { margin-top: 0.25rem; font-size: 0.8rem; color: var(--color-muted, #64748b); overflow-wrap: anywhere; }
+.auth-footer { max-width: 28rem; margin: 1.5rem auto 2rem; padding: 0 1rem; text-align: center; font-size: 0.85rem; }
+.auth-footer p { margin: 0.25rem 0; }
