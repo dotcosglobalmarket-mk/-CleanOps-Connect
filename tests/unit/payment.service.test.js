@@ -3,10 +3,12 @@ jest.mock('../../src/services/notification.service');
 jest.mock('../../src/models/Job');
 jest.mock('../../src/models/CleanerProfile');
 jest.mock('../../src/services/stripe.service');
+jest.mock('../../src/services/job-photo.service');
 
 const Job = require('../../src/models/Job');
 const CleanerProfile = require('../../src/models/CleanerProfile');
 const stripeService = require('../../src/services/stripe.service');
+const jobPhotos = require('../../src/services/job-photo.service');
 const paymentService = require('../../src/services/payment.service');
 const { STATES } = require('../../src/services/payment-state-machine');
 
@@ -333,5 +335,18 @@ describe('timestamps recorded for the service record', () => {
     await paymentService.autoConfirmExpiredJobs(new Date());
     expect(auto.confirmedAt).toBeInstanceOf(Date);
     expect(auto.confirmationMethod).toBe('automatic');
+  });
+
+  it('starts the 90-day photo deletion clock when a job is confirmed, either way', async () => {
+    CleanerProfile.findById.mockResolvedValue(makeCleaner());
+    stripeService.createTransfer.mockResolvedValue({ id: 'tr_1' });
+    jobPhotos.scheduleExpiry.mockClear();
+
+    Job.findById.mockResolvedValue(makeJob({ _id: 'jobA', paymentStatus: STATES.AWAITING_CONFIRMATION }));
+    await paymentService.confirmJob('jobA');
+    Job.find.mockResolvedValue([makeJob({ _id: 'jobB', paymentStatus: STATES.AWAITING_CONFIRMATION, awaitingConfirmationAt: new Date(0) })]);
+    await paymentService.autoConfirmExpiredJobs(new Date());
+
+    expect(jobPhotos.scheduleExpiry.mock.calls.map((c) => c[0])).toEqual(['jobA', 'jobB']);
   });
 });

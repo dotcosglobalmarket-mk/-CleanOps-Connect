@@ -352,7 +352,17 @@ Staff accounts cannot be created from the public register page, and `POST /admin
 - It **only ever creates a new account**. If an account with that email already exists and is not an admin, it is left unchanged and an error is logged (registration has no email verification, so promoting an existing account would let whoever registered that address first become admin). If an admin already exists it does nothing, so restarting never resets a password.
 - Log in at `login.html` with that email and password; admins are taken to `admin.html`. Then create operators and any other admins there, change the password through "Forgot password" if you wish, and remove `SUPER_ADMIN_PASSWORD` from the environment.
 
-### Two-step login (admins)
+### Job photos (optional)
+
+A cleaner can add before/after photos to a job in progress, and a customer can add photos when reporting a problem. Both sides and staff can see them. Nothing is required: a job and a dispute work without photos.
+
+- `GET /jobs/:id/photos` 🔒 (the job's customer, its booked cleaner, or staff) lists them.
+- `POST /jobs/:id/photos?kind=before|after|problem` 🔒 (customer or cleaner) — the image is the raw body (`image/jpeg` or `image/png`, up to 5 MB, first bytes checked). Cleaners add `before`/`after` while the job is `IN_PROGRESS`, `AWAITING_CONFIRMATION` or `DISPUTED` (up to 6); customers add `problem` while it is `AWAITING_CONFIRMATION` or `DISPUTED` (up to 4). The website shrinks phone photos to 1600px before sending.
+- `GET /jobs/:id/photos/:photoId/file` 🔒 returns the picture (`no-store`). Staff opening one is written to the audit log (`job_photo.view`).
+- `DELETE /jobs/:id/photos/:photoId` 🔒 — the person who added it, until the job is `DISPUTED`.
+- **Retention:** each picture is a `DocumentFile` with a TTL date. It starts at 12 months from upload, and when the job is closed (customer or automatic confirmation, or a dispute resolved by refund, partial split or payout) it is reset to 90 days from that moment.
+
+## Two-step login (admins)
 
 Admin accounts need a six-digit code from an authenticator app as well as the password.
 

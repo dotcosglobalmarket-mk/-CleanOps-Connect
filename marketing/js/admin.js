@@ -1,5 +1,6 @@
 import { apiRequest, apiFetchBlob, requireRole, startImpersonation } from './api.js';
 import { escapeHtml } from './dom.js';
+import { mountJobPhotos } from './job-photos.js';
 import {
   PAYMENT_STATES,
   showAlert,
@@ -49,6 +50,7 @@ async function loadDocuments() {
   try {
     const docs = await apiRequest(`/admin/compliance-documents?status=${status}`, { auth: true });
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['Cleaner', 'Document', 'File', 'Uploaded', 'Status', ''],
       emptyMessage: status === 'pending' ? 'Nothing waiting for review.' : 'No documents match this filter.',
       rows: docs.map((d) => `
@@ -223,12 +225,14 @@ function renderRevenue(data) {
     .join('');
 
   document.getElementById('revenue-plans').innerHTML = renderTable({
+      fit: true,
     columns: ['Plan', 'Cleaners', 'Monthly'],
     emptyMessage: 'No active subscriptions yet.',
     rows: data.plans.map((p) => `<tr><td>${escapeHtml(p.label)}</td><td>${p.cleaners}</td><td>${formatPence(p.monthlyPence)}</td></tr>`),
   });
 
   document.getElementById('revenue-atrisk').innerHTML = renderTable({
+      fit: true,
     columns: ['Cleaner', 'Plan', 'Status', 'Failed on', 'Next retry', 'At risk', ''],
     emptyMessage: 'No failed subscription payments right now.',
     rows: data.atRisk.map((r) => `
@@ -250,6 +254,7 @@ function renderRevenue(data) {
     ? 'Latest charges recorded from Stripe.'
     : 'Payments appear here from the moment Stripe starts sending invoice events to this site. Nothing recorded yet.';
   document.getElementById('revenue-recent').innerHTML = renderTable({
+      fit: true,
     columns: ['Date', 'Cleaner', 'Plan', 'Result', 'Amount'],
     emptyMessage: 'No subscription payments recorded yet.',
     rows: data.recentPayments.map((p) => `
@@ -337,6 +342,7 @@ async function loadPaymentsQueue() {
   try {
     const jobs = await apiRequest('/payments/ops/queue', { auth: true });
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['Job', 'Status', 'Customer', 'Cleaner', 'Attempts', 'Updated', ''],
       emptyMessage: 'Nothing in the ops queue — no stuck payouts right now.',
       rows: jobs.map((job) => {
@@ -394,6 +400,7 @@ async function loadCleaners() {
   try {
     const cleaners = await apiRequest(`/admin/cleaners${query}`, { auth: true });
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['Name', 'Email', 'DBS', 'COSHH', 'Insurance', 'Payouts', 'Status', ''],
       emptyMessage: 'No cleaners match this filter.',
       rows: cleaners.map((c) => `
@@ -568,8 +575,11 @@ function renderJobDetail(job) {
       <h4>${title}</h4>
       <dl class="job-detail-list">
         ${rows.map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`).join('')}
-      </dl>`).join('')}`;
+      </dl>`).join('')}
+    <h4>Photos</h4>
+    <div id="job-detail-photos"></div>`;
   box.hidden = false;
+  mountJobPhotos(document.getElementById('job-detail-photos'), { jobId: job._id, staff: true });
   document.getElementById('job-detail-close').addEventListener('click', () => { box.hidden = true; });
   const rerun = document.getElementById('job-detail-rerun');
   if (rerun) {
@@ -625,6 +635,7 @@ async function loadJobs() {
   try {
     const jobs = await apiRequest(`/admin/jobs${query}`, { auth: true });
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['Job', 'Customer', 'Cleaner', 'Service', 'Status', 'Payment status', 'Price', ''],
       emptyMessage: 'No jobs match this filter.',
       rows: jobs.map((job) => `
@@ -669,6 +680,7 @@ async function loadServiceTypes() {
   try {
     const serviceTypes = await apiRequest('/service-types');
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['Name', 'Category', 'Requires COSHH', ''],
       emptyMessage: 'No service types yet.',
       rows: serviceTypes.map((s) => `
@@ -754,6 +766,7 @@ async function loadApprovals() {
   try {
     const approvals = await apiRequest('/admin/approvals?status=pending', { auth: true });
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['Job', 'Requested by', 'Outcome', 'Refund', 'Operator reason', 'Raised', 'Your reason', ''],
       emptyMessage: 'No refunds are waiting for approval.',
       rows: approvals.map((a) => `
@@ -825,6 +838,7 @@ async function loadAudit() {
   try {
     const entries = await apiRequest(`/admin/audit${query}`, { auth: true });
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['When', 'Who', 'Action', 'Target', 'Change', 'Reason'],
       emptyMessage: 'No audit entries match this filter.',
       rows: entries.map((e) => `
@@ -856,6 +870,7 @@ async function loadStaff() {
   try {
     const staff = await apiRequest('/admin/users', { auth: true });
     container.innerHTML = renderTable({
+      fit: true,
       columns: ['Name', 'Email', 'Role', 'Status', 'Two-step login', 'Created', ''],
       emptyMessage: 'No staff accounts yet.',
       rows: staff.map((u) => `

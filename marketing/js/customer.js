@@ -2,6 +2,7 @@ import { apiRequest, requireRole } from './api.js';
 import { escapeHtml, splitSuggestion } from './dom.js';
 import { STRIPE_PUBLISHABLE_KEY } from './config.js';
 import { openDocument } from './documents.js';
+import { mountJobPhotos, uploadJobPhotos } from './job-photos.js';
 import { fetchGuide, renderGuide } from './price-guide.js';
 import { mountChat, fetchUnread, setupConversations } from './chat.js';
 import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate } from './dashboard-ui.js';
@@ -232,8 +233,11 @@ async function loadJobs() {
     let unread;
     [jobs, unread] = await Promise.all([apiRequest('/jobs/mine', { auth: true }), fetchUnread()]);
     unreadByJob = unread.byJob || {};
+    container.classList.add('fit');
     container.innerHTML = renderTable({
-      columns: ['Job', 'Posted', 'Cleaner', 'Price', 'Status', ''],
+      fit: true,
+      phoneOnly: true,
+      columns: ['Job', 'Posted', 'Cleaner', 'Price', 'Status', 'Actions'],
       emptyMessage: "You haven't posted any jobs yet. Use Post a job to get started.",
       rows: jobs.map((job) => {
         const [label, kind] = statusInfo(job);
@@ -301,6 +305,7 @@ async function openJob(jobId, { focusReview = false, focusPayment = false } = {}
   show('offers-section', !status);
   show('payment-section', status === 'BOOKED');
   show('confirm-section', status === 'AWAITING_CONFIRMATION');
+  await mountPhotos(job);
   show('cancel-section', ['BOOKED', 'PAID_HELD'].includes(status));
   show('review-section', false);
   show('job-detail', true);
@@ -318,6 +323,23 @@ async function openJob(jobId, { focusReview = false, focusPayment = false } = {}
       ? document.getElementById('payment-section')
       : detail;
   target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Photos the cleaner took, and the ones you add with a problem report. All optional.
+const PHOTO_STATES = ['IN_PROGRESS', 'AWAITING_CONFIRMATION', 'DISPUTED', 'CONFIRMED', 'PAYOUT_PENDING', 'PAYOUT_BLOCKED', 'TRANSFER_FAILED', 'MANUAL_REVIEW_HOLD', 'PAID_OUT', 'RESOLVED_PAYOUT', 'RESOLVED_PARTIAL', 'RESOLVED_REFUND', 'PARTIALLY_REFUNDED', 'REFUNDED'];
+let activePhotos = null;
+
+async function mountPhotos(job) {
+  if (activePhotos) activePhotos.destroy();
+  activePhotos = null;
+  const visible = PHOTO_STATES.includes(job.paymentStatus);
+  show('photos-section', visible);
+  if (!visible) return;
+  activePhotos = await mountJobPhotos(document.getElementById('photos-mount'), {
+    jobId: job._id,
+    myRole: 'customer',
+    add: ['AWAITING_CONFIRMATION', 'DISPUTED'].includes(job.paymentStatus) ? [{ kind: 'problem', label: 'Add photos of the problem' }] : [],
+  });
 }
 
 // Chat opens once a cleaner has accepted; the server keeps it read-only
@@ -548,8 +570,15 @@ document.getElementById('dispute-form').addEventListener('submit', async (event)
       },
       auth: true,
     });
+    const photoInput = document.getElementById('dispute-photos');
+    const failedPhotos = photoInput.files.length ? await uploadJobPhotos(currentJob._id, 'problem', Array.from(photoInput.files).slice(0, 4)) : [];
     event.target.reset();
-    showAlert('page-success', "We've received your report. Payment is on hold while our team reviews it.");
+    showAlert(
+      'page-success',
+      failedPhotos.length
+        ? `We've received your report, but some photos could not be added (${failedPhotos.join(' · ')}). You can add them again under Photos.`
+        : "We've received your report. Payment is on hold while our team reviews it."
+    );
     await loadJobs();
     await openJob(currentJob._id);
   } catch (err) {

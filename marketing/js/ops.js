@@ -1,5 +1,6 @@
 import { apiRequest, getToken, getRole } from './api.js';
 import { escapeHtml } from './dom.js';
+import { mountJobPhotos } from './job-photos.js';
 import {
   PAYMENT_STATES,
   showAlert,
@@ -127,6 +128,7 @@ async function openDispute(jobId) {
     document.getElementById('dispute-cleaner').textContent = job.cleaner?.name || '—';
     document.getElementById('dispute-service').textContent = job.serviceType?.name || '—';
     document.getElementById('dispute-customer-detail').textContent = job.disputeDetail || 'None given.';
+    mountJobPhotos(document.getElementById('dispute-photos'), { jobId, staff: true });
     document.getElementById('resolve-form').dataset.price = job.pricePence;
 
     const pendingEl = document.getElementById('dispute-pending');

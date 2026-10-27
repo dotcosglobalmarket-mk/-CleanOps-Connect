@@ -2,6 +2,7 @@ import { apiRequest } from './api.js';
 import { openDocument } from './documents.js';
 import { fetchGuide, renderGuide } from './price-guide.js';
 import { escapeHtml } from './dom.js';
+import { mountJobPhotos } from './job-photos.js';
 import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate } from './dashboard-ui.js';
 
 // Offers inbox, booked jobs, earnings and Stripe payouts for the cleaner
@@ -246,12 +247,42 @@ function jobActions(job) {
       ? ` <button type="button" class="secondary doc-btn" data-id="${id}" data-kind="compliance-pack">Compliance pack</button>`
       : ''
   }`;
-  return `${actions} ${docs}`;
+  const photos = PHOTO_STATES.includes(job.paymentStatus)
+    ? ` <button type="button" class="secondary photo-btn" data-id="${id}">Photos</button>`
+    : '';
+  return `${actions} ${docs}${photos}`;
 }
+
+// Photos are optional. The cleaner can add them while the job is under way and to answer a
+// problem report; after that they can still be looked at until the 90 days are up.
+const PHOTO_STATES = ['IN_PROGRESS', 'AWAITING_CONFIRMATION', 'DISPUTED', 'CONFIRMED', 'PAYOUT_PENDING', 'PAYOUT_BLOCKED', 'TRANSFER_FAILED', 'MANUAL_REVIEW_HOLD', 'PAID_OUT', 'RESOLVED_PAYOUT', 'RESOLVED_PARTIAL', 'RESOLVED_REFUND', 'PARTIALLY_REFUNDED', 'REFUNDED'];
+const PHOTO_ADD_STATES = ['IN_PROGRESS', 'AWAITING_CONFIRMATION', 'DISPUTED'];
+let openPhotos = null;
+
+async function showPhotos(job) {
+  if (openPhotos) openPhotos.destroy();
+  const card = document.getElementById('job-photos-card');
+  document.getElementById('job-photos-title').textContent = `Photos — ${job.serviceType?.name || 'Cleaning'} · ${job.postcode || ''}`;
+  card.hidden = false;
+  openPhotos = await mountJobPhotos(document.getElementById('job-photos-mount'), {
+    jobId: job._id,
+    myRole: 'cleaner',
+    add: PHOTO_ADD_STATES.includes(job.paymentStatus)
+      ? [{ kind: 'before', label: 'Add before photos' }, { kind: 'after', label: 'Add after photos' }]
+      : [],
+  });
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+document.getElementById('job-photos-close').addEventListener('click', () => {
+  if (openPhotos) openPhotos.destroy();
+  openPhotos = null;
+  document.getElementById('job-photos-card').hidden = true;
+});
 
 const ACTION_CONFIRM = {
   'check-in': 'Check in now? The customer will be told you have arrived.',
-  complete: 'Mark this job complete? The customer will be asked to confirm within 48 hours.',
+  complete: 'Mark this job complete? The customer will be asked to confirm within 48 hours. (You can add "after" photos with the Photos button first. They are optional.)',
   cancel: 'Cancel this job? The customer gets a full refund, and cancellations count against your reliability.',
 };
 
@@ -278,6 +309,9 @@ async function loadMyJobs() {
         </tr>
       `),
     });
+    container.querySelectorAll('.photo-btn').forEach((btn) =>
+      btn.addEventListener('click', () => showPhotos(jobs.find((j) => String(j._id) === btn.dataset.id)))
+    );
     container.querySelectorAll('.doc-btn').forEach((btn) =>
       btn.addEventListener('click', async () => {
         hideAlert('jobs-alert');
@@ -297,7 +331,7 @@ async function loadMyJobs() {
         btn.disabled = true;
         try {
           await apiRequest(`/payments/jobs/${id}/${action}`, { method: 'POST', auth: true });
-          showAlert('jobs-success', { 'check-in': 'Checked in.', complete: 'Marked complete.', cancel: 'Job cancelled.' }[action]);
+          showAlert('jobs-success', { 'check-in': 'Checked in. You can add before photos with the Photos button (optional).', complete: 'Marked complete.', cancel: 'Job cancelled.' }[action]);
           await Promise.all([loadMyJobs(), loadEarnings()]);
         } catch (err) {
           showAlert('jobs-alert', err.message);
