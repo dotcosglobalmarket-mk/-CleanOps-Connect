@@ -42,8 +42,9 @@ export function showSuccess(id, message) {
 
 // `fit` makes the table wrap its text to the width it is given instead of
 // scrolling sideways, and on a narrow screen turns each row into a small card
-// (every cell labelled with its column).
-export function renderTable({ columns, rows, emptyMessage, fit = false }) {
+// (every cell labelled with its column). `phoneOnly` keeps the normal table down
+// to phone width, for pages that have no side menu taking up room.
+export function renderTable({ columns, rows, emptyMessage, fit = false, phoneOnly = false }) {
   if (!rows.length) {
     return `<div class="table-empty">${escapeHtml(emptyMessage)}</div>`;
   }
@@ -57,7 +58,7 @@ export function renderTable({ columns, rows, emptyMessage, fit = false }) {
       })
     : rows;
   return `
-    <table class="data-table${fit ? ' fit' : ''}">
+    <table class="data-table${fit ? ` fit${phoneOnly ? ' fit-phone' : ''}` : ''}">
       <thead><tr>${columns.map((c) => `<th scope="col">${escapeHtml(c)}</th>`).join('')}</tr></thead>
       <tbody>${body.join('')}</tbody>
     </table>

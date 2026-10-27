@@ -232,8 +232,11 @@ async function loadJobs() {
     let unread;
     [jobs, unread] = await Promise.all([apiRequest('/jobs/mine', { auth: true }), fetchUnread()]);
     unreadByJob = unread.byJob || {};
+    container.classList.add('fit');
     container.innerHTML = renderTable({
-      columns: ['Job', 'Posted', 'Cleaner', 'Price', 'Status', ''],
+      fit: true,
+      phoneOnly: true,
+      columns: ['Job', 'Posted', 'Cleaner', 'Price', 'Status', 'Actions'],
       emptyMessage: "You haven't posted any jobs yet. Use Post a job to get started.",
       rows: jobs.map((job) => {
         const [label, kind] = statusInfo(job);
