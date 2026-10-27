@@ -250,6 +250,8 @@ button.secondary:hover {
   gap: 1.5rem;
 }
 
+.two-column > * { min-width: 0; }
+
 @media (max-width: 640px) {
   nav#site-nav {
     flex-direction: column;
@@ -1633,6 +1635,7 @@ table.data-table tbody tr:hover {
 
 /* Tables that wrap to fit instead of scrolling sideways (My Jobs, customer jobs) */
 table.data-table.fit { table-layout: auto; }
+table.data-table.fit code { overflow-wrap: anywhere; }
 table.data-table.fit th,
 table.data-table.fit td {
   white-space: normal;
@@ -1679,6 +1682,9 @@ table.data-table.fit td.table-actions button { margin: 0 0.35rem 0.35rem 0; }
   table.data-table.fit:not(.fit-phone) td.table-actions { display: block; text-align: left; width: auto; }
   table.data-table.fit:not(.fit-phone) td:first-child::before,
   table.data-table.fit:not(.fit-phone) td.table-actions::before { display: block; margin-bottom: 0.2rem; }
+  /* Fields inside a card (reasons, dropdowns) take the room left after the label. */
+  table.data-table.fit:not(.fit-phone) td input[type="text"],
+  table.data-table.fit:not(.fit-phone) td select { flex: 1 1 0; min-width: 0; max-width: 100%; }
 }
 @media (max-width: 760px) {
   table.data-table.fit.fit-phone { display: block; }
