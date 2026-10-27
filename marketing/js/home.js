@@ -39,13 +39,13 @@ function currentTheme() {
 }
 
 function setupThemeToggle() {
-  // One toggle in the desktop menu, one beside the mobile Log in / Register.
-  const desktop = document.querySelector('.nav-desktop');
-  if (desktop && !desktop.querySelector('[data-theme-toggle]')) {
+  // One toggle in each desktop menu (hero nav and sticky nav), one beside the mobile Log in / Register.
+  document.querySelectorAll('.nav-desktop').forEach((desktop) => {
+    if (desktop.querySelector('[data-theme-toggle]')) return;
     const li = document.createElement('li');
     li.innerHTML = '<button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch between light and dark mode"></button>';
     desktop.appendChild(li);
-  }
+  });
   document.querySelectorAll('[data-theme-toggle]').forEach((btn) => {
     btn.innerHTML = SUN + MOON;
     btn.addEventListener('click', () => {
@@ -59,7 +59,7 @@ function setupThemeToggle() {
 // --- Coverage chips, from the same list the cleaner map uses ---
 function renderCoverage() {
   const chips = document.getElementById('coverage-chips');
-  if (chips) chips.innerHTML = COVERAGE_CITIES.map((c) => `<span>${escapeHtml(c.name)}</span>`).join('');
+  if (chips) chips.innerHTML = COVERAGE_CITIES.map((c) => `<span class="city-chip">${escapeHtml(c.name)}</span>`).join('');
 }
 
 // --- Hero postcode: carried into the post-a-job form once they have an account ---
@@ -93,9 +93,21 @@ function setupFaq() {
   });
 }
 
+// --- Sticky nav: the transparent nav sits over the hero; this one takes over once the hero scrolls away ---
+function setupStickyNav() {
+  const hero = document.querySelector('.hero');
+  const stickyNav = document.getElementById('stickyNav');
+  if (!hero || !stickyNav || !('IntersectionObserver' in window)) return;
+  const obs = new IntersectionObserver((entries) => {
+    stickyNav.style.display = entries[0].isIntersecting ? 'none' : 'block';
+  }, { threshold: 0.1 });
+  obs.observe(hero);
+}
+
 renderAuthLinks();
 setupThemeToggle();
 renderCoverage();
 setupHeroSearch();
 setupFaq();
+setupStickyNav();
 renderImpersonationBanner();
