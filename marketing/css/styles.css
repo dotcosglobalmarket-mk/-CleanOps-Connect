@@ -1232,6 +1232,7 @@ table.data-table tbody tr:hover {
   vertical-align: top;
   padding: 0.5rem;
   border-bottom: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
 }
 
 /* Staff dashboards: panel titles (one <h1> per page), sidebar links,
