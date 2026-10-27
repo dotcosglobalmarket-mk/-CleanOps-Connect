@@ -47,6 +47,7 @@
         <li><strong>Job details (customers)</strong> — postcode, the location derived from it, service type, description, budget, frequency and job history.</li>
         <li><strong>Cleaner profile</strong> — name, trading or company name, base postcode, coverage area, services, availability, rates, contact details you choose to add, ratings, and compliance status (DBS, COSHH training, insurance).</li>
         <li><strong>Compliance documents (cleaners)</strong> — the DBS certificate, COSHH training certificate and insurance certificate you choose to upload, so our team can check them before a badge appears on your profile. Only our admin staff can open them, and each time one is opened it is recorded in an audit log.</li>
+        <li><strong>Job photos (optional)</strong> — before and after pictures a cleaner chooses to add to a job, and pictures a customer chooses to add when reporting a problem. A picture can show the inside of a home and anyone or anything in it, so please photograph only the work, and avoid people and personal papers. The customer, the cleaner on that job and our staff can see them; each time our staff open one it is recorded in an audit log.</li>
         <li><strong>Payments</strong> — card payments are taken by Stripe. We never see or store full card numbers. We keep payment references, amounts, refunds and payout status.</li>
         <li><strong>Disputes and support</strong> — the reason code and any detail you give when raising a dispute, and records of how it was resolved.</li>
         <li><strong>Messages</strong> — messages you send in the in-app chat with the customer or cleaner on a job. Phone numbers, email addresses, postcodes and links are hidden before a message is saved, and we keep only the hidden version plus a note that something was hidden. Our staff can read a conversation only to resolve a dispute or investigate misuse; each time they do, the reason is recorded in an audit log.</li>
@@ -64,6 +65,7 @@
           <tr><td>Taking payment, holding it until the job is confirmed, paying cleaners, refunds</td><td>Contract; legal obligation (financial records)</td></tr>
           <tr><td>Checking cleaner DBS, COSHH and insurance status before showing it as verified</td><td>Legitimate interests (customer safety and trust)</td></tr>
           <tr><td>Resolving disputes and preventing fraud or misuse</td><td>Legitimate interests</td></tr>
+          <tr><td>Optional job photos, so a customer and a cleaner can show the state of the work and we can look into a reported problem fairly</td><td>Legitimate interests (evidence for fair dispute resolution); you choose whether to add a photo</td></tr>
           <tr><td>Emails about your bookings (offers, payment, check-in, completion, disputes, payouts)</td><td>Contract</td></tr>
           <tr><td>In-app chat between a customer and the cleaner they booked, and hiding contact details so bookings and payments stay protected on the platform</td><td>Contract; legitimate interests (safety, fraud and fee avoidance)</td></tr>
           <tr><td>Publishing reviews from completed bookings</td><td>Legitimate interests (helping customers choose, and fair treatment of cleaners)</td></tr>
@@ -85,7 +87,7 @@
 
       <h2>Who we share it with</h2>
       <ul>
-        <li><strong>The other party to a job</strong> — once a job is offered or booked, the cleaner sees the job details they need to do it.</li>
+        <li><strong>The other party to a job</strong> — once a job is offered or booked, the cleaner sees the job details they need to do it. Photos added to a job are seen by both sides of it.</li>
         <li><strong>Stripe</strong> — payment processing, holding funds and cleaner payouts.</li>
         <li><strong>Mapbox</strong> — turning postcodes into map locations.</li>
         <li><strong>Anthropic</strong> — only if you press "Help me write this" on the job form or your cleaner profile: the job type, frequency, estimated hours, or the services, travel distance and bio text you entered, plus any text you typed, are sent to suggest wording. Please don't include names, contact details or your address. It is also used, with web search, if you ask for a local price guide: only the service type and the first part of a postcode (for example LS12, never the full postcode) are sent.</li>
@@ -102,6 +104,7 @@
       <ul>
         <li>Account and profile data — while your account is open, then <span class="legal-todo">[To be completed: retention period after closure]</span>.</li>
         <li>Compliance documents — DBS certificate copies are deleted 6 months after we check them; a file we reject is deleted after 30 days; a COSHH or insurance certificate is kept while it is the one in use, and deleted when you replace it and the new one is approved. The record of the check (who, when, and the decision) is kept with your profile.</li>
+        <li>Job photos — deleted 90 days after the job is closed (confirmed, cancelled, or any reported problem settled), and in every case within 12 months of being added. You can remove a photo you added yourself until a problem is reported on the job.</li>
         <li>Payment and transaction records — 6 years after the end of the financial year they relate to, to meet HMRC record-keeping rules.</li>
         <li>Chat messages — <span class="legal-todo">[To be completed: retention period]</span>.</li>
         <li>Dispute records — <span class="legal-todo">[To be completed: retention period]</span>.</li>

@@ -1,5 +1,6 @@
 import { apiRequest, apiFetchBlob, requireRole, startImpersonation } from './api.js';
 import { escapeHtml } from './dom.js';
+import { mountJobPhotos } from './job-photos.js';
 import {
   PAYMENT_STATES,
   showAlert,
@@ -574,8 +575,11 @@ function renderJobDetail(job) {
       <h4>${title}</h4>
       <dl class="job-detail-list">
         ${rows.map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`).join('')}
-      </dl>`).join('')}`;
+      </dl>`).join('')}
+    <h4>Photos</h4>
+    <div id="job-detail-photos"></div>`;
   box.hidden = false;
+  mountJobPhotos(document.getElementById('job-detail-photos'), { jobId: job._id, staff: true });
   document.getElementById('job-detail-close').addEventListener('click', () => { box.hidden = true; });
   const rerun = document.getElementById('job-detail-rerun');
   if (rerun) {
