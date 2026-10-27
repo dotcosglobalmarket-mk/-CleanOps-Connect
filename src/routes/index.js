@@ -12,10 +12,12 @@ const reviewsRoutes = require('./reviews.routes');
 const chatRoutes = require('./chat.routes');
 const pricingRoutes = require('./pricing.routes');
 const complianceDocumentsRoutes = require('./compliance-documents.routes');
+const jobPhotosRoutes = require('./job-photos.routes');
 
 const router = express.Router();
 
 router.use('/auth', authRoutes);
+router.use('/jobs/:id/photos', jobPhotosRoutes);
 router.use('/jobs', jobsRoutes);
 router.use('/cleaners', cleanersRoutes);
 router.use('/subscriptions', subscriptionsRoutes);

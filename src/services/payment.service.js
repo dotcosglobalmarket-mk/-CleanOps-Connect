@@ -3,6 +3,7 @@ const CleanerProfile = require('../models/CleanerProfile');
 const stripeService = require('./stripe.service');
 const { STATES, EVENTS, transition, PaymentStateError } = require('./payment-state-machine');
 const notifications = require('./notification.service');
+const jobPhotos = require('./job-photo.service');
 const logger = require('../utils/logger');
 
 const MAX_TRANSFER_ATTEMPTS = 3;
@@ -257,6 +258,7 @@ async function confirmJob(jobId) {
   job.confirmedAt = new Date();
   job.confirmationMethod = 'customer';
   await job.save();
+  await jobPhotos.scheduleExpiry(job._id);
   notifications.jobConfirmed(job);
   return enterPayoutPending(job);
 }
@@ -276,6 +278,7 @@ async function autoConfirmExpiredJobs(now = new Date()) {
     job.confirmedAt = new Date();
     job.confirmationMethod = 'automatic';
     await job.save();
+    await jobPhotos.scheduleExpiry(job._id);
     notifications.jobConfirmed(job);
     results.push(await enterPayoutPending(job));
   }
@@ -311,6 +314,7 @@ async function resolveDisputeRefund(jobId) {
 
   transition(job, EVENTS.REFUND_DONE);
   await job.save();
+  await jobPhotos.scheduleExpiry(job._id);
   return job;
 }
 
@@ -348,6 +352,7 @@ async function resolveDisputePartial(jobId, { refundPence, payoutPence }) {
   job.cleanerPayoutPence = payoutPence;
   transition(job, EVENTS.PARTIAL_RESOLUTION_DONE);
   await job.save();
+  await jobPhotos.scheduleExpiry(job._id);
   return job;
 }
 
@@ -358,6 +363,7 @@ async function resolveDisputePayout(jobId) {
 
   transition(job, EVENTS.PROCEED_TO_CONFIRMED);
   await job.save();
+  await jobPhotos.scheduleExpiry(job._id);
   return enterPayoutPending(job);
 }
 

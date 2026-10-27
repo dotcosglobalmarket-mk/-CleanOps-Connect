@@ -197,6 +197,11 @@
       </section>
 
       <!-- Payment -->
+      <section id="photos-section" hidden>
+        <h3>Photos</h3>
+        <div id="photos-mount"></div>
+      </section>
+
       <section id="payment-section" hidden>
         <h3>Pay to confirm your booking</h3>
         <p class="field-help">
@@ -231,7 +236,11 @@
               <label for="dispute-detail">Tell us more</label>
               <textarea id="dispute-detail" rows="3" maxlength="2000" required></textarea>
             </div>
-            <p class="field-help">Payment stays on hold while our team looks into it. We'll email you with the outcome.</p>
+            <div class="form-row">
+              <label for="dispute-photos">Photos of the problem (optional, up to 4)</label>
+              <input id="dispute-photos" type="file" accept="image/*" multiple />
+            </div>
+            <p class="field-help">Payment stays on hold while our team looks into it. We'll email you with the outcome. Photos are shared with the cleaner and our team and deleted 90 days after the job is closed.</p>
             <button type="submit" class="secondary">Report a problem</button>
           </form>
         </details>
