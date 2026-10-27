@@ -121,7 +121,7 @@ async function listOffersForCustomer(jobId, requestingUser) {
   }
 
   const offers = await JobOffer.find({ job: job._id })
-    .populate('cleaner', 'name companyName ratingAverage ratingCount dbsVerified coshhTrained insuranceStatus experienceYears')
+    .populate('cleaner', 'name companyName ratingAverage ratingCount dbsVerified coshhTrained insuranceStatus experienceYears photo.updatedAt')
     .sort({ score: -1 });
   return offers.map((offer) => ({
     _id: offer._id,

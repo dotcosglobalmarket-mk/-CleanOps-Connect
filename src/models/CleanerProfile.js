@@ -14,6 +14,12 @@ const cleanerProfileSchema = new mongoose.Schema(
     companyName: {
       type: String,
     },
+    // Optional profile picture or company logo (see cleaner-photo.service.js).
+    // The picture itself is a DocumentFile; `updatedAt` lets pages cache it.
+    photo: {
+      file: { type: mongoose.Schema.Types.ObjectId, ref: 'DocumentFile' },
+      updatedAt: { type: Date },
+    },
     basePostcode: {
       type: String,
       required: true,
