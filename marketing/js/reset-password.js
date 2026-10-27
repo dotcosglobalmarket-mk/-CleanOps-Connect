@@ -1,4 +1,5 @@
-import { apiRequest, setSession } from './api.js';
+import { apiRequest } from './api.js';
+import { continueAfterPassword } from './two-factor-ui.js';
 
 const token = new URLSearchParams(window.location.search).get('token');
 const form = document.getElementById('reset-password-form');
@@ -27,10 +28,7 @@ form.addEventListener('submit', async (event) => {
 
   try {
     const result = await apiRequest('/auth/reset-password', { method: 'POST', body: { token, password } });
-    setSession(result.token, result.user);
-    const dashboardHref =
-      { admin: 'admin.html', operator: 'ops.html', cleaner: 'cleaner.html' }[result.user.role] || 'customer.html';
-    window.location.href = dashboardHref;
+    continueAfterPassword(result, { form, mount: document.getElementById('two-factor-step') });
   } catch (err) {
     alertBox.textContent = err.message;
     alertBox.hidden = false;

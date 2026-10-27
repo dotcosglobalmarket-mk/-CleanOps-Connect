@@ -24,7 +24,7 @@
 
   <main>
     <div class="card" style="max-width: 420px; margin: 0 auto;">
-      <h2>Log in</h2>
+      <h2 data-hide-on-step>Log in</h2>
       <div id="alert" class="alert alert-error" hidden></div>
 
       <form id="login-form">
@@ -45,7 +45,9 @@
         <button type="submit">Log in</button>
       </form>
 
-      <p style="margin-top: 1rem; font-size: 0.9rem;">
+      <div id="two-factor-step" hidden></div>
+
+      <p data-hide-on-step style="margin-top: 1rem; font-size: 0.9rem;">
         Don't have an account? <a href="register.html">Register</a>
       </p>
     </div>

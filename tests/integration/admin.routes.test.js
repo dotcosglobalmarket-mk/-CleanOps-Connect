@@ -368,6 +368,38 @@ describe('Admin routes', () => {
       expect(AuditLog.create).toHaveBeenCalledWith(expect.objectContaining({ action: 'user.create' }));
     });
 
+    it('resets a staff member\'s two-step login, audits it, and needs a reason', async () => {
+      const target = {
+        _id: '64b0000000000000000000bb', name: 'Amy', email: 'amy@example.com', role: 'admin', active: true,
+        twoFactor: { enabled: true, secretEnc: 'x', recoveryCodeHashes: ['h'] },
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      User.findById.mockImplementation((id) =>
+        Promise.resolve(id === target._id ? target : { _id: id, name: 'Staff', role: 'admin', active: true })
+      );
+
+      const noReason = await request(app)
+        .post(`/admin/users/${target._id}/reset-two-factor`)
+        .set('Authorization', authHeaderFor('admin', adminId))
+        .send({});
+      expect(noReason.status).toBe(400);
+
+      const res = await request(app)
+        .post(`/admin/users/${target._id}/reset-two-factor`)
+        .set('Authorization', authHeaderFor('admin', adminId))
+        .send({ reason: 'Lost phone and recovery codes' });
+      expect(res.status).toBe(200);
+      expect(res.body.twoFactorEnabled).toBe(false);
+      expect(target.twoFactor.enabled).toBe(false);
+      expect(AuditLog.create).toHaveBeenCalledWith(expect.objectContaining({ action: 'user.two_factor.reset' }));
+
+      const operator = await request(app)
+        .post(`/admin/users/${target._id}/reset-two-factor`)
+        .set('Authorization', authHeaderFor('operator'))
+        .send({ reason: 'Lost phone and recovery codes' });
+      expect(operator.status).toBe(403);
+    });
+
     it('rejects short staff passwords and non-staff roles', async () => {
       const shortPassword = await request(app)
         .post('/admin/users')

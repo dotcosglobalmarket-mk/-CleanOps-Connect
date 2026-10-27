@@ -17,6 +17,7 @@ const {
   listStaffQuerySchema,
   createStaffSchema,
   updateStaffSchema,
+  resetTwoFactorSchema,
 } = require('../validation/admin.validation');
 const ComplianceDocumentController = require('../controllers/ComplianceDocumentController');
 const {
@@ -90,6 +91,12 @@ router.get('/audit', validateQuery(listAuditQuerySchema), AdminController.listAu
 // Staff (operator/admin) accounts. These cannot be self-registered.
 router.get('/users', validateQuery(listStaffQuerySchema), AdminController.listStaff);
 router.post('/users', validateBody(createStaffSchema), AdminController.createStaff);
+router.post(
+  '/users/:id/reset-two-factor',
+  validateParams(idParamSchema),
+  validateBody(resetTwoFactorSchema),
+  AdminController.resetStaffTwoFactor
+);
 router.patch('/users/:id', validateParams(idParamSchema), validateBody(updateStaffSchema), AdminController.updateStaff);
 
 module.exports = router;
