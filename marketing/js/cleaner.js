@@ -2,6 +2,7 @@ import { apiRequest, apiUpload, requireRole } from './api.js';
 import { escapeHtml, splitSuggestion } from './dom.js';
 import { setupTabs, formatPence } from './dashboard-ui.js';
 import { STRIPE_PUBLISHABLE_KEY } from './config.js';
+import { avatarHtml, hydrateAvatars, prepareAvatar } from './avatar.js';
 
 requireRole('cleaner');
 
@@ -212,12 +213,60 @@ function populateFromProfile(cleaner) {
   renderCustomServices();
 }
 
+// --- Profile picture or company logo ---
+let avatarState = { id: null, name: '', updatedAt: null };
+
+function renderProfileAvatar() {
+  document.getElementById('profile-avatar').innerHTML = avatarHtml({ ...avatarState, size: 'lg' });
+  document.getElementById('avatar-remove').hidden = !avatarState.updatedAt;
+  hydrateAvatars(document.getElementById('profile-avatar'));
+}
+
+document.getElementById('avatar-input').addEventListener('change', async (event) => {
+  const input = event.target;
+  const alertBox = document.getElementById('avatar-alert');
+  alertBox.hidden = true;
+  const [file] = input.files;
+  input.value = '';
+  if (!file) return;
+  if (!avatarState.id) {
+    alertBox.textContent = 'Save your profile first, then add a picture.';
+    alertBox.hidden = false;
+    return;
+  }
+  try {
+    const ready = await prepareAvatar(file);
+    const result = await apiUpload('/cleaners/me/photo', ready);
+    avatarState.updatedAt = result.updatedAt;
+    renderProfileAvatar();
+  } catch (err) {
+    alertBox.textContent = err.message;
+    alertBox.hidden = false;
+  }
+});
+
+document.getElementById('avatar-remove').addEventListener('click', async () => {
+  const alertBox = document.getElementById('avatar-alert');
+  alertBox.hidden = true;
+  if (!window.confirm('Remove your picture?')) return;
+  try {
+    await apiRequest('/cleaners/me/photo', { method: 'DELETE', auth: true });
+    avatarState.updatedAt = null;
+    renderProfileAvatar();
+  } catch (err) {
+    alertBox.textContent = err.message;
+    alertBox.hidden = false;
+  }
+});
+
 async function loadMyProfile() {
   await loadServiceTypes();
   try {
     const cleaner = await apiRequest('/cleaners/me', { auth: true });
     document.getElementById('not-registered-banner').hidden = true;
     populateFromProfile(cleaner);
+    avatarState = { id: cleaner._id, name: cleaner.companyName || cleaner.name, updatedAt: cleaner.photo && cleaner.photo.updatedAt };
+    renderProfileAvatar();
   } catch (err) {
     if (err.status === 404) {
       document.getElementById('not-registered-banner').hidden = false;
@@ -351,6 +400,8 @@ document.getElementById('register-form').addEventListener('submit', async (event
     cleanerId = cleaner._id || cleaner.id;
     document.getElementById('not-registered-banner').hidden = true;
     populateFromProfile(cleaner);
+    avatarState = { id: cleanerId, name: cleaner.companyName || cleaner.name, updatedAt: null };
+    renderProfileAvatar();
 
     const successEl = document.getElementById('register-success');
     successEl.textContent = 'Profile registered. Edit the rest of your details under My Profile.';

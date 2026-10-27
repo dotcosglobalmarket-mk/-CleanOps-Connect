@@ -352,7 +352,14 @@ Staff accounts cannot be created from the public register page, and `POST /admin
 - It **only ever creates a new account**. If an account with that email already exists and is not an admin, it is left unchanged and an error is logged (registration has no email verification, so promoting an existing account would let whoever registered that address first become admin). If an admin already exists it does nothing, so restarting never resets a password.
 - Log in at `login.html` with that email and password; admins are taken to `admin.html`. Then create operators and any other admins there, change the password through "Forgot password" if you wish, and remove `SUPER_ADMIN_PASSWORD` from the environment.
 
-### Job photos (optional)
+### Cleaner profile picture or logo (optional)
+
+- `POST /cleaners/me/photo` 🔒 (cleaner) — the image is the raw body (`image/jpeg` or `image/png`, up to 1 MB, first bytes checked). The website crops it to a 400px square first. It replaces any earlier picture and deletes it.
+- `DELETE /cleaners/me/photo` 🔒 (cleaner) removes it.
+- `GET /cleaners/:id/photo` 🔒 returns it to that cleaner, to staff, and to a customer the cleaner has been offered to or booked with (404 for anyone else, and for a suspended cleaner). `no-store`.
+- Offers returned to a customer carry `cleaner.photo.updatedAt` when there is a picture; pages show the cleaner's initials otherwise. The picture is kept while it is on the profile, with no deletion date.
+
+## Job photos (optional)
 
 A cleaner can add before/after photos to a job in progress, and a customer can add photos when reporting a problem. Both sides and staff can see them. Nothing is required: a job and a dispute work without photos.
 

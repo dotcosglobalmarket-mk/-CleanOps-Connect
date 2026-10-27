@@ -2,6 +2,8 @@ const express = require('express');
 const CleanerController = require('../controllers/CleanerController');
 const CleanerPortalController = require('../controllers/CleanerPortalController');
 const ReviewController = require('../controllers/ReviewController');
+const CleanerPhotoController = require('../controllers/CleanerPhotoController');
+const { STAFF_ROLES } = require('../config/permissions');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { aiWritingLimiter } = require('../middleware/ai-rate-limit');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
@@ -54,6 +56,23 @@ router.get('/me/earnings', ...cleanerOnly, CleanerPortalController.earnings);
 router.post('/me/payouts/onboarding', ...cleanerOnly, CleanerPortalController.startPayoutOnboarding);
 router.get('/me/payouts/status', ...cleanerOnly, CleanerPortalController.payoutStatus);
 router.post('/me/payouts/dashboard', ...cleanerOnly, CleanerPortalController.payoutDashboard);
+
+// Optional profile picture or company logo. The image is the raw request body
+// (image/jpeg or image/png, up to 1 MB); its first bytes are checked again in the service.
+router.post(
+  '/me/photo',
+  ...cleanerOnly,
+  express.raw({ type: ['image/jpeg', 'image/png'], limit: '1mb' }),
+  CleanerPhotoController.upload
+);
+router.delete('/me/photo', ...cleanerOnly, CleanerPhotoController.remove);
+router.get(
+  '/:id/photo',
+  requireAuth,
+  requireRole('customer', 'cleaner', ...STAFF_ROLES),
+  validateParams(cleanerIdParamSchema),
+  CleanerPhotoController.get
+);
 
 router.get('/:id', validateParams(cleanerIdParamSchema), CleanerController.getById);
 router.get('/:id/reviews', validateParams(cleanerIdParamSchema), ReviewController.listForCleaner);
