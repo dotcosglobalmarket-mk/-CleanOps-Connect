@@ -43,6 +43,8 @@ const messageSchema = new mongoose.Schema(
 );
 
 messageSchema.index({ job: 1, createdAt: 1 });
+// Chat is kept for 6 months and then deleted by MongoDB (see the privacy notice).
+messageSchema.index({ createdAt: 1 }, { expireAfterSeconds: 183 * 24 * 60 * 60 });
 messageSchema.index({ job: 1, senderRole: 1, readAt: 1 });
 
 module.exports = mongoose.model('Message', messageSchema);
