@@ -87,6 +87,20 @@ export function formatDate(value) {
   return value ? new Date(value).toLocaleString('en-GB') : '—';
 }
 
+// A visit date and time, always in UK time whatever the viewer's device says.
+export function formatVisit(value) {
+  if (!value) return '—';
+  return new Date(value).toLocaleString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/London',
+  });
+}
+
 export function shortId(id) {
   return escapeHtml(String(id || '').slice(-8));
 }

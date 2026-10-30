@@ -113,14 +113,23 @@ async function createCustomer({ email, metadata }) {
   return getClient().customers.create({ email, metadata });
 }
 
-async function createSetupIntent({ customerId, metadata }) {
+async function createSetupIntent({ customerId, metadata, paymentMethodTypes }) {
   // usage: 'off_session' — this payment method is charged automatically
   // every month, not while the cleaner is present to re-authenticate.
-  return getClient().setupIntents.create({ customer: customerId, usage: 'off_session', metadata });
+  return getClient().setupIntents.create({
+    customer: customerId,
+    usage: 'off_session',
+    metadata,
+    ...(paymentMethodTypes ? { payment_method_types: paymentMethodTypes } : {}),
+  });
 }
 
 async function retrievePaymentMethod(paymentMethodId) {
   return getClient().paymentMethods.retrieve(paymentMethodId);
+}
+
+async function detachPaymentMethod(paymentMethodId) {
+  return getClient().paymentMethods.detach(paymentMethodId);
 }
 
 async function setDefaultPaymentMethod({ customerId, paymentMethodId }) {
@@ -222,6 +231,7 @@ module.exports = {
   createCustomer,
   createSetupIntent,
   retrievePaymentMethod,
+  detachPaymentMethod,
   setDefaultPaymentMethod,
   createSubscription,
   cancelSubscription,

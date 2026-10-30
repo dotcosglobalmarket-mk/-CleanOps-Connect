@@ -31,10 +31,31 @@
     <div class="tab-bar" role="tablist" aria-label="Sections">
       <button type="button" id="tab-jobs" class="tab-button is-active" role="tab" aria-selected="true" aria-controls="view-jobs" data-view="jobs">My jobs</button>
       <button type="button" id="tab-messages" class="tab-button" role="tab" aria-selected="false" aria-controls="view-messages" data-view="messages">Messages <span id="messages-unread" class="unread-badge" hidden></span></button>
+      <button type="button" id="tab-card" class="tab-button" role="tab" aria-selected="false" aria-controls="view-card" data-view="card">Payment card</button>
     </div>
 
     <div id="page-alert" class="alert alert-error" hidden></div>
     <div id="page-success" class="alert alert-success" hidden></div>
+
+    <div id="view-card" role="tabpanel" aria-labelledby="tab-card" hidden>
+      <div class="card">
+        <h2>Saved card</h2>
+        <p class="field-help">Save a card with our payment provider, Stripe, so you do not have to type it each time. Your card number never reaches CleanOps Connect.</p>
+        <div id="card-alert" class="alert alert-error" hidden></div>
+        <div id="card-success" class="alert alert-success" hidden></div>
+        <p id="card-summary"></p>
+        <div id="card-form" hidden>
+          <div id="card-element"></div>
+          <div class="form-row">
+            <label><input id="card-consent" type="checkbox" /> I agree that CleanOps Connect may keep this card with Stripe and use it only for bookings I confirm. I can remove it here at any time.</label>
+          </div>
+          <button type="button" id="card-save">Save card</button>
+          <button type="button" id="card-cancel" class="secondary">Cancel</button>
+        </div>
+        <button type="button" id="card-add">Add a card</button>
+        <button type="button" id="card-remove" class="secondary" hidden>Remove card</button>
+      </div>
+    </div>
 
     <div id="view-messages" role="tabpanel" aria-labelledby="tab-messages" hidden>
       <p class="field-help">
@@ -114,6 +135,12 @@
               <option value="contract">Contract</option>
             </select>
           </div>
+        </div>
+
+        <div class="form-row">
+          <label for="preferredStart">Preferred date and time</label>
+          <input id="preferredStart" type="datetime-local" />
+          <span class="field-help">UK time. Your cleaner sees this with the offer. If it does not suit them, you can agree a change in chat.</span>
         </div>
 
         <div class="form-row">
