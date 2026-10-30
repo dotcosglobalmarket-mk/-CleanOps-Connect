@@ -316,6 +316,47 @@ async function updateCleanerStatus(cleanerId, deactivationStatus, reason, req) {
   return cleaner;
 }
 
+// States where money is still owed to the cleaner's connected account: resetting
+// then would orphan it, so the reset waits until these are paid out or resolved.
+const PAYOUT_OWED_STATES = [
+  STATES.CONFIRMED,
+  STATES.PAYOUT_PENDING,
+  STATES.PAYOUT_BLOCKED,
+  STATES.TRANSFER_FAILED,
+  STATES.RESOLVED_PAYOUT,
+  STATES.RESOLVED_PARTIAL,
+  STATES.MANUAL_REVIEW_HOLD,
+];
+
+// Forgets a cleaner's stored Stripe connected account (e.g. one made in test mode
+// that the live key cannot reach) so they can set payouts up again from scratch.
+async function resetCleanerPayoutSetup(cleanerId, reason, req) {
+  const cleaner = await CleanerProfile.findById(cleanerId);
+  if (!cleaner) throw httpError(404, 'Cleaner not found');
+  if (!cleaner.stripeConnectedAccountId) throw httpError(400, 'This cleaner has no payout set-up to reset');
+
+  const owed = await Job.countDocuments({ cleaner: cleaner._id, paymentStatus: { $in: PAYOUT_OWED_STATES } });
+  if (owed > 0) {
+    throw httpError(409, `This cleaner is still owed money on ${owed} job(s). Resolve those payouts before resetting.`);
+  }
+
+  const before = { stripeConnectedAccountId: cleaner.stripeConnectedAccountId, payoutsEnabled: Boolean(cleaner.payoutsEnabled) };
+  cleaner.stripeConnectedAccountId = undefined;
+  cleaner.payoutsEnabled = false;
+  await cleaner.save();
+
+  await auditService.record({
+    req,
+    action: 'cleaner.payouts_reset',
+    targetType: 'cleaner',
+    targetId: cleaner._id,
+    before,
+    after: { stripeConnectedAccountId: null, payoutsEnabled: false },
+    reason,
+  });
+  return cleaner;
+}
+
 async function getCleanerDetail(cleanerId) {
   const cleaner = await adminService.getCleanerById(cleanerId);
   const audit = await auditService.listForTarget('cleaner', cleanerId);
@@ -350,6 +391,7 @@ module.exports = {
   addJobNote,
   updateCleanerVerification,
   updateCleanerStatus,
+  resetCleanerPayoutSetup,
   getCleanerDetail,
   manualRetryTransfer,
 };

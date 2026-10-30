@@ -33,6 +33,8 @@ const updateCleanerDeactivationSchema = z.object({
   reason: reason.optional(),
 });
 
+const resetPayoutSetupSchema = z.object({ reason });
+
 const listApprovalsQuerySchema = z.object({
   status: z.enum(['pending', 'approved', 'rejected']).optional(),
 });
@@ -99,6 +101,7 @@ module.exports = {
   impersonateCleanerSchema,
   updateCleanerVerificationSchema,
   updateCleanerDeactivationSchema,
+  resetPayoutSetupSchema,
   listJobsQuerySchema,
   jobIdParamSchema,
   revenueQuerySchema,

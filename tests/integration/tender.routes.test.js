@@ -1,3 +1,4 @@
+jest.mock('../../src/services/subscription.service', () => ({ requireActiveSubscription: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../../src/services/notification.service');
 jest.mock('../../src/models/Job', () => {
   const JobMock = jest.fn();

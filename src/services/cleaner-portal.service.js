@@ -4,6 +4,7 @@ const Job = require('../models/Job');
 const User = require('../models/User');
 const stripeService = require('./stripe.service');
 const paymentService = require('./payment.service');
+const subscriptionService = require('./subscription.service');
 const { haversineDistanceKm } = require('./coverage.service');
 const { STATES } = require('./payment-state-machine');
 const { outwardCode } = require('./cleaner.service');
@@ -128,6 +129,7 @@ function offerView(offer, cleaner) {
 
 async function listMyOffers(userId, { status } = {}) {
   const cleaner = await requireProfile(userId);
+  await subscriptionService.requireActiveSubscription(cleaner._id);
   const filter = { cleaner: cleaner._id };
   if (status) filter.status = status;
   const offers = await JobOffer.find(filter)

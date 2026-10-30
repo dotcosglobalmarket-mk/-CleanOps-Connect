@@ -1,3 +1,4 @@
+jest.mock('../../src/services/subscription.service', () => ({ requireActiveSubscription: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../../src/models/CleanerProfile', () => ({ findOne: jest.fn(), findOneAndUpdate: jest.fn(), findById: jest.fn() }));
 jest.mock('../../src/models/JobOffer', () => ({ find: jest.fn() }));
 jest.mock('../../src/models/Job', () => ({ find: jest.fn() }));
@@ -168,5 +169,15 @@ describe('earnings', () => {
     const earnings = await portal.getEarnings('user1');
 
     expect(earnings).toMatchObject({ paidOutPence: 8500, onTheWayPence: 4250, inEscrowPence: 1700, payoutsEnabled: true });
+  });
+});
+
+describe('offers need a paid-up subscription', () => {
+  it('lists nothing and says why when the platform fee is not being paid', async () => {
+    const subscriptionService = require('../../src/services/subscription.service');
+    CleanerProfile.findOne.mockResolvedValue(profile());
+    subscriptionService.requireActiveSubscription.mockRejectedValueOnce(Object.assign(new Error('pay'), { status: 402 }));
+    await expect(portal.listMyOffers('user1')).rejects.toMatchObject({ status: 402 });
+    expect(JobOffer.find).not.toHaveBeenCalled();
   });
 });
