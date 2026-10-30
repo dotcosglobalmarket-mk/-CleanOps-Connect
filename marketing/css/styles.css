@@ -1650,6 +1650,8 @@ table.data-table.fit td {
    column's minimum width, so one long email can't force a scrollbar. */
 table.data-table.fit td { overflow-wrap: break-word; }
 table.data-table.fit td .wrap-anywhere { overflow-wrap: anywhere; }
+table.data-table.fit td .field-help { overflow-wrap: anywhere; }
+table.data-table.fit td .sub-request { min-width: 0; }
 table.data-table.fit th,
 table.data-table.fit td button { overflow-wrap: normal; }
 /* In the job tables (.table-wrap.fit) the first column holds the job and its

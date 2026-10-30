@@ -306,6 +306,45 @@ module.exports = {
     });
   }),
 
+  subscriptionCancellationRequested: safely('subscriptionCancellationRequested', async (cleanerProfileId) => {
+    await emailService.send({
+      to: await cleanerEmail(cleanerProfileId),
+      subject: 'We have your CleanOps cancellation request',
+      paragraphs: [
+        'We have received your request to cancel your CleanOps subscription.',
+        'Your plan stays active, and billing continues as normal, until we confirm it. We will email you when it is done.',
+      ],
+      action: cleanerLink('View my subscription', 'coverage'),
+    });
+  }),
+
+  subscriptionCancelled: safely('subscriptionCancelled', async (cleanerProfileId, { when, endsAt }) => {
+    const date = endsAt ? new Date(endsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    await emailService.send({
+      to: await cleanerEmail(cleanerProfileId),
+      subject: when === 'now' ? 'Your CleanOps subscription has ended' : 'Your CleanOps subscription is set to end',
+      paragraphs:
+        when === 'now'
+          ? ['Your CleanOps subscription has been cancelled and no further payments will be taken.']
+          : [
+              `Your CleanOps subscription is set to end on ${date}. You keep your plan until then, and no further payments will be taken.`,
+            ],
+      action: cleanerLink('View my subscription', 'coverage'),
+    });
+  }),
+
+  subscriptionCancellationDeclined: safely('subscriptionCancellationDeclined', async (cleanerProfileId) => {
+    await emailService.send({
+      to: await cleanerEmail(cleanerProfileId),
+      subject: 'Your CleanOps subscription is unchanged',
+      paragraphs: [
+        'We have not cancelled your CleanOps subscription, so your plan and billing carry on as normal.',
+        'If you still want to leave, or have a question, please reply to this email.',
+      ],
+      action: cleanerLink('View my subscription', 'coverage'),
+    });
+  }),
+
   complianceDocumentReviewed: safely('complianceDocumentReviewed', async (cleanerProfileId, doc) => {
     const label = { dbs: 'DBS certificate', coshh: 'COSHH certificate', insurance: 'insurance certificate' }[doc.type] || 'document';
     const approved = doc.status === 'approved';

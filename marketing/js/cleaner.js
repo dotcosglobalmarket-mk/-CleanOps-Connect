@@ -81,6 +81,38 @@ async function ensureSubscriptionPaymentElement() {
   subElements.create('payment').mount(container);
 }
 
+function longDate(value) {
+  return new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// A cleaner asks to leave and CleanOps confirms by email, so this screen only
+// ever shows the request's state: nothing to do, waiting, or ending on a date.
+function renderSubscriptionCancel(subscription) {
+  const box = document.getElementById('subscription-cancel');
+  const text = document.getElementById('subscription-cancel-text');
+  const open = document.getElementById('subscription-cancel-open');
+  const withdraw = document.getElementById('subscription-cancel-withdraw');
+  const form = document.getElementById('subscription-cancel-form');
+
+  form.hidden = true;
+  open.hidden = true;
+  withdraw.hidden = true;
+  box.hidden = !subscription;
+  if (!subscription) return;
+
+  if (subscription.cancelAtPeriodEnd) {
+    text.textContent = subscription.renewsAt
+      ? `Your plan ends on ${longDate(subscription.renewsAt)}. You keep it until then and no further payments will be taken.`
+      : 'Your plan is set to end at the close of this billing period. No further payments will be taken.';
+  } else if (subscription.cancellationRequestedAt) {
+    text.textContent = `You asked to cancel on ${longDate(subscription.cancellationRequestedAt)}. Your plan and billing carry on until we confirm it by email.`;
+    withdraw.hidden = false;
+  } else {
+    text.textContent = 'To stop your plan, send a cancellation request. We will confirm by email, and you keep your plan until it ends.';
+    open.hidden = false;
+  }
+}
+
 async function loadMySubscription() {
   const statusEl = document.getElementById('subscription-status-text');
   try {
@@ -88,10 +120,58 @@ async function loadMySubscription() {
     statusEl.textContent = subscription
       ? `Current plan: ${PLAN_LABELS[subscription.plan] || subscription.plan} — ${formatPence(subscription.pricePence)}/month.`
       : 'No active subscription.';
+    renderSubscriptionCancel(subscription);
   } catch (err) {
     statusEl.textContent = '';
+    renderSubscriptionCancel(null);
   }
 }
+
+document.getElementById('subscription-cancel-open').addEventListener('click', () => {
+  document.getElementById('subscription-cancel-open').hidden = true;
+  document.getElementById('subscription-cancel-form').hidden = false;
+  document.getElementById('subscription-cancel-reason').focus();
+});
+
+document.getElementById('subscription-cancel-back').addEventListener('click', () => {
+  document.getElementById('subscription-cancel-form').hidden = true;
+  document.getElementById('subscription-cancel-open').hidden = false;
+});
+
+document.getElementById('subscription-cancel-send').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  hideAlert('subscription-alert');
+  document.getElementById('subscription-success').hidden = true;
+  button.disabled = true;
+  try {
+    const reason = document.getElementById('subscription-cancel-reason').value.trim();
+    await apiRequest('/subscriptions/me/cancellation-request', { method: 'POST', body: reason ? { reason } : {}, auth: true });
+    document.getElementById('subscription-cancel-reason').value = '';
+    const success = document.getElementById('subscription-success');
+    success.textContent = 'Request sent. We will email you once it is confirmed.';
+    success.hidden = false;
+    await loadMySubscription();
+  } catch (err) {
+    showAlert('subscription-alert', err.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.getElementById('subscription-cancel-withdraw').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  hideAlert('subscription-alert');
+  document.getElementById('subscription-success').hidden = true;
+  button.disabled = true;
+  try {
+    await apiRequest('/subscriptions/me/cancellation-request', { method: 'DELETE', auth: true });
+    await loadMySubscription();
+  } catch (err) {
+    showAlert('subscription-alert', err.message);
+  } finally {
+    button.disabled = false;
+  }
+});
 
 // --- Tab switching (a ?tab= link, e.g. from an email, opens that tab) ---
 const selectPanel = setupTabs((panel) => {

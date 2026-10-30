@@ -19,7 +19,128 @@ requireRole('admin');
 setupTabs((panel) => {
   if (panel === 'revenue') loadRevenue();
   if (panel === 'documents') loadDocuments();
+  if (panel === 'subscriptions') loadSubscriptions();
 });
+
+// --- Subscriptions ---
+const SUBSCRIPTION_PLANS = { starter: 'Starter', pro: 'Pro', industrial_pro: 'Industrial Pro' };
+
+async function refreshSubscriptionsBadge() {
+  try {
+    const waiting = await apiRequest('/admin/subscriptions?status=requested', { auth: true });
+    const badge = document.getElementById('subscriptions-pending');
+    badge.textContent = waiting.length;
+    badge.hidden = waiting.length === 0;
+  } catch (err) {
+    // The badge is a convenience; the panel shows any real error.
+  }
+}
+
+function subscriptionState(sub) {
+  if (!sub.isActive) return statusBadge('Ended', 'bad');
+  if (sub.cancelAtPeriodEnd) return statusBadge('Ending', 'warn');
+  return statusBadge(sub.stripeStatus === 'past_due' ? 'Past due' : 'Active', sub.stripeStatus === 'past_due' ? 'warn' : 'good');
+}
+
+function subscriptionRequest(sub) {
+  if (!sub.cancellationRequestedAt || sub.cancelAtPeriodEnd || !sub.isActive) return '—';
+  const reason = sub.cancellationReason ? `<div class="field-help">${escapeHtml(sub.cancellationReason)}</div>` : '';
+  return `<div class="sub-request">${statusBadge('Requested', 'warn')} ${formatDate(sub.cancellationRequestedAt)}${reason}</div>`;
+}
+
+function subscriptionActions(sub) {
+  if (!sub.isActive) return '';
+  const buttons = [];
+  if (!sub.cancelAtPeriodEnd) {
+    buttons.push('<button type="button" class="secondary sub-cancel-btn" data-when="period_end">Cancel at renewal</button>');
+  }
+  buttons.push('<button type="button" class="secondary sub-cancel-btn" data-when="now">Cancel now</button>');
+  if (sub.cancellationRequestedAt && !sub.cancelAtPeriodEnd) {
+    buttons.push('<button type="button" class="secondary sub-decline-btn">Decline request</button>');
+  }
+  return buttons.join('');
+}
+
+async function loadSubscriptions() {
+  hideAlert('subscriptions-alert');
+  const container = document.getElementById('subscriptions-table');
+  container.innerHTML = '<div class="table-empty">Loading…</div>';
+  const status = document.getElementById('subscriptions-filter-status').value;
+  try {
+    const subs = await apiRequest(`/admin/subscriptions?status=${encodeURIComponent(status)}`, { auth: true });
+    container.innerHTML = renderTable({
+      fit: true,
+      columns: ['Cleaner', 'Email', 'Plan', 'Status', 'Renews', 'Cancellation request', ''],
+      emptyMessage: status === 'requested' ? 'No cancellation requests waiting.' : 'No subscriptions match this filter.',
+      rows: subs.map((sub) => `
+        <tr data-id="${escapeHtml(sub._id)}" data-requested-reason="${escapeHtml(sub.cancellationReason || '')}">
+          <td>${escapeHtml(sub.cleaner?.name || '—')}</td>
+          <td><span class="wrap-anywhere">${escapeHtml(sub.cleaner?.user?.email || '—')}</span></td>
+          <td>${escapeHtml(SUBSCRIPTION_PLANS[sub.plan] || sub.plan)} · ${formatPence(sub.pricePence)}/mo</td>
+          <td>${subscriptionState(sub)}</td>
+          <td>${sub.renewsAt ? new Date(sub.renewsAt).toLocaleDateString('en-GB') : '—'}</td>
+          <td>${subscriptionRequest(sub)}</td>
+          <td class="table-actions">${subscriptionActions(sub)}</td>
+        </tr>
+      `),
+    });
+
+    container.querySelectorAll('tr[data-id]').forEach((row) => {
+      const id = row.dataset.id;
+      const name = row.children[0].textContent;
+      row.querySelectorAll('.sub-cancel-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const now = btn.dataset.when === 'now';
+          if (now && !window.confirm(`Cancel ${name}'s subscription now? Billing stops immediately and no refund is issued.`)) return;
+          decideSubscription(btn, `/admin/subscriptions/${id}/cancel`, {
+            prompt: now ? 'Reason for cancelling now (recorded in the audit log):' : 'Reason for cancelling at renewal (recorded in the audit log):',
+            suggestion: row.dataset.requestedReason,
+            body: { when: btn.dataset.when },
+            done: now ? 'Subscription cancelled.' : 'Subscription will end at its next renewal.',
+          });
+        });
+      });
+      const decline = row.querySelector('.sub-decline-btn');
+      if (decline) {
+        decline.addEventListener('click', () =>
+          decideSubscription(decline, `/admin/subscriptions/${id}/decline-cancellation`, {
+            prompt: 'Reason for declining this request (recorded in the audit log):',
+            body: {},
+            done: 'Request declined; the subscription carries on.',
+          })
+        );
+      }
+    });
+  } catch (err) {
+    container.innerHTML = '';
+    showAlert('subscriptions-alert', err.message);
+  }
+}
+
+async function decideSubscription(button, path, { prompt, suggestion = '', body, done }) {
+  hideAlert('subscriptions-alert');
+  document.getElementById('subscriptions-success').hidden = true;
+  const reason = window.prompt(prompt, suggestion);
+  if (!reason || reason.trim().length < 3) return;
+  button.disabled = true;
+  try {
+    await apiRequest(path, { method: 'POST', body: { ...body, reason: reason.trim() }, auth: true });
+    const success = document.getElementById('subscriptions-success');
+    success.textContent = done;
+    success.hidden = false;
+    await Promise.all([loadSubscriptions(), refreshSubscriptionsBadge()]);
+  } catch (err) {
+    showAlert('subscriptions-alert', err.message);
+    button.disabled = false;
+  }
+}
+
+document.getElementById('subscriptions-refresh').addEventListener('click', () => {
+  loadSubscriptions();
+  refreshSubscriptionsBadge();
+});
+document.getElementById('subscriptions-filter-apply').addEventListener('click', loadSubscriptions);
+refreshSubscriptionsBadge();
 
 // --- Document review ---
 const DOC_LABELS = { dbs: 'DBS certificate', coshh: 'COSHH certificate', insurance: 'Insurance certificate' };

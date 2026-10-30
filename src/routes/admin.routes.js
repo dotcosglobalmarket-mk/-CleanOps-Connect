@@ -14,6 +14,9 @@ const {
   listApprovalsQuerySchema,
   approvalDecisionSchema,
   listAuditQuerySchema,
+  listSubscriptionsQuerySchema,
+  cancelSubscriptionSchema,
+  declineCancellationSchema,
   listStaffQuerySchema,
   createStaffSchema,
   updateStaffSchema,
@@ -87,6 +90,20 @@ router.post(
 );
 
 router.get('/audit', validateQuery(listAuditQuerySchema), AdminController.listAudit);
+
+router.get('/subscriptions', validateQuery(listSubscriptionsQuerySchema), AdminController.listSubscriptions);
+router.post(
+  '/subscriptions/:id/cancel',
+  validateParams(idParamSchema),
+  validateBody(cancelSubscriptionSchema),
+  AdminController.cancelSubscription
+);
+router.post(
+  '/subscriptions/:id/decline-cancellation',
+  validateParams(idParamSchema),
+  validateBody(declineCancellationSchema),
+  AdminController.declineSubscriptionCancellation
+);
 
 // Staff (operator/admin) accounts. These cannot be self-registered.
 router.get('/users', validateQuery(listStaffQuerySchema), AdminController.listStaff);

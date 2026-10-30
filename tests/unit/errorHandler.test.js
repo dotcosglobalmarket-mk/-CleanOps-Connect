@@ -72,6 +72,55 @@ describe('errorHandler', () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ message: 'boom' });
   });
+
+  describe('payment provider errors', () => {
+    const leaky =
+      "The provided key 'rk_live_********************ijCbUs' does not have access to account 'acct_1UUvpO0XdUxZqQ9F' (or that account does not exist).";
+
+    it('never sends a Stripe error message to the browser', () => {
+      const res = mockRes();
+      const err = new Error(leaky);
+      err.type = 'StripePermissionError';
+
+      errorHandler(err, {}, res, jest.fn());
+
+      expect(res.status).toHaveBeenCalledWith(502);
+      const { message } = res.json.mock.calls[0][0];
+      expect(message).toMatch(/payment provider/);
+      expect(message).not.toMatch(/rk_live|acct_|ijCbUs/);
+    });
+
+    it('still writes the full Stripe error to the server log', () => {
+      const res = mockRes();
+      const err = new Error(leaky);
+      err.type = 'StripeInvalidRequestError';
+
+      errorHandler(err, {}, res, jest.fn());
+
+      expect(consoleErrorSpy.mock.calls.flat().join(' ')).toContain('acct_1UUvpO0XdUxZqQ9F');
+    });
+
+    it('keeps the message of a declined card, which is written for the customer', () => {
+      const res = mockRes();
+      const err = new Error('Your card was declined.');
+      err.type = 'StripeCardError';
+      err.status = 402;
+
+      errorHandler(err, {}, res, jest.fn());
+
+      expect(res.status).toHaveBeenCalledWith(402);
+      expect(res.json).toHaveBeenCalledWith({ message: 'Your card was declined.' });
+    });
+
+    it('hides keys, webhook secrets and account ids if one reaches an ordinary error', () => {
+      const res = mockRes();
+      const err = new Error('failed with sk_live_abc123 and whsec_XyZ789 for acct_1ABC');
+
+      errorHandler(err, {}, res, jest.fn());
+
+      expect(res.json).toHaveBeenCalledWith({ message: 'failed with [hidden] and [hidden] for [hidden]' });
+    });
+  });
 });
 
 describe('notFoundHandler', () => {
