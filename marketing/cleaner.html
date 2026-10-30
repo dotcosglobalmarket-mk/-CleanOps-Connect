@@ -199,6 +199,21 @@
         <form id="profile-form">
           <div class="card">
             <h2>Basic Information</h2>
+            <div class="avatar-editor">
+              <div id="profile-avatar"></div>
+              <div class="avatar-editor-body">
+                <strong>Profile picture or company logo (optional)</strong>
+                <div class="avatar-editor-actions">
+                  <label class="photo-add">
+                    <span class="secondary button-like">Choose a picture</span>
+                    <input id="avatar-input" type="file" accept="image/*" />
+                  </label>
+                  <button type="button" class="secondary" id="avatar-remove" hidden>Remove</button>
+                </div>
+                <p class="field-help">Customers you are offered to will see it next to your name. It is cropped to a square. Please don't include other people's faces or contact details.</p>
+                <div id="avatar-alert" class="alert alert-error" hidden></div>
+              </div>
+            </div>
             <div class="two-column">
               <div class="form-row">
                 <label for="name">Full name</label>

@@ -3,6 +3,7 @@ import { escapeHtml, splitSuggestion } from './dom.js';
 import { STRIPE_PUBLISHABLE_KEY } from './config.js';
 import { openDocument } from './documents.js';
 import { mountJobPhotos, uploadJobPhotos } from './job-photos.js';
+import { avatarHtml, hydrateAvatars } from './avatar.js';
 import { fetchGuide, renderGuide } from './price-guide.js';
 import { mountChat, fetchUnread, setupConversations } from './chat.js';
 import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate } from './dashboard-ui.js';
@@ -415,19 +416,22 @@ async function renderOffers(job) {
               declined: 'Declined',
               expired: 'Expired',
             }[o.status] || o.status;
-            const who = `<strong>${escapeHtml(c.companyName || c.name || 'Cleaner')}</strong> · ${escapeHtml(rating)} ${badges}`;
+            const face = avatarHtml({ id: c._id, name: c.companyName || c.name, updatedAt: c.photo && c.photo.updatedAt });
+            const head = (extra = '') =>
+              `<div class="offer-head">${face}<div class="offer-head-text"><strong>${escapeHtml(c.companyName || c.name || 'Cleaner')}</strong> · ${escapeHtml(rating)} ${badges}${extra}</div></div>`;
             if (isTender && o.status === 'quoted') {
               return `<li>
-                ${who}
+                ${head()}
                 <div><strong>${escapeHtml(formatPence(o.quotePricePence))}</strong> <span class="field-help">quoted ${escapeHtml(formatDate(o.quotedAt))}</span></div>
                 ${o.quoteMessage ? `<p class="field-help" style="white-space: pre-wrap">${escapeHtml(o.quoteMessage)}</p>` : ''}
                 <button type="button" class="award-quote" data-offer="${escapeHtml(o._id)}" data-name="${escapeHtml(c.companyName || c.name || 'this cleaner')}" data-price="${escapeHtml(o.quotePricePence)}">Award the job</button>
               </li>`;
             }
-            return `<li>${who} <span class="field-help">— ${escapeHtml(state)}</span></li>`;
+            return `<li>${head(` <span class="field-help">— ${escapeHtml(state)}</span>`)}</li>`;
           })
           .join('')
       : '<li>No cleaners have been asked yet.</li>';
+    hydrateAvatars(list);
 
     list.querySelectorAll('.award-quote').forEach((btn) =>
       btn.addEventListener('click', async () => {
