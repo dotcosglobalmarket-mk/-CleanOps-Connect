@@ -6,6 +6,7 @@ const {
   setupIntentSchema,
   activateSubscriptionSchema,
   insuranceAddOnSchema,
+  cancellationRequestSchema,
 } = require('../validation/subscription.validation');
 
 const router = express.Router();
@@ -31,6 +32,20 @@ router.post(
   requireRole('cleaner', 'admin'),
   validateBody(insuranceAddOnSchema),
   SubscriptionController.addInsurance
+);
+
+router.post(
+  '/me/cancellation-request',
+  requireAuth,
+  requireRole('cleaner'),
+  validateBody(cancellationRequestSchema),
+  SubscriptionController.requestCancellation
+);
+router.delete(
+  '/me/cancellation-request',
+  requireAuth,
+  requireRole('cleaner'),
+  SubscriptionController.withdrawCancellation
 );
 
 module.exports = router;

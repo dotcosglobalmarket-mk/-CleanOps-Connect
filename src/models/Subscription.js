@@ -30,6 +30,21 @@ const subscriptionSchema = new mongoose.Schema(
     stripeStatus: {
       type: String,
     },
+    // True once the subscription is set to end at the close of the period the
+    // cleaner has already paid for (mirrors Stripe's cancel_at_period_end).
+    cancelAtPeriodEnd: {
+      type: Boolean,
+      default: false,
+    },
+    // A cleaner asks to leave; an admin decides. Set while the request waits,
+    // cleared when it is withdrawn or declined.
+    cancellationRequestedAt: {
+      type: Date,
+    },
+    cancellationReason: {
+      type: String,
+      maxlength: 500,
+    },
     insuranceAddOn: {
       type: Boolean,
       default: false,

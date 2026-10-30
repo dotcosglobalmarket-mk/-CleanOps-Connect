@@ -49,6 +49,19 @@ const listAuditQuerySchema = z.object({
   to: z.string().datetime({ offset: true }).optional(),
 });
 
+const listSubscriptionsQuerySchema = z.object({
+  status: z.enum(['active', 'requested', 'ending', 'ended']).optional(),
+});
+
+const cancelSubscriptionSchema = z.object({
+  when: z.enum(['period_end', 'now']),
+  reason,
+});
+
+const declineCancellationSchema = z.object({
+  reason,
+});
+
 const listStaffQuerySchema = z.object({
   role: z.enum(['operator', 'admin']).optional(),
 });
@@ -92,6 +105,9 @@ module.exports = {
   listApprovalsQuerySchema,
   approvalDecisionSchema,
   listAuditQuerySchema,
+  listSubscriptionsQuerySchema,
+  cancelSubscriptionSchema,
+  declineCancellationSchema,
   listStaffQuerySchema,
   createStaffSchema,
   updateStaffSchema,

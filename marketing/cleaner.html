@@ -386,6 +386,22 @@
           <div id="subscription-success" class="alert alert-success" hidden></div>
           <p id="subscription-status-text" class="field-help"></p>
 
+          <div id="subscription-cancel" class="subscription-cancel" style="margin-bottom:1rem" hidden>
+            <p id="subscription-cancel-text" class="field-help"></p>
+            <div id="subscription-cancel-form" hidden>
+              <div class="form-row">
+                <label for="subscription-cancel-reason">Why are you leaving? (optional)</label>
+                <textarea id="subscription-cancel-reason" rows="2" maxlength="500"></textarea>
+              </div>
+              <div class="cta-row">
+                <button id="subscription-cancel-send" type="button">Send cancellation request</button>
+                <button id="subscription-cancel-back" type="button" class="secondary">Keep my plan</button>
+              </div>
+            </div>
+            <button id="subscription-cancel-open" type="button" class="secondary" hidden>Request cancellation</button>
+            <button id="subscription-cancel-withdraw" type="button" class="secondary" hidden>Withdraw my request</button>
+          </div>
+
           <div class="form-row">
             <label for="plan">Plan</label>
             <select id="plan">

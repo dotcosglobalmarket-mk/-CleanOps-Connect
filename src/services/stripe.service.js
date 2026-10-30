@@ -177,6 +177,12 @@ async function cancelSubscription(subscriptionId) {
   return getClient().subscriptions.cancel(subscriptionId);
 }
 
+// Keeps the subscription running (and the cleaner's access) until the period
+// they have already paid for ends, then stops it with no further charge.
+async function cancelSubscriptionAtPeriodEnd(subscriptionId) {
+  return getClient().subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+}
+
 // Verifies the Stripe signature BEFORE the caller trusts event.id for dedup
 // or acts on the payload at all.
 //
@@ -219,5 +225,6 @@ module.exports = {
   setDefaultPaymentMethod,
   createSubscription,
   cancelSubscription,
+  cancelSubscriptionAtPeriodEnd,
   constructWebhookEvent,
 };
