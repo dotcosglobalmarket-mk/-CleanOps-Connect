@@ -84,7 +84,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockStore.jobs = [];
   mockStore.series = { series1: { _id: 'series1', customer: 'cust1', cleaner: 'cleaner1', status: 'active', paymentFailureStreak: 0, save: jest.fn(async function s() { return this; }) } };
-  mockStore.users = { cust1: { stripeCustomerId: 'cus_1', savedCard: { paymentMethodId: 'pm_1' } } };
+  mockStore.users = { cust1: { stripeCustomerId: 'cus_1', savedCard: { paymentMethodId: 'pm_1', consentVersion: 'card-v2' } } };
   stripeService.createPaymentIntent.mockResolvedValue({ id: 'pi_1' });
   stripeService.confirmOffSession.mockResolvedValue({ status: 'succeeded' });
   stripeService.cancelPaymentIntent.mockResolvedValue({});
@@ -245,6 +245,18 @@ describe('a declined card', () => {
     await charging.runChargeSweep(now);
     expect(job).toMatchObject({ chargeAttempts: 0, visitState: 'scheduled' });
     expect((await charging.runChargeSweep(now)).paid).toBe(1);
+  });
+});
+
+describe('agreement to recurring charges', () => {
+  it('does not charge a card that was saved under older wording', async () => {
+    const job = visit();
+    mockStore.users.cust1 = { stripeCustomerId: 'cus_1', savedCard: { paymentMethodId: 'pm_1', consentVersion: 'card-v1' } };
+    const counts = await charging.runChargeSweep(now);
+    expect(counts.retry).toBe(1);
+    expect(stripeService.createPaymentIntent).not.toHaveBeenCalled();
+    expect(notifications.visitPaymentFailed).toHaveBeenCalled();
+    expect(job.visitState).toBe('scheduled');
   });
 });
 

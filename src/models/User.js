@@ -45,6 +45,17 @@ const userSchema = new mongoose.Schema(
       consentAt: { type: Date },
       consentVersion: { type: String },
     },
+    // Every time a card was saved, re-agreed to or removed, with the wording in force.
+    // Kept when a card is removed, as evidence of what was agreed (see the privacy notice).
+    cardConsentLog: [
+      {
+        event: { type: String, enum: ['saved', 'agreed', 'removed'] },
+        at: { type: Date },
+        version: { type: String },
+        brand: { type: String },
+        last4: { type: String },
+      },
+    ],
     // Two-step login (see two-factor.service.js). The authenticator secret is
     // stored encrypted and recovery codes only as hashes.
     twoFactor: {

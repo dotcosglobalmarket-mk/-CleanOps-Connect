@@ -1,6 +1,7 @@
 const Job = require('../models/Job');
 const Series = require('../models/Series');
 const User = require('../models/User');
+const { hasRecurringConsent } = require('./customer-card.service');
 const { STATES } = require('./payment-state-machine');
 const { londonParts, londonToUtc, daysInMonth } = require('../utils/london-time');
 const notifications = require('./notification.service');
@@ -130,7 +131,8 @@ async function settleStatus(series) {
   if (!VISIT_ONE_PAID.has(first.paymentStatus)) return false;
 
   const customer = await User.findById(series.customer);
-  if (!customer || !customer.savedCard || !customer.savedCard.paymentMethodId) return false;
+  // A saved card is not enough: the customer must have agreed, under the current wording, to later visits being charged.
+  if (!hasRecurringConsent(customer)) return false;
 
   series.status = 'active';
   series.activatedAt = new Date();

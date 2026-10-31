@@ -1,6 +1,7 @@
 const Job = require('../models/Job');
 const Series = require('../models/Series');
 const User = require('../models/User');
+const { hasRecurringConsent } = require('./customer-card.service');
 const stripeService = require('./stripe.service');
 const notifications = require('./notification.service');
 const { EVENTS, transition } = require('./payment-state-machine');
@@ -97,8 +98,8 @@ async function chargeVisit(job, series, now = new Date()) {
 
   const customer = await User.findById(series.customer);
   const card = customer && customer.savedCard;
-  if (!customer || !customer.stripeCustomerId || !card || !card.paymentMethodId) {
-    return handleDeclined(claimed, series, attempt, now, 'no saved card');
+  if (!customer || !customer.stripeCustomerId || !card || !card.paymentMethodId || !hasRecurringConsent(customer)) {
+    return handleDeclined(claimed, series, attempt, now, 'no saved card or no agreement to recurring charges');
   }
 
   // Book the visit and store the intent BEFORE asking Stripe to take the money, so
