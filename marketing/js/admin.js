@@ -330,7 +330,14 @@ function renderRevenue(data) {
   const t = data.totals;
   document.getElementById('revenue-tiles').innerHTML = [
     revenueTile('Total platform revenue', formatPence(t.totalPence), changeNote(t.totalPence, t.previousTotalPence), t.totalPence >= t.previousTotalPence && t.previousTotalPence ? 'good' : '', 'green', '💷'),
-    revenueTile('Commission on jobs', formatPence(t.commissionPence), `from ${t.jobsCount} confirmed job${t.jobsCount === 1 ? '' : 's'}`, '', 'teal', '🧾'),
+    revenueTile(
+      'Commission on jobs',
+      formatPence(t.commissionPence),
+      `from ${t.jobsCount} confirmed job${t.jobsCount === 1 ? '' : 's'}${t.recurringVisitsCount ? `, ${formatPence(t.recurringCommissionPence)} of it from ${t.recurringVisitsCount} regular visit${t.recurringVisitsCount === 1 ? '' : 's'}` : ''}${t.activeSeriesCount ? ` · ${t.activeSeriesCount} regular booking${t.activeSeriesCount === 1 ? '' : 's'} running` : ''}`,
+      '',
+      'teal',
+      '🧾'
+    ),
     revenueTile('Subscription income', formatPence(t.subscriptionBilledPence), `${formatPence(t.mrrPence)} a month from ${t.activeSubscribers} active cleaner${t.activeSubscribers === 1 ? '' : 's'}`, '', 'purple', '🔁'),
     revenueTile('Failed payments', String(t.failedCount), `${formatPence(t.atRiskPence)} a month at risk`, t.failedCount ? 'bad' : '', t.failedCount ? 'red' : 'blue', '⚠️'),
   ].join('');

@@ -410,6 +410,58 @@ module.exports = {
     });
   }),
 
+  seriesStarted: safely('seriesStarted', async (series, { who }) => {
+    const every = { weekly: 'every week', fortnightly: 'every two weeks', monthly: 'every month' }[series.frequency] || 'regularly';
+    const ends = series.endsOn.toLocaleDateString('en-GB', { dateStyle: 'long', timeZone: 'Europe/London' });
+    if (who === 'cleaner') {
+      await emailService.send({
+        to: await cleanerEmail(series.cleaner),
+        subject: 'Your regular booking is under way',
+        paragraphs: [
+          `Your regular booking has started: ${every}, at ${pounds(series.pricePence)} a visit, until ${ends}. Each visit is paid for 48 hours before it, and held until the customer confirms it.`,
+          'You can see every upcoming visit under Regular Jobs.',
+        ],
+        action: cleanerLink('See my regular jobs', 'regular'),
+      });
+      return;
+    }
+    await emailService.send({
+      to: await customerEmail(series),
+      subject: 'Your regular cleaning is set up',
+      paragraphs: [
+        `Your cleaning will happen ${every} at ${pounds(series.pricePence)} a visit, until ${ends}.`,
+        'Each visit is charged to your saved card 48 hours before it. You can skip a visit for free until then, or pause or cancel the series, from Regular cleaning in your account.',
+      ],
+      action: { label: 'See my regular cleaning', url: frontendUrl('customer.html?tab=series') },
+    });
+  }),
+
+  seriesRenewalReminder: safely('seriesRenewalReminder', async (series) => {
+    const ends = series.endsOn.toLocaleDateString('en-GB', { dateStyle: 'full', timeZone: 'Europe/London' });
+    await emailService.send({
+      to: await customerEmail(series),
+      subject: 'Your regular cleaning ends soon',
+      paragraphs: [
+        `Your regular cleaning ends on ${ends}. It does not renew by itself, and you will not be charged after that date.`,
+        'If you would like to carry on, post a new job and choose how often you want it.',
+      ],
+      action: { label: 'See my regular cleaning', url: frontendUrl('customer.html?tab=series') },
+    });
+  }),
+
+  seriesPausedByCustomer: safely('seriesPausedByCustomer', async (series, { resumed }) => {
+    await emailService.send({
+      to: await cleanerEmail(series.cleaner),
+      subject: resumed ? 'A regular booking has resumed' : 'A regular booking has been paused',
+      paragraphs: [
+        resumed
+          ? 'The customer has resumed this regular booking. New visits will appear again.'
+          : 'The customer has paused this regular booking. Visits that have not been charged will not go ahead until they resume it.',
+      ],
+      action: cleanerLink('See my regular jobs', 'regular'),
+    });
+  }),
+
   subscriptionCancellationDeclined: safely('subscriptionCancellationDeclined', async (cleanerProfileId) => {
     await emailService.send({
       to: await cleanerEmail(cleanerProfileId),

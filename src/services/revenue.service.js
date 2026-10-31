@@ -1,4 +1,5 @@
 const Job = require('../models/Job');
+const Series = require('../models/Series');
 const Subscription = require('../models/Subscription');
 const SubscriptionPayment = require('../models/SubscriptionPayment');
 const { STATES } = require('./payment-state-machine');
@@ -40,9 +41,9 @@ async function getRevenue({ range = '30d' } = {}, now = new Date()) {
   const weeksStart = new Date(now.getTime() - WEEKS_SHOWN * 7 * DAY_MS);
   const earliest = new Date(Math.min(previousStart.getTime(), weeksStart.getTime()));
 
-  const [jobs, payments, activeSubscriptions, atRiskSubscriptions, recent] = await Promise.all([
+  const [jobs, payments, activeSubscriptions, atRiskSubscriptions, recent, activeSeries] = await Promise.all([
     Job.find({ paymentStatus: { $in: REVENUE_STATES }, confirmedAt: { $gte: earliest } })
-      .select('commissionPence confirmedAt')
+      .select('commissionPence confirmedAt series')
       .lean(),
     SubscriptionPayment.find({ status: 'paid', occurredAt: { $gte: earliest } })
       .select('amountPence occurredAt')
@@ -56,6 +57,7 @@ async function getRevenue({ range = '30d' } = {}, now = new Date()) {
       .limit(RECENT_PAYMENTS_LIMIT)
       .populate('cleaner', 'name companyName')
       .lean(),
+    Series.countDocuments({ status: 'active' }),
   ]);
 
   const commissionNow = jobs.filter((j) => inWindow(j.confirmedAt, start));
@@ -121,6 +123,10 @@ async function getRevenue({ range = '30d' } = {}, now = new Date()) {
       previousTotalPence,
       commissionPence,
       jobsCount: commissionNow.length,
+      // Part of the commission above: visits of regular (recurring) bookings.
+      recurringCommissionPence: sum(commissionNow.filter((j) => j.series), 'commissionPence'),
+      recurringVisitsCount: commissionNow.filter((j) => j.series).length,
+      activeSeriesCount: activeSeries,
       subscriptionBilledPence,
       mrrPence: sum(plans, 'monthlyPence'),
       activeSubscribers: activeSubscriptions.length,

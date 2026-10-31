@@ -1,6 +1,7 @@
 import { apiRequest, apiUpload, requireRole } from './api.js';
 import { escapeHtml, splitSuggestion } from './dom.js';
 import { setupTabs, formatPence } from './dashboard-ui.js';
+import { mountSeries } from './series-ui.js';
 import { STRIPE_PUBLISHABLE_KEY } from './config.js';
 import { avatarHtml, hydrateAvatars, prepareAvatar } from './avatar.js';
 
@@ -174,10 +175,35 @@ document.getElementById('subscription-cancel-withdraw').addEventListener('click'
 });
 
 // --- Tab switching (a ?tab= link, e.g. from an email, opens that tab) ---
+async function loadRegularJobs() {
+  document.getElementById('regular-alert').hidden = true;
+  try {
+    return await mountSeries(document.getElementById('regular-list'), {
+      role: 'cleaner',
+      alertId: 'regular-alert',
+      successId: 'regular-success',
+    });
+  } catch (err) {
+    const alert = document.getElementById('regular-alert');
+    alert.textContent = err.message;
+    alert.hidden = false;
+    return null;
+  }
+}
+
 const selectPanel = setupTabs((panel) => {
   if (panel === 'coverage') ensureSubscriptionPaymentElement().catch(() => {});
   if (panel === 'compliance') loadComplianceDocuments();
+  if (panel === 'regular') loadRegularJobs();
 });
+document.getElementById('regular-refresh').addEventListener('click', loadRegularJobs);
+
+// Regular Jobs shows in the menu once recurring bookings are on, or the cleaner already has one.
+apiRequest('/series/mine', { auth: true })
+  .then((data) => {
+    document.getElementById('nav-regular').hidden = !(data.enabled || (data.series || []).length);
+  })
+  .catch(() => {});
 const requestedTab = new URLSearchParams(window.location.search).get('tab');
 if (requestedTab) selectPanel(requestedTab);
 

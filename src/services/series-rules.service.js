@@ -71,6 +71,7 @@ async function pause(seriesId, userId) {
   series.pausedBy = 'customer';
   series.pausedAt = new Date();
   await series.save();
+  notifications.seriesPausedByCustomer(series, { resumed: false });
   return series;
 }
 
@@ -88,6 +89,7 @@ async function resume(seriesId, userId) {
   // A second cleaner cancellation would pause it again at once, so start the count afresh.
   series.cleanerCancellations = 0;
   await series.save();
+  notifications.seriesPausedByCustomer(series, { resumed: true });
   return series;
 }
 

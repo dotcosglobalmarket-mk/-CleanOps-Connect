@@ -31,7 +31,9 @@ const DISPUTE_REASONS = {
 
 let refundLimitPence = null;
 
-setupTabs();
+setupTabs((panel) => {
+  if (panel === 'series') loadSeries();
+});
 
 // --- Today ---
 async function loadToday() {
@@ -415,6 +417,55 @@ async function loadJobs() {
     showAlert('jobs-alert', err.message);
   }
 }
+
+// --- Regular bookings ---
+const SERIES_STATUS = {
+  awaiting_card: ['Waiting to start', 'warn'],
+  active: ['Running', 'good'],
+  paused: ['Paused', 'bad'],
+  cancelled: ['Cancelled', 'bad'],
+  ended: ['Ended', 'warn'],
+};
+const PAUSED_BY = { customer: 'by the customer', payment: 'failed cards', cleaner_cancellations: 'cleaner cancellations' };
+
+async function loadSeries() {
+  hideAlert('series-alert');
+  const container = document.getElementById('series-table');
+  container.innerHTML = '<div class="table-empty">Loading…</div>';
+  const status = document.getElementById('series-filter-status').value;
+  try {
+    const rows = await apiRequest(`/ops/series${status ? `?status=${status}` : ''}`, { auth: true });
+    container.classList.add('fit');
+    container.innerHTML = renderTable({
+      fit: true,
+      columns: ['Customer', 'Cleaner', 'Plan', 'Status', 'Visits made', 'Next visit', 'Problems'],
+      emptyMessage: 'No regular bookings yet.',
+      rows: rows.map((s) => {
+        const [label, kind] = SERIES_STATUS[s.status] || [s.status, 'warn'];
+        const problems = [
+          s.paymentFailureStreak ? `${s.paymentFailureStreak} skipped for payment` : '',
+          s.cleanerCancellations ? `${s.cleanerCancellations} cancelled by cleaner` : '',
+        ].filter(Boolean);
+        return `
+        <tr>
+          <td>${escapeHtml(s.customer?.name || '—')}<div class="field-help wrap-anywhere">${escapeHtml(s.customer?.email || '')}</div></td>
+          <td>${escapeHtml(s.cleaner || '—')}</td>
+          <td>${escapeHtml(s.frequency)} · ${formatPence(s.pricePence)}<div class="field-help">until ${escapeHtml(new Date(s.endsOn).toLocaleDateString('en-GB'))}</div></td>
+          <td>${statusBadge(label, kind)}${s.status === 'paused' && s.pausedBy ? `<div class="field-help">${escapeHtml(PAUSED_BY[s.pausedBy] || s.pausedBy)}</div>` : ''}</td>
+          <td>${escapeHtml(s.visitsCreated)}</td>
+          <td>${s.nextVisitAt ? formatDate(s.nextVisitAt) : '—'}</td>
+          <td>${problems.length ? escapeHtml(problems.join(', ')) : '—'}</td>
+        </tr>`;
+      }),
+    });
+  } catch (err) {
+    container.innerHTML = '';
+    showAlert('series-alert', err.message);
+  }
+}
+
+document.getElementById('series-refresh').addEventListener('click', loadSeries);
+document.getElementById('series-filter-apply').addEventListener('click', loadSeries);
 
 async function openJob(jobId) {
   hideAlert('jobs-alert');

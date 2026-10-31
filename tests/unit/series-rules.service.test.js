@@ -83,6 +83,7 @@ describe('a customer pausing, resuming and cancelling', () => {
     Series.findById.mockResolvedValue(s);
     await rules.pause('s1', 'cust1');
     expect(s).toMatchObject({ status: 'paused', pausedBy: 'customer' });
+    expect(notifications.seriesPausedByCustomer).toHaveBeenCalledWith(s, { resumed: false });
 
     Series.findById.mockResolvedValue(series({ status: 'cancelled' }));
     await expect(rules.pause('s1', 'cust1')).rejects.toMatchObject({ status: 400 });
@@ -97,6 +98,7 @@ describe('a customer pausing, resuming and cancelling', () => {
     User.findById.mockResolvedValue({ savedCard: { paymentMethodId: 'pm_1' } });
     await rules.resume('s1', 'cust1');
     expect(s).toMatchObject({ status: 'active', paymentFailureStreak: 0, cleanerCancellations: 0 });
+    expect(notifications.seriesPausedByCustomer).toHaveBeenCalledWith(s, { resumed: true });
     expect(s.pausedBy).toBeUndefined();
   });
 

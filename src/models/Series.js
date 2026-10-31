@@ -43,6 +43,8 @@ const seriesSchema = new mongoose.Schema(
     cancelledAt: { type: Date },
     // Set when the cleaner gives their 14 days' notice to end the series.
     endNoticeGivenAt: { type: Date },
+    // When the customer was told the series is about to end (14 days before). Sent once.
+    renewalReminderSentAt: { type: Date },
   },
   { timestamps: true }
 );

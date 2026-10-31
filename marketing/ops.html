@@ -30,6 +30,7 @@
       <button type="button" class="dash-nav-item" data-panel="verification">Verification</button>
       <button type="button" class="dash-nav-item" data-panel="payments">Payments Queue</button>
       <button type="button" class="dash-nav-item" data-panel="jobs">Jobs</button>
+      <button type="button" class="dash-nav-item" data-panel="series">Regular bookings</button>
       <button type="button" class="dash-nav-item" data-panel="cleaners">Cleaners</button>
       <button type="button" class="dash-nav-item" data-panel="reviews">Reviews</button>
     </aside>
@@ -225,6 +226,31 @@
           <h4>Notes</h4>
           <ul id="job-notes" class="timeline"></ul>
         </div>
+      </section>
+
+      <!-- Regular bookings -->
+      <section id="panel-series" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Regular bookings</h2>
+          <button id="series-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">Paused series and ones with failed cards or cancelled visits are the ones to look at.</p>
+        <div id="series-alert" class="alert alert-error" hidden></div>
+        <div class="filter-bar">
+          <div class="form-row">
+            <label for="series-filter-status">Status</label>
+            <select id="series-filter-status">
+              <option value="">All</option>
+              <option value="paused">Paused</option>
+              <option value="active">Running</option>
+              <option value="awaiting_card">Waiting to start</option>
+              <option value="ended">Ended</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <button id="series-filter-apply" type="button">Apply</button>
+        </div>
+        <div id="series-table" class="table-wrap"></div>
       </section>
 
       <!-- Cleaners -->

@@ -180,7 +180,11 @@ export function setupTabs(onShow) {
     tab.addEventListener('keydown', (event) => {
       if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
       event.preventDefault();
-      const next = tabs[(index + (event.key === 'ArrowDown' ? 1 : tabs.length - 1)) % tabs.length];
+      // Skip menu items that are not shown (e.g. Regular Jobs while it is off).
+      const step = event.key === 'ArrowDown' ? 1 : tabs.length - 1;
+      let at = (index + step) % tabs.length;
+      while (tabs[at].hidden && at !== index) at = (at + step) % tabs.length;
+      const next = tabs[at];
       next.focus();
       select(next);
     });

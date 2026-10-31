@@ -10,7 +10,10 @@ function handler(fn) {
   };
 }
 
+const viewService = require('../services/series-view.service');
+
 module.exports = {
+  mine: handler((req) => viewService.listMine(req.user)),
   skipVisit: handler((req) => rules.skipVisit(req.params.id, req.params.jobId, req.user.id)),
   pause: handler((req) => rules.pause(req.params.id, req.user.id)),
   resume: handler((req) => rules.resume(req.params.id, req.user.id)),
