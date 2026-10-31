@@ -107,7 +107,7 @@ function stripInternalFields(job) {
 // Customer's own jobs, newest first, without payment internals.
 async function listJobsForCustomer(customerId) {
   // Visits the series has made ahead (not yet charged) stay out of this list.
-  const jobs = await Job.find({ customer: customerId, visitState: { $ne: 'scheduled' } })
+  const jobs = await Job.find({ customer: customerId, visitState: { $nin: ['scheduled', 'skipped'] } })
     .populate('serviceType', 'name')
     .populate('cleaner', 'name ratingAverage ratingCount')
     .sort({ createdAt: -1 })

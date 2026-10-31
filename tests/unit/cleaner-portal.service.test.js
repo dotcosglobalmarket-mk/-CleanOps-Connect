@@ -231,6 +231,6 @@ describe('recurring bookings in the cleaner’s views', () => {
     CleanerProfile.findOne.mockResolvedValue(profile());
     Job.find.mockReturnValue(chainable([]));
     await portal.listMyJobs('user1');
-    expect(Job.find).toHaveBeenCalledWith({ cleaner: 'profile1', visitState: { $ne: 'scheduled' } });
+    expect(Job.find).toHaveBeenCalledWith({ cleaner: 'profile1', visitState: { $nin: ['scheduled', 'skipped'] } });
   });
 });

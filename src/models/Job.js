@@ -44,7 +44,13 @@ const jobSchema = new mongoose.Schema(
     visitNumber: { type: Number },
     // 'scheduled' = made ahead by the series and not yet charged; it stays out of
     // the ordinary job lists until then.
-    visitState: { type: String, enum: ['scheduled'] },
+    visitState: { type: String, enum: ['scheduled', 'skipped'] },
+    // Automatic charging of a scheduled visit (see visit-charging.service.js).
+    chargeAttempts: { type: Number, default: 0 },
+    nextChargeAttemptAt: { type: Date },
+    // Why a visit did not happen: skipped by the customer, the cleaner, a card that
+    // could not be charged, or because it was never reached (e.g. series paused).
+    skipReason: { type: String, enum: ['customer', 'cleaner', 'payment', 'missed', 'series_ended'] },
     // When the customer would like the visit (UK time on screen, stored as an
     // instant). Optional: tenders and older jobs have none.
     preferredStartAt: {

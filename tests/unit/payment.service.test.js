@@ -405,3 +405,35 @@ describe('timestamps recorded for the service record', () => {
     expect(jobPhotos.scheduleExpiry.mock.calls.map((c) => c[0])).toEqual(['jobA', 'jobB']);
   });
 });
+
+describe('cancelling a later visit of a recurring series', () => {
+  it('is always a late cancellation once paid: half back, even within 24 hours of the charge', async () => {
+    const job = makeJob({
+      paymentStatus: STATES.PAID_HELD,
+      stripePaymentIntentId: 'pi_1',
+      pricePence: 2600,
+      series: 's1',
+      visitNumber: 3,
+      bookedAt: new Date(Date.now() - 60 * 60 * 1000), // charged an hour ago
+    });
+    Job.findById.mockResolvedValue(job);
+    await paymentService.cancelByCustomer('job1');
+    expect(stripeService.createRefund).toHaveBeenCalledWith(expect.objectContaining({ amountPence: 1300 }));
+    expect(job.paymentStatus).toBe(STATES.PARTIALLY_REFUNDED);
+  });
+
+  it('the first visit keeps the ordinary 24-hour full-refund window', async () => {
+    const job = makeJob({
+      paymentStatus: STATES.PAID_HELD,
+      stripePaymentIntentId: 'pi_1',
+      pricePence: 2600,
+      series: 's1',
+      visitNumber: 1,
+      bookedAt: new Date(Date.now() - 60 * 60 * 1000),
+    });
+    Job.findById.mockResolvedValue(job);
+    await paymentService.cancelByCustomer('job1');
+    expect(stripeService.createRefund).toHaveBeenCalledWith(expect.not.objectContaining({ amountPence: expect.anything() }));
+    expect(job.paymentStatus).toBe(STATES.REFUNDED);
+  });
+});
