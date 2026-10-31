@@ -85,7 +85,7 @@ describe('Phase 3 journey routes', () => {
       );
       const res = await request(app).get('/jobs/mine').set('Authorization', tokenFor('customer', 'cust1'));
       expect(res.status).toBe(200);
-      expect(Job.find).toHaveBeenCalledWith({ customer: 'cust1', visitState: { $ne: 'scheduled' } });
+      expect(Job.find).toHaveBeenCalledWith({ customer: 'cust1', visitState: { $nin: ['scheduled', 'skipped'] } });
       expect(res.body[0].stripePaymentIntentId).toBeUndefined();
     });
 

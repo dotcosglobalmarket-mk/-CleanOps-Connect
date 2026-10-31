@@ -197,7 +197,11 @@ async function cancelByCustomer(jobId) {
   // posted. Jobs booked before bookedAt existed fall back to createdAt.
   const bookedAt = job.bookedAt || job.createdAt;
   const hoursSinceBooking = (Date.now() - bookedAt.getTime()) / (1000 * 60 * 60);
-  const isWithinFullRefundWindow = hoursSinceBooking <= CUSTOMER_FULL_REFUND_WINDOW_HOURS;
+  // A later visit of a series is charged 48 hours ahead, so cancelling it once paid
+  // is always a late cancellation: the 24-hours-from-booking window does not apply.
+  // (Skipping it before it is charged is free, see series-rules.service.js.)
+  const isLaterSeriesVisit = Boolean(job.series) && job.visitNumber > 1;
+  const isWithinFullRefundWindow = !isLaterSeriesVisit && hoursSinceBooking <= CUSTOMER_FULL_REFUND_WINDOW_HOURS;
 
   transition(job, EVENTS.CANCEL_BY_CUSTOMER);
   job.status = 'cancelled';

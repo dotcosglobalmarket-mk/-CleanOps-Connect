@@ -182,6 +182,12 @@ async function generateVisits(series, now = new Date()) {
     }
     if (startsAt > horizon) break;
 
+    // A date that passed while the series was paused is simply not made.
+    if (startsAt <= now) {
+      number = next;
+      continue;
+    }
+
     try {
       await Job.create(visitDocument(series, next, startsAt));
       made += 1;

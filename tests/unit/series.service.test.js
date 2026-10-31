@@ -230,13 +230,28 @@ describe('the visit generator', () => {
   it('never makes a visit past the end date, and marks the series ended afterwards', async () => {
     await startedSeries();
     const end = mockStore.series[0].endsOn;
-    const afterEnd = new Date(end.getTime() + 24 * 3600 * 1000);
-    await seriesService.runVisitGenerator(afterEnd);
+    // The worker runs every 6 hours; stepping a week at a time reaches the same visits.
+    for (let t = +now; t <= +end + 8 * 24 * 3600 * 1000; t += 7 * 24 * 3600 * 1000) {
+      await seriesService.runVisitGenerator(new Date(t));
+    }
 
-    const last = Math.max(...mockStore.jobs.filter((j) => j.series).map((j) => j.visitNumber));
-    expect(last).toBe(26);
-    expect(Math.max(...mockStore.jobs.filter((j) => j.series).map((j) => +j.preferredStartAt))).toBeLessThanOrEqual(+end);
+    const dates = mockStore.jobs.filter((j) => j.series).map((j) => +j.preferredStartAt);
+    expect(Math.max(...mockStore.jobs.filter((j) => j.series).map((j) => j.visitNumber))).toBe(26);
+    expect(Math.max(...dates)).toBeLessThanOrEqual(+end);
     expect(mockStore.series[0].status).toBe('ended');
+  });
+
+  it('does not make visits for dates that passed while the series was paused', async () => {
+    const series = await startedSeries();
+    await seriesService.runVisitGenerator(now); // visits 2 and 3 exist
+    series.status = 'paused';
+    const resumedAt = utc('2026-03-20T08:00:00Z'); // weeks later
+    series.status = 'active';
+    await seriesService.runVisitGenerator(resumedAt);
+
+    const made = mockStore.jobs.filter((j) => j.series && j.visitNumber > 3);
+    expect(made.length).toBeGreaterThan(0);
+    expect(made.every((j) => +j.preferredStartAt > +resumedAt)).toBe(true);
   });
 
   it('does not touch paused or cancelled series', async () => {

@@ -34,6 +34,15 @@ const seriesSchema = new mongoose.Schema(
     // Highest visit number made so far (visit 1 is the first job).
     visitsCreated: { type: Number, default: 1 },
     activatedAt: { type: Date },
+    // Consecutive visits skipped because the card could not be charged. Two pause the series.
+    paymentFailureStreak: { type: Number, default: 0 },
+    // Visits the cleaner has cancelled. A second one pauses the series.
+    cleanerCancellations: { type: Number, default: 0 },
+    pausedBy: { type: String, enum: ['customer', 'payment', 'cleaner_cancellations'] },
+    pausedAt: { type: Date },
+    cancelledAt: { type: Date },
+    // Set when the cleaner gives their 14 days' notice to end the series.
+    endNoticeGivenAt: { type: Date },
   },
   { timestamps: true }
 );

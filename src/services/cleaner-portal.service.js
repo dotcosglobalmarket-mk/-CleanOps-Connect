@@ -155,7 +155,7 @@ const MY_JOB_FIELDS =
 
 async function listMyJobs(userId) {
   const cleaner = await requireProfile(userId);
-  return Job.find({ cleaner: cleaner._id, visitState: { $ne: 'scheduled' } })
+  return Job.find({ cleaner: cleaner._id, visitState: { $nin: ['scheduled', 'skipped'] } })
     .select(MY_JOB_FIELDS)
     .populate('serviceType', 'name')
     .populate('customer', 'name')

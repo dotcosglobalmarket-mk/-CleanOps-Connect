@@ -8,7 +8,7 @@ const { ensureSuperAdmin } = require('./services/admin-bootstrap.service');
 const complianceDocumentService = require('./services/compliance-document.service');
 const retentionService = require('./services/retention.service');
 const { startPaymentWorkers } = require('./workers/transfer-retry.worker');
-const { startSeriesWorker } = require('./workers/series.worker');
+const { startSeriesWorker, startChargeWorker } = require('./workers/series.worker');
 
 const PORT = process.env.PORT || 4000;
 
@@ -50,6 +50,7 @@ async function start() {
 
   startPaymentWorkers();
   startSeriesWorker();
+  startChargeWorker();
   startComplianceDocumentExpiry();
   startRetentionSweep();
 }

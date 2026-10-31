@@ -33,12 +33,28 @@ function getClient() {
   return stripeClient;
 }
 
-async function createPaymentIntent({ amountPence, currency = 'gbp', metadata }) {
-  return getClient().paymentIntents.create({
-    amount: amountPence,
-    currency,
-    metadata,
-  });
+async function createPaymentIntent({ amountPence, currency = 'gbp', metadata, customerId, paymentMethodId, idempotencyKey }) {
+  return getClient().paymentIntents.create(
+    {
+      amount: amountPence,
+      currency,
+      metadata,
+      // A saved card, for a visit charged without the customer present.
+      ...(customerId ? { customer: customerId } : {}),
+      ...(paymentMethodId ? { payment_method: paymentMethodId } : {}),
+    },
+    idempotencyKey ? { idempotencyKey } : undefined
+  );
+}
+
+// Takes the money for a PaymentIntent made above, using the saved card, with the
+// customer not present. A decline throws a StripeCardError.
+async function confirmOffSession({ paymentIntentId, paymentMethodId, idempotencyKey }) {
+  return getClient().paymentIntents.confirm(
+    paymentIntentId,
+    { payment_method: paymentMethodId, off_session: true },
+    idempotencyKey ? { idempotencyKey } : undefined
+  );
 }
 
 // Connect Express payout to the cleaner's connected account. Idempotency
@@ -237,6 +253,7 @@ function constructWebhookEvent(payload, signatureHeader) {
 module.exports = {
   getClient,
   createPaymentIntent,
+  confirmOffSession,
   createTransfer,
   createRefund,
   retrievePaymentIntent,

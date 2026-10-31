@@ -333,6 +333,83 @@ module.exports = {
     });
   }),
 
+  // --- Recurring visits (series): charging, skipping, pausing ---
+
+  visitPaymentFailed: safely('visitPaymentFailed', async (job, { retryAt }) => {
+    await emailService.send({
+      to: await customerEmail(job),
+      subject: 'We could not take payment for your next visit',
+      paragraphs: [
+        `We tried your saved card for your next visit (${pounds(job.pricePence)}) and it did not go through.`,
+        retryAt
+          ? `We will try once more on ${retryAt.toLocaleString('en-GB', { dateStyle: 'full', timeStyle: 'short', timeZone: 'Europe/London' })}. If it still fails, that visit will be skipped. You can replace your card under Payment card.`
+          : 'That visit has been skipped. You can replace your card under Payment card.',
+      ],
+      action: { label: 'Update my card', url: frontendUrl('customer.html') },
+    });
+  }),
+
+  visitSkipped: safely('visitSkipped', async (job, { reason }) => {
+    const when = job.preferredStartAt
+      ? job.preferredStartAt.toLocaleString('en-GB', { dateStyle: 'full', timeStyle: 'short', timeZone: 'Europe/London' })
+      : 'a visit';
+    if (reason === 'customer') {
+      await emailService.send({
+        to: await cleanerEmail(job.cleaner),
+        subject: 'A customer has skipped a visit',
+        paragraphs: [`The customer has skipped the visit on ${when}, so you do not need to attend. The rest of the series carries on.`],
+        action: cleanerLink('Open my jobs', 'jobs'),
+      });
+      return;
+    }
+    const why = reason === 'cleaner' ? 'your cleaner has had to cancel it' : 'we could not take payment for it';
+    await emailService.send({
+      to: await customerEmail(job),
+      subject: 'A visit has been skipped',
+      paragraphs: [`Your visit on ${when} will not go ahead because ${why}. You have not been charged for it.`],
+      action: { label: 'View my account', url: frontendUrl('customer.html') },
+    });
+  }),
+
+  seriesPaused: safely('seriesPaused', async (series, { reason }) => {
+    const why =
+      reason === 'payment'
+        ? 'two visits in a row could not be paid for'
+        : 'your cleaner has now cancelled more than one visit';
+    await emailService.send({
+      to: await customerEmail(series),
+      subject: 'Your regular cleaning has been paused',
+      paragraphs: [
+        `We have paused your regular cleaning because ${why}. No more visits will be made or charged until you decide.`,
+        reason === 'payment'
+          ? 'Check your saved card under Payment card, then resume the series.'
+          : 'You can resume with the same cleaner, or cancel the series and we can help you find another.',
+      ],
+      action: { label: 'View my account', url: frontendUrl('customer.html') },
+    });
+  }),
+
+  seriesCancelledByCustomer: safely('seriesCancelledByCustomer', async (series) => {
+    await emailService.send({
+      to: await cleanerEmail(series.cleaner),
+      subject: 'A customer has ended a regular booking',
+      paragraphs: ['The customer has ended this regular booking. Upcoming visits that had not been charged are cancelled. Any visit already paid for stays booked.'],
+      action: cleanerLink('Open my jobs', 'jobs'),
+    });
+  }),
+
+  seriesEndNotice: safely('seriesEndNotice', async (series, { endsOn }) => {
+    await emailService.send({
+      to: await customerEmail(series),
+      subject: 'Your cleaner will stop your regular visits',
+      paragraphs: [
+        `Your cleaner has given 14 days' notice, so your regular cleaning will end on ${endsOn.toLocaleDateString('en-GB', { dateStyle: 'full', timeZone: 'Europe/London' })}. Visits up to then go ahead as normal.`,
+        'You can post a new job at any time to find another cleaner.',
+      ],
+      action: { label: 'View my account', url: frontendUrl('customer.html') },
+    });
+  }),
+
   subscriptionCancellationDeclined: safely('subscriptionCancellationDeclined', async (cleanerProfileId) => {
     await emailService.send({
       to: await cleanerEmail(cleanerProfileId),
