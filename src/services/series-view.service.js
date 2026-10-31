@@ -4,6 +4,7 @@ const User = require('../models/User');
 const CleanerProfile = require('../models/CleanerProfile');
 const { STATES } = require('./payment-state-machine');
 const seriesService = require('./series.service');
+const { hasRecurringConsent } = require('./customer-card.service');
 
 const LIST_LIMIT = 50;
 // Visits shown on a card: those from the last two weeks onwards, up to this many.
@@ -118,7 +119,7 @@ async function listMine(user, now = new Date()) {
   let hasCard = true;
   if (user.role === 'customer') {
     const me = await User.findById(user.id);
-    hasCard = Boolean(me && me.savedCard && me.savedCard.paymentMethodId);
+    hasCard = hasRecurringConsent(me);
   }
 
   const series = docs.map((s) => ({
