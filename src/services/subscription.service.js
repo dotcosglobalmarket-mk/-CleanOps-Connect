@@ -361,8 +361,30 @@ async function handleInvoicePaid(invoice) {
   return subscription;
 }
 
+// A cleaner sees and answers job offers only while their platform fee is being
+// paid: an active subscription whose last payment has not failed. One that is
+// set to end at renewal still counts until it actually ends.
+const UNPAID_STRIPE_STATUSES = ['past_due', 'unpaid', 'incomplete', 'incomplete_expired', 'canceled'];
+
+async function hasActiveSubscription(cleanerId) {
+  const sub = await Subscription.findOne({ cleaner: cleanerId, isActive: true }).sort({ createdAt: -1 });
+  return Boolean(sub) && !UNPAID_STRIPE_STATUSES.includes(sub.stripeStatus);
+}
+
+async function requireActiveSubscription(cleanerId) {
+  if (!(await hasActiveSubscription(cleanerId))) {
+    const error = new Error(
+      'Your platform subscription is not active. Pay the monthly platform fee under Coverage & Subscription to see and answer job offers.'
+    );
+    error.status = 402;
+    throw error;
+  }
+}
+
 module.exports = {
   PLAN_PRICES_PENCE,
+  hasActiveSubscription,
+  requireActiveSubscription,
   createSetupIntent,
   activateSubscription,
   addInsuranceAddOn,

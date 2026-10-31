@@ -35,6 +35,15 @@ async function listCleaners(req, res, next) {
   }
 }
 
+async function resetCleanerPayouts(req, res, next) {
+  try {
+    await opsService.resetCleanerPayoutSetup(req.params.id, req.body.reason, req);
+    res.status(200).json({ reset: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function impersonateCleaner(req, res, next) {
   try {
     res.status(201).json(await impersonationService.start(req.params.id, req.body.reason, req));
@@ -206,6 +215,7 @@ module.exports = {
   impersonateCleaner,
   updateCleanerVerification,
   updateCleanerDeactivation,
+  resetCleanerPayouts,
   listJobs,
   getJob,
   revenue,

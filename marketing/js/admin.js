@@ -548,6 +548,7 @@ async function loadCleaners() {
           <td class="table-actions">
             <button type="button" class="save-verification-btn">Save</button>
             <button type="button" class="secondary view-as-cleaner-btn">View as cleaner</button>
+            ${c.stripeConnectedAccountId ? '<button type="button" class="secondary reset-payouts-btn">Reset payout set-up</button>' : ''}
           </td>
         </tr>
       `),
@@ -584,6 +585,27 @@ async function loadCleaners() {
         } catch (err) {
           showAlert('cleaners-alert', err.message);
         } finally {
+          btn.disabled = false;
+        }
+      });
+
+      row.querySelector('.reset-payouts-btn')?.addEventListener('click', async (event) => {
+        const btn = event.target;
+        const reason = window.prompt(
+          'Reset this cleaner’s payout set-up? They will have to set up payouts again. Reason (e.g. account created in test mode):'
+        );
+        if (!reason || reason.trim().length < 3) return;
+        btn.disabled = true;
+        hideAlert('cleaners-alert');
+        document.getElementById('cleaners-success').hidden = true;
+        try {
+          await apiRequest(`/admin/cleaners/${id}/reset-payouts`, { method: 'POST', body: { reason: reason.trim() }, auth: true });
+          await loadCleaners();
+          const successEl = document.getElementById('cleaners-success');
+          successEl.textContent = 'Payout set-up reset. The cleaner can set it up again from Earnings & Payouts.';
+          successEl.hidden = false;
+        } catch (err) {
+          showAlert('cleaners-alert', err.message);
           btn.disabled = false;
         }
       });

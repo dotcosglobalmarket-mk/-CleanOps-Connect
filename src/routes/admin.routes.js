@@ -8,6 +8,7 @@ const {
   impersonateCleanerSchema,
   updateCleanerVerificationSchema,
   updateCleanerDeactivationSchema,
+  resetPayoutSetupSchema,
   listJobsQuerySchema,
   jobIdParamSchema,
   revenueQuerySchema,
@@ -74,6 +75,12 @@ router.patch(
   validateParams(cleanerIdParamSchema),
   validateBody(updateCleanerDeactivationSchema),
   AdminController.updateCleanerDeactivation
+);
+router.post(
+  '/cleaners/:id/reset-payouts',
+  validateParams(cleanerIdParamSchema),
+  validateBody(resetPayoutSetupSchema),
+  AdminController.resetCleanerPayouts
 );
 
 router.get('/jobs', validateQuery(listJobsQuerySchema), AdminController.listJobs);

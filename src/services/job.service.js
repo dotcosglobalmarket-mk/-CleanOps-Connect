@@ -6,6 +6,7 @@ const coverageService = require('./coverage.service');
 const aiScoringService = require('./ai-scoring.service');
 const insuranceService = require('./insurance.service');
 const paymentService = require('./payment.service');
+const subscriptionService = require('./subscription.service');
 const notifications = require('./notification.service');
 const { maskContactDetails } = require('./contact-filter.service');
 
@@ -301,6 +302,7 @@ async function acceptOffer(jobId, offerId, requestingUser, pricePence) {
   }
 
   const { offer, cleaner } = await requireOwnOffer(jobId, offerId, requestingUser.id);
+  await subscriptionService.requireActiveSubscription(cleaner._id);
 
   const { booked } = await bookFromOffer({
     job,
@@ -331,6 +333,7 @@ async function submitQuote(jobId, offerId, requestingUser, { pricePence, message
   if (!offer || offer.job.toString() !== jobId) throw notFound('Offer not found');
   const cleaner = await requireOwningCleanerProfile(requestingUser.id);
   if (offer.cleaner.toString() !== cleaner._id.toString()) throw forbidden('This tender invitation was not sent to you');
+  await subscriptionService.requireActiveSubscription(cleaner._id);
 
   const masked = message ? maskContactDetails(message).text : undefined;
   const updated = await JobOffer.findOneAndUpdate(
