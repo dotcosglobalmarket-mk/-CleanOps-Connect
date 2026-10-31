@@ -21,7 +21,19 @@ async function requireCustomer(userId) {
 // Creates the Stripe Customer on first use and claims it atomically, so a double
 // click cannot leave two Customers for one account.
 async function ensureStripeCustomer(user) {
-  if (user.stripeCustomerId) return user.stripeCustomerId;
+  if (user.stripeCustomerId) {
+    // A customer saved under another Stripe mode no longer exists: start again.
+    try {
+      const existing = await stripeService.retrieveCustomer(user.stripeCustomerId);
+      if (existing && !existing.deleted) return user.stripeCustomerId;
+    } catch (err) {
+      if (!stripeService.isMissingResource(err)) throw err;
+    }
+    const fresh = await stripeService.createCustomer({ email: user.email, metadata: { userId: user._id.toString() } });
+    await User.updateOne({ _id: user._id }, { $set: { stripeCustomerId: fresh.id }, $unset: { savedCard: '' } });
+    user.stripeCustomerId = fresh.id;
+    return fresh.id;
+  }
 
   const customer = await stripeService.createCustomer({
     email: user.email,

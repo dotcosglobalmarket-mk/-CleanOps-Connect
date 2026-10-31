@@ -34,8 +34,31 @@ describe('starting to save a card', () => {
 
   it('reuses an existing Stripe customer', async () => {
     User.findById.mockResolvedValue(user({ stripeCustomerId: 'cus_1' }));
+    stripeService.retrieveCustomer.mockResolvedValue({ id: 'cus_1' });
     stripeService.createSetupIntent.mockResolvedValue({ client_secret: 's' });
     await cards.createSetupIntent('u1');
+    expect(stripeService.createCustomer).not.toHaveBeenCalled();
+  });
+
+  it('starts again with a new customer when the stored one does not exist for this key', async () => {
+    User.findById.mockResolvedValue(user({ stripeCustomerId: 'cus_from_test_mode' }));
+    stripeService.isMissingResource.mockImplementation((e) => e && e.code === 'resource_missing');
+    stripeService.retrieveCustomer.mockRejectedValue(Object.assign(new Error('No such customer'), { code: 'resource_missing' }));
+    stripeService.createCustomer.mockResolvedValue({ id: 'cus_live' });
+    User.updateOne = jest.fn().mockResolvedValue({});
+    stripeService.createSetupIntent.mockResolvedValue({ client_secret: 's' });
+
+    await cards.createSetupIntent('u1');
+
+    expect(User.updateOne).toHaveBeenCalledWith({ _id: 'u1' }, expect.objectContaining({ $set: { stripeCustomerId: 'cus_live' } }));
+    expect(stripeService.createSetupIntent).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'cus_live' }));
+  });
+
+  it('does not replace the customer for other Stripe failures', async () => {
+    User.findById.mockResolvedValue(user({ stripeCustomerId: 'cus_1' }));
+    stripeService.isMissingResource.mockImplementation((e) => e && e.code === 'resource_missing');
+    stripeService.retrieveCustomer.mockRejectedValue(new Error('timeout'));
+    await expect(cards.createSetupIntent('u1')).rejects.toThrow('timeout');
     expect(stripeService.createCustomer).not.toHaveBeenCalled();
   });
 });

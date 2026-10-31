@@ -53,7 +53,23 @@ async function requireOwnedCleaner(cleanerId, requestingUser) {
 // same pattern as startPayoutOnboarding's Connect account claim — a double
 // click must not leave two Customers for one cleaner.
 async function ensureStripeCustomer(cleaner) {
-  if (cleaner.stripeCustomerId) return cleaner.stripeCustomerId;
+  if (cleaner.stripeCustomerId) {
+    // The stored customer may not exist for the key now in use (made in test
+    // mode, site now live): then start again with a fresh one.
+    try {
+      const existing = await stripeService.retrieveCustomer(cleaner.stripeCustomerId);
+      if (existing && !existing.deleted) return cleaner.stripeCustomerId;
+    } catch (err) {
+      if (!stripeService.isMissingResource(err)) throw err;
+    }
+    const fresh = await stripeService.createCustomer({
+      email: (await User.findById(cleaner.user))?.email,
+      metadata: { cleanerProfileId: cleaner._id.toString() },
+    });
+    await CleanerProfile.updateOne({ _id: cleaner._id }, { $set: { stripeCustomerId: fresh.id } });
+    cleaner.stripeCustomerId = fresh.id;
+    return fresh.id;
+  }
 
   const user = await User.findById(cleaner.user);
   const customer = await stripeService.createCustomer({
@@ -109,7 +125,10 @@ async function activateSubscription(cleanerId, plan, paymentMethodId, requesting
   // plans cancels the old one first rather than running two in parallel.
   const existing = await Subscription.findOne({ cleaner: cleaner._id, isActive: true }).sort({ createdAt: -1 });
   if (existing && existing.stripeSubscriptionId) {
-    await stripeService.cancelSubscription(existing.stripeSubscriptionId);
+    // A subscription Stripe no longer knows about (another mode) is already gone.
+    await stripeService.cancelSubscription(existing.stripeSubscriptionId).catch((err) => {
+      if (!stripeService.isMissingResource(err)) throw err;
+    });
     existing.isActive = false;
     existing.stripeStatus = 'canceled';
     await existing.save();

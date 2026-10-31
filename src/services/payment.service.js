@@ -108,7 +108,12 @@ async function cancelBooked(jobId) {
     try {
       await stripeService.cancelPaymentIntent(job.stripePaymentIntentId);
     } catch (err) {
-      throw badRequest('Your payment is already being processed, so this booking cannot be cancelled without a refund. Please refresh and try again.');
+      // Only a payment that has genuinely moved on blocks the cancel. An intent
+      // Stripe no longer knows (made under another mode) was never paid: cancel.
+      if (err.code === 'payment_intent_unexpected_state') {
+        throw badRequest('Your payment is already being processed, so this booking cannot be cancelled without a refund. Please refresh and try again.');
+      }
+      if (!stripeService.isMissingResource(err)) throw err;
     }
   }
 
@@ -117,6 +122,24 @@ async function cancelBooked(jobId) {
   await job.save();
   notifications.jobCancelled(job, { by: 'customer' });
   return job;
+}
+
+// The customer is about to pay a BOOKED (unpaid) job. Returns its PaymentIntent,
+// making a fresh one if the stored one no longer exists for the Stripe key now in
+// use (e.g. booked in test mode, site now live). Nothing was paid on the old one.
+async function getOrRenewPaymentIntent(job) {
+  try {
+    return await stripeService.retrievePaymentIntent(job.stripePaymentIntentId);
+  } catch (err) {
+    if (!stripeService.isMissingResource(err)) throw err;
+  }
+  const renewed = await stripeService.createPaymentIntent({
+    amountPence: job.pricePence,
+    metadata: { jobId: job._id.toString() },
+  });
+  job.stripePaymentIntentId = renewed.id;
+  await job.save();
+  return renewed;
 }
 
 // --- payment_intent.succeeded webhook ---
@@ -532,6 +555,7 @@ module.exports = {
   MAX_TRANSFER_ATTEMPTS,
   RETRY_BACKOFF_MINUTES,
   bookJob,
+  getOrRenewPaymentIntent,
   cancelBooked,
   handlePaymentSucceeded,
   cancelByCleaner,
