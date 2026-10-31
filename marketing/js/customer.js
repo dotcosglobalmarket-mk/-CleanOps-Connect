@@ -6,6 +6,7 @@ import { mountJobPhotos, uploadJobPhotos } from './job-photos.js';
 import { avatarHtml, hydrateAvatars } from './avatar.js';
 import { fetchGuide, renderGuide } from './price-guide.js';
 import { mountChat, fetchUnread, setupConversations } from './chat.js';
+import { mountSeries } from './series-ui.js';
 import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate, formatVisit } from './dashboard-ui.js';
 
 requireRole('customer');
@@ -807,9 +808,32 @@ document.getElementById('card-remove').addEventListener('click', async (event) =
   }
 });
 
+// --- Regular cleaning (series) ---
+async function loadSeries() {
+  hideAlert('series-alert');
+  const data = await mountSeries(document.getElementById('series-list'), {
+    role: 'customer',
+    alertId: 'series-alert',
+    successId: 'series-success',
+    onSaveCard: () => showView('card'),
+  });
+  return data;
+}
+
+// The tab only shows once recurring bookings are on, or the customer already has one.
+async function revealSeriesTab() {
+  try {
+    const data = await apiRequest('/series/mine', { auth: true });
+    document.getElementById('tab-series').hidden = !(data.enabled || (data.series || []).length);
+  } catch (err) {
+    // Leave it hidden: the rest of the page works without it.
+  }
+}
+
 async function showView(name, { openJobId } = {}) {
   const messages = name === 'messages';
   const cardView = name === 'card';
+  const seriesView = name === 'series';
   document.querySelectorAll('.tab-button').forEach((tab) => {
     const active = tab.dataset.view === name;
     tab.classList.toggle('is-active', active);
@@ -818,11 +842,23 @@ async function showView(name, { openJobId } = {}) {
   show('view-jobs', name === 'jobs');
   show('view-messages', messages);
   show('view-card', cardView);
+  show('view-series', seriesView);
   document.getElementById('show-post-job').hidden = name !== 'jobs';
 
   if (cardView) {
     cardMessage('card-success', '');
     await loadCard();
+    return;
+  }
+  if (seriesView) {
+    if (activeChat) activeChat.destroy();
+    activeChat = null;
+    conversations.close();
+    try {
+      await loadSeries();
+    } catch (err) {
+      showAlert('series-alert', err.message);
+    }
     return;
   }
 
@@ -851,6 +887,11 @@ loadServiceTypes();
   await loadJobs();
   const params = new URLSearchParams(window.location.search);
   const jobId = params.get('job');
+  await revealSeriesTab();
+  if (params.get('tab') === 'series') {
+    await showView('series');
+    return;
+  }
   if (params.get('tab') === 'messages') {
     await showView('messages', { openJobId: jobId });
     return;

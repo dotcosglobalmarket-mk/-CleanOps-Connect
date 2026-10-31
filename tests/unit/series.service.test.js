@@ -30,7 +30,21 @@ jest.mock('../../src/models/Series', () => {
       mockStore.series.push(s);
       return s;
     }),
-    find: jest.fn(async (filter) => mockStore.series.filter((s) => filter.status.$in.includes(s.status))),
+    find: jest.fn(async (filter) =>
+      mockStore.series.filter((s) => {
+        const statusOk = filter.status.$in ? filter.status.$in.includes(s.status) : s.status === filter.status;
+        const endsOk = !filter.endsOn || (s.endsOn > filter.endsOn.$gt && s.endsOn <= filter.endsOn.$lte);
+        const unsent = !('renewalReminderSentAt' in filter) || s.renewalReminderSentAt == null;
+        const noNotice = !('endNoticeGivenAt' in filter) || s.endNoticeGivenAt == null;
+        return statusOk && endsOk && unsent && noNotice;
+      })
+    ),
+    findOneAndUpdate: jest.fn(async (filter, update) => {
+      const s = mockStore.series.find((x) => x._id === filter._id && x.renewalReminderSentAt == null);
+      if (!s) return null;
+      Object.assign(s, update.$set);
+      return s;
+    }),
     updateOne: jest.fn(async (filter, update) => {
       const s = mockStore.series.find((x) => x._id === filter._id);
       if (update.$max) for (const [k, v] of Object.entries(update.$max)) s[k] = Math.max(s[k], v);
@@ -38,6 +52,7 @@ jest.mock('../../src/models/Series', () => {
   };
 });
 jest.mock('../../src/models/User', () => ({ findById: jest.fn(async (id) => mockStore.users[id] || null) }));
+jest.mock('../../src/services/notification.service');
 
 const Series = require('../../src/models/Series');
 const seriesService = require('../../src/services/series.service');
@@ -276,5 +291,56 @@ describe('the visit generator', () => {
     const result = await seriesService.runVisitGenerator(now);
     expect(result.series).toBe(2);
     expect(result.visits).toBeGreaterThan(0);
+  });
+});
+
+describe('emails around a series', () => {
+  const notifications = require('../../src/services/notification.service');
+
+  it('tells both people when a series starts, once', async () => {
+    await (async () => {
+      const job = bookedJob();
+      await seriesService.startFromBookedJob(job);
+    })();
+    await seriesService.runVisitGenerator(utc('2026-02-04T08:00:00Z'));
+    await seriesService.runVisitGenerator(utc('2026-02-04T14:00:00Z'));
+    expect(notifications.seriesStarted).toHaveBeenCalledTimes(2);
+    expect(notifications.seriesStarted).toHaveBeenCalledWith(expect.anything(), { who: 'customer' });
+    expect(notifications.seriesStarted).toHaveBeenCalledWith(expect.anything(), { who: 'cleaner' });
+  });
+});
+
+describe('the reminder that a series does not renew by itself', () => {
+  const notifications2 = require('../../src/services/notification.service');
+
+  async function activeSeries(endsOn) {
+    const series = await seriesService.startFromBookedJob(bookedJob());
+    series.status = 'active';
+    series.endsOn = endsOn;
+    return series;
+  }
+
+  it('goes to the customer 14 days before the end, and only once however often it runs', async () => {
+    await activeSeries(utc('2026-02-20T00:00:00Z'));
+    const today = utc('2026-02-10T08:00:00Z'); // 10 days before the end
+    expect(await seriesService.sendRenewalReminders(today)).toBe(1);
+    expect(await seriesService.sendRenewalReminders(today)).toBe(0);
+    expect(notifications2.seriesRenewalReminder).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not go early, after the end, or when the cleaner has already given notice', async () => {
+    const early = await activeSeries(utc('2026-08-01T00:00:00Z'));
+    expect(await seriesService.sendRenewalReminders(utc('2026-02-10T08:00:00Z'))).toBe(0);
+    early.endsOn = utc('2026-02-01T00:00:00Z');
+    expect(await seriesService.sendRenewalReminders(utc('2026-02-10T08:00:00Z'))).toBe(0);
+    early.endsOn = utc('2026-02-20T00:00:00Z');
+    early.endNoticeGivenAt = utc('2026-02-09T00:00:00Z');
+    expect(await seriesService.sendRenewalReminders(utc('2026-02-10T08:00:00Z'))).toBe(0);
+  });
+
+  it('is sent by the daily sweep', async () => {
+    await activeSeries(utc('2026-02-20T00:00:00Z'));
+    await seriesService.runVisitGenerator(utc('2026-02-10T08:00:00Z'));
+    expect(notifications2.seriesRenewalReminder).toHaveBeenCalledTimes(1);
   });
 });

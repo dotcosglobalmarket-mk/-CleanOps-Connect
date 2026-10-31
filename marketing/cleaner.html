@@ -27,6 +27,7 @@
       <button type="button" class="dash-nav-item is-active" data-panel="overview">Overview</button>
       <button type="button" class="dash-nav-item" data-panel="offers">Job Offers</button>
       <button type="button" class="dash-nav-item" data-panel="jobs">My Jobs</button>
+      <button type="button" class="dash-nav-item" data-panel="regular" id="nav-regular" hidden>Regular Jobs</button>
       <button type="button" class="dash-nav-item" data-panel="messages">Messages <span id="messages-unread" class="unread-badge" hidden></span></button>
       <button type="button" class="dash-nav-item" data-panel="earnings">Earnings &amp; Payouts</button>
       <button type="button" class="dash-nav-item" data-panel="profile">My Profile</button>
@@ -115,6 +116,21 @@
 
       <!-- Earnings & Payouts -->
       <!-- Messages -->
+      <section id="panel-regular" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Regular Jobs</h2>
+          <button id="regular-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Weekly, fortnightly and monthly bookings with the same customer at your price per visit. Each visit is paid for
+          48 hours before it and held until the customer confirms it. If you cannot attend a visit, say so here: the
+          customer is refunded in full, and a second cancelled visit pauses the series. Ending a series needs 14 days' notice.
+        </p>
+        <div id="regular-alert" class="alert alert-error" hidden></div>
+        <div id="regular-success" class="alert alert-success" hidden></div>
+        <div id="regular-list"></div>
+      </section>
+
       <section id="panel-messages" class="dash-panel">
         <div class="section-heading">
           <h2 class="panel-title">Messages</h2>

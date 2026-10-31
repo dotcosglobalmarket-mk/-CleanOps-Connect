@@ -3,6 +3,7 @@ const Series = require('../models/Series');
 const User = require('../models/User');
 const { STATES } = require('./payment-state-machine');
 const { londonParts, londonToUtc, daysInMonth } = require('../utils/london-time');
+const notifications = require('./notification.service');
 const logger = require('../utils/logger');
 
 const RECURRING_FREQUENCIES = ['weekly', 'fortnightly', 'monthly'];
@@ -134,6 +135,8 @@ async function settleStatus(series) {
   series.status = 'active';
   series.activatedAt = new Date();
   await series.save();
+  notifications.seriesStarted(series, { who: 'customer' });
+  notifications.seriesStarted(series, { who: 'cleaner' });
   return true;
 }
 
@@ -205,6 +208,33 @@ async function generateVisits(series, now = new Date()) {
   return made;
 }
 
+// 14 days before a series ends, tells the customer it will not renew by itself.
+// Each series is claimed first, so the email goes out once however often this runs.
+const RENEWAL_NOTICE_DAYS = 14;
+
+async function sendRenewalReminders(now = new Date()) {
+  const soon = new Date(now.getTime() + RENEWAL_NOTICE_DAYS * 24 * 3600 * 1000);
+  const due = await Series.find({
+    status: 'active',
+    endsOn: { $gt: now, $lte: soon },
+    renewalReminderSentAt: null,
+    endNoticeGivenAt: null,
+  });
+  let sent = 0;
+  for (const series of due) {
+    const claimed = await Series.findOneAndUpdate(
+      { _id: series._id, renewalReminderSentAt: null },
+      { $set: { renewalReminderSentAt: now } },
+      { new: true }
+    );
+    if (claimed) {
+      notifications.seriesRenewalReminder(claimed);
+      sent += 1;
+    }
+  }
+  return sent;
+}
+
 // The daily sweep: every series that is waiting or running.
 async function runVisitGenerator(now = new Date()) {
   if (!isEnabled()) return { series: 0, visits: 0 };
@@ -217,6 +247,11 @@ async function runVisitGenerator(now = new Date()) {
     } catch (err) {
       logger.error(`[series] Visit generation failed for series ${series._id}: ${err.message}`);
     }
+  }
+  try {
+    await sendRenewalReminders(now);
+  } catch (err) {
+    logger.error(`[series] Renewal reminders failed: ${err.message}`);
   }
   return { series: all.length, visits };
 }
@@ -231,5 +266,6 @@ module.exports = {
   describeForOffer,
   startFromBookedJob,
   generateVisits,
+  sendRenewalReminders,
   runVisitGenerator,
 };

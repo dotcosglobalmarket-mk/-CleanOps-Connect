@@ -32,10 +32,21 @@
       <button type="button" id="tab-jobs" class="tab-button is-active" role="tab" aria-selected="true" aria-controls="view-jobs" data-view="jobs">My jobs</button>
       <button type="button" id="tab-messages" class="tab-button" role="tab" aria-selected="false" aria-controls="view-messages" data-view="messages">Messages <span id="messages-unread" class="unread-badge" hidden></span></button>
       <button type="button" id="tab-card" class="tab-button" role="tab" aria-selected="false" aria-controls="view-card" data-view="card">Payment card</button>
+      <button type="button" id="tab-series" class="tab-button" role="tab" aria-selected="false" aria-controls="view-series" data-view="series" hidden>Regular cleaning</button>
     </div>
 
     <div id="page-alert" class="alert alert-error" hidden></div>
     <div id="page-success" class="alert alert-success" hidden></div>
+
+    <div id="view-series" role="tabpanel" aria-labelledby="tab-series" hidden>
+      <p class="field-help">
+        Weekly, fortnightly or monthly cleaning with the same cleaner at the same price per visit. Each visit is charged to
+        your saved card 48 hours before it. Skip a visit for free until then; once it is charged, skipping gets half back.
+      </p>
+      <div id="series-alert" class="alert alert-error" hidden></div>
+      <div id="series-success" class="alert alert-success" hidden></div>
+      <div id="series-list"></div>
+    </div>
 
     <div id="view-card" role="tabpanel" aria-labelledby="tab-card" hidden>
       <div class="card">

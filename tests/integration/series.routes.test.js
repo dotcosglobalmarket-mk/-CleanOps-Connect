@@ -4,11 +4,13 @@ jest.mock('../../src/models/User', () => ({
   create: jest.fn(),
 }));
 jest.mock('../../src/services/series-rules.service');
+jest.mock('../../src/services/series-view.service');
 
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const createApp = require('../../src/app');
 const rules = require('../../src/services/series-rules.service');
+const viewService = require('../../src/services/series-view.service');
 
 const auth = (role, id = 'u1') => `Bearer ${jwt.sign({ sub: id, role }, process.env.JWT_SECRET, { expiresIn: '1h' })}`;
 const sid = '507f1f77bcf86cd799439044';
@@ -78,5 +80,19 @@ describe('series routes', () => {
     const res = await request(app).post(`/series/${sid}/pause`).set('Authorization', auth('customer'));
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('Only a running series can be paused');
+  });
+
+  describe('GET /series/mine', () => {
+    it('needs a login, and is for customers and cleaners only', async () => {
+      expect((await request(app).get('/series/mine')).status).toBe(401);
+      expect((await request(app).get('/series/mine').set('Authorization', auth('admin'))).status).toBe(403);
+    });
+
+    it.each(['customer', 'cleaner'])('shows a %s only their own series', async (role) => {
+      viewService.listMine.mockResolvedValue({ enabled: true, series: [] });
+      const res = await request(app).get('/series/mine').set('Authorization', auth(role, 'me1'));
+      expect(res.status).toBe(200);
+      expect(viewService.listMine).toHaveBeenCalledWith(expect.objectContaining({ id: 'me1', role }));
+    });
   });
 });

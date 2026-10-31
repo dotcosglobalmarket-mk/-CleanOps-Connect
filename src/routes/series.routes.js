@@ -11,6 +11,9 @@ const router = express.Router();
 const customerOnly = [requireAuth, requireRole('customer')];
 const cleanerOnly = [requireAuth, requireRole('cleaner')];
 
+const eitherParty = [requireAuth, requireRole('customer', 'cleaner')];
+router.get('/mine', ...eitherParty, SeriesController.mine);
+
 router.post('/:id/visits/:jobId/skip', ...customerOnly, validateParams(seriesVisitParamSchema), SeriesController.skipVisit);
 router.post('/:id/pause', ...customerOnly, validateParams(seriesIdParamSchema), SeriesController.pause);
 router.post('/:id/resume', ...customerOnly, validateParams(seriesIdParamSchema), SeriesController.resume);
