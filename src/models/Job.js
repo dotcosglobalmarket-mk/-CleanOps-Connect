@@ -38,6 +38,11 @@ const jobSchema = new mongoose.Schema(
       enum: ['one_off', 'weekly', 'monthly', 'contract'],
       default: 'one_off',
     },
+    // When the customer would like the visit (UK time on screen, stored as an
+    // instant). Optional: tenders and older jobs have none.
+    preferredStartAt: {
+      type: Date,
+    },
     budgetMin: {
       type: Number,
       required: true,

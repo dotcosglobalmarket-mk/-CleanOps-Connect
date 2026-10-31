@@ -3,7 +3,7 @@ import { openDocument } from './documents.js';
 import { fetchGuide, renderGuide } from './price-guide.js';
 import { escapeHtml } from './dom.js';
 import { mountJobPhotos } from './job-photos.js';
-import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate } from './dashboard-ui.js';
+import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate, formatVisit } from './dashboard-ui.js';
 
 // Offers inbox, booked jobs, earnings and Stripe payouts for the cleaner
 // dashboard. The profile/coverage tabs live in cleaner.js.
@@ -113,6 +113,7 @@ async function loadOffers() {
           <dl class="detail-grid">
             <div><dt>Distance</dt><dd>${o.distanceKm !== undefined ? `${escapeHtml(kmToMiles(o.distanceKm))} mi` : '—'}</dd></div>
             <div><dt>Customer budget</dt><dd>£${escapeHtml(j.budgetMin)}–£${escapeHtml(j.budgetMax)}</dd></div>
+            <div><dt>Preferred date and time</dt><dd>${escapeHtml(formatVisit(j.preferredStartAt))}</dd></div>
             <div><dt>Frequency</dt><dd>${escapeHtml(FREQUENCY[j.frequency] || 'One-off')}</dd></div>
             <div><dt>Estimated hours</dt><dd>${j.estimatedHours ? escapeHtml(j.estimatedHours) : '—'}</dd></div>
             <div><dt>Category</dt><dd>${escapeHtml(j.category)}</dd></div>
@@ -299,11 +300,12 @@ async function loadMyJobs() {
     container.classList.add('fit');
     container.innerHTML = renderTable({
       fit: true,
-      columns: ['Job', 'Customer', 'Address', 'Price', 'Status', 'Booked', 'Actions'],
+      columns: ['Job', 'When', 'Customer', 'Address', 'Price', 'Status', 'Booked', 'Actions'],
       emptyMessage: 'No booked jobs yet. Accept an offer to get started.',
       rows: jobs.map((job) => `
         <tr>
           <td>${escapeHtml(job.serviceType?.name || 'Cleaning')}${job.description ? `<div class="field-help">${escapeHtml(job.description)}</div>` : ''}</td>
+          <td>${escapeHtml(formatVisit(job.preferredStartAt))}</td>
           <td>${escapeHtml(job.customer?.name || '—')}</td>
           <td>${escapeHtml(job.postcode || '—')}</td>
           <td>${formatPence(job.pricePence)}</td>

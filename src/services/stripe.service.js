@@ -22,7 +22,13 @@ function getClient() {
     if (!process.env.STRIPE_SECRET_KEY) {
       throw new Error('STRIPE_SECRET_KEY is not set in the environment');
     }
-    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, { httpAgent: stripeHttpAgent });
+    // A hung connection to Stripe should fail in seconds with a clear message, not
+    // hold the request open until the host's gateway gives up with a bare 504.
+    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      httpAgent: stripeHttpAgent,
+      timeout: 20000,
+      maxNetworkRetries: 1,
+    });
   }
   return stripeClient;
 }
@@ -109,18 +115,38 @@ async function createExpressDashboardLink(accountId) {
 // Uses a plain Customer on the platform's own account — distinct from the
 // Connect Express account above, which funds are paid OUT to.
 
+// Stripe says "No such customer / payment_intent / subscription" when an id we
+// stored does not exist for the key in use, e.g. it was created with a test-mode
+// key and the site now runs on the live one. Callers replace such ids.
+function isMissingResource(err) {
+  return Boolean(err) && (err.code === 'resource_missing' || err.statusCode === 404);
+}
+
+async function retrieveCustomer(customerId) {
+  return getClient().customers.retrieve(customerId);
+}
+
 async function createCustomer({ email, metadata }) {
   return getClient().customers.create({ email, metadata });
 }
 
-async function createSetupIntent({ customerId, metadata }) {
+async function createSetupIntent({ customerId, metadata, paymentMethodTypes }) {
   // usage: 'off_session' — this payment method is charged automatically
   // every month, not while the cleaner is present to re-authenticate.
-  return getClient().setupIntents.create({ customer: customerId, usage: 'off_session', metadata });
+  return getClient().setupIntents.create({
+    customer: customerId,
+    usage: 'off_session',
+    metadata,
+    ...(paymentMethodTypes ? { payment_method_types: paymentMethodTypes } : {}),
+  });
 }
 
 async function retrievePaymentMethod(paymentMethodId) {
   return getClient().paymentMethods.retrieve(paymentMethodId);
+}
+
+async function detachPaymentMethod(paymentMethodId) {
+  return getClient().paymentMethods.detach(paymentMethodId);
 }
 
 async function setDefaultPaymentMethod({ customerId, paymentMethodId }) {
@@ -219,9 +245,12 @@ module.exports = {
   createAccountOnboardingLink,
   retrieveAccount,
   createExpressDashboardLink,
+  isMissingResource,
+  retrieveCustomer,
   createCustomer,
   createSetupIntent,
   retrievePaymentMethod,
+  detachPaymentMethod,
   setDefaultPaymentMethod,
   createSubscription,
   cancelSubscription,

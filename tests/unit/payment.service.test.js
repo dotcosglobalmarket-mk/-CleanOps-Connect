@@ -304,11 +304,66 @@ describe('cancelBooked — customer cancels before paying', () => {
   it('keeps the job when Stripe refuses because the payment already went through', async () => {
     const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_1' });
     Job.findById.mockResolvedValue(job);
-    stripeService.cancelPaymentIntent.mockRejectedValue(new Error('PaymentIntent has succeeded'));
+    stripeService.cancelPaymentIntent.mockRejectedValue(
+      Object.assign(new Error('PaymentIntent has succeeded'), { code: 'payment_intent_unexpected_state' })
+    );
 
     await expect(paymentService.cancelBooked('job1')).rejects.toMatchObject({ status: 400 });
     expect(job.paymentStatus).toBe(STATES.BOOKED);
     expect(job.save).not.toHaveBeenCalled();
+  });
+
+  it('cancels when Stripe has no such payment intent (made under another key), since nothing was paid on it', async () => {
+    const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_from_test_mode' });
+    Job.findById.mockResolvedValue(job);
+    stripeService.isMissingResource.mockImplementation((e) => e && e.code === 'resource_missing');
+    stripeService.cancelPaymentIntent.mockRejectedValue(Object.assign(new Error('No such payment_intent'), { code: 'resource_missing' }));
+
+    await paymentService.cancelBooked('job1');
+
+    expect(job.paymentStatus).toBe(STATES.CANCELLED);
+    expect(job.status).toBe('cancelled');
+  });
+
+  it('does not pretend a payment is processing when Stripe fails for another reason', async () => {
+    const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_1' });
+    Job.findById.mockResolvedValue(job);
+    stripeService.isMissingResource.mockImplementation((e) => e && e.code === 'resource_missing');
+    stripeService.cancelPaymentIntent.mockRejectedValue(new Error('connection to Stripe failed'));
+
+    await expect(paymentService.cancelBooked('job1')).rejects.toThrow('connection to Stripe failed');
+    expect(job.paymentStatus).toBe(STATES.BOOKED);
+  });
+});
+
+describe('paying for a booked job', () => {
+  beforeEach(() => stripeService.isMissingResource.mockImplementation((e) => e && e.code === 'resource_missing'));
+
+  it('uses the stored payment intent when Stripe knows it', async () => {
+    const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_1', pricePence: 2600 });
+    stripeService.retrievePaymentIntent.mockResolvedValue({ id: 'pi_1', client_secret: 's' });
+    expect(await paymentService.getOrRenewPaymentIntent(job)).toMatchObject({ id: 'pi_1' });
+    expect(stripeService.createPaymentIntent).not.toHaveBeenCalled();
+  });
+
+  it('makes a fresh intent for the same price when the stored one does not exist for this key', async () => {
+    const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_from_test_mode', pricePence: 2600 });
+    stripeService.retrievePaymentIntent.mockRejectedValue(Object.assign(new Error('No such payment_intent'), { code: 'resource_missing' }));
+    stripeService.createPaymentIntent.mockResolvedValue({ id: 'pi_live', client_secret: 's2' });
+
+    const intent = await paymentService.getOrRenewPaymentIntent(job);
+
+    expect(stripeService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amountPence: 2600 }));
+    expect(job.stripePaymentIntentId).toBe('pi_live');
+    expect(job.save).toHaveBeenCalled();
+    expect(intent.id).toBe('pi_live');
+  });
+
+  it('does not hide other Stripe failures by creating a second charge', async () => {
+    const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_1', pricePence: 2600 });
+    stripeService.retrievePaymentIntent.mockRejectedValue(new Error('timeout'));
+    await expect(paymentService.getOrRenewPaymentIntent(job)).rejects.toThrow('timeout');
+    expect(stripeService.createPaymentIntent).not.toHaveBeenCalled();
   });
 });
 

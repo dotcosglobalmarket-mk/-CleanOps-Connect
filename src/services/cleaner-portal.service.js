@@ -113,6 +113,7 @@ function offerView(offer, cleaner) {
       description: job.description,
       estimatedHours: job.estimatedHours,
       frequency: job.frequency,
+      preferredStartAt: job.preferredStartAt,
       budgetMin: job.budgetMin,
       budgetMax: job.budgetMax,
       booked: Boolean(job.cleaner),
@@ -135,7 +136,7 @@ async function listMyOffers(userId, { status } = {}) {
   const offers = await JobOffer.find(filter)
     .populate({
       path: 'job',
-      select: 'serviceType category postcode lat lng description estimatedHours frequency budgetMin budgetMax cleaner procurement tender',
+      select: 'serviceType category postcode lat lng description estimatedHours frequency preferredStartAt budgetMin budgetMax cleaner procurement tender',
       populate: { path: 'serviceType', select: 'name' },
     })
     .sort({ createdAt: -1 })
@@ -146,7 +147,7 @@ async function listMyOffers(userId, { status } = {}) {
 // --- Booked jobs ---
 
 const MY_JOB_FIELDS =
-  'serviceType category postcode description estimatedHours frequency status paymentStatus pricePence ' +
+  'serviceType category postcode description estimatedHours frequency preferredStartAt status paymentStatus pricePence ' +
   'commissionPence cleanerPayoutPence bookedAt awaitingConfirmationAt disputeReason customer createdAt updatedAt';
 
 async function listMyJobs(userId) {

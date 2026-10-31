@@ -30,6 +30,21 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
     },
+    // Customer's saved card (see customer-card.service.js). Only Stripe ids and
+    // the non-sensitive summary Stripe returns are kept here, never card numbers.
+    stripeCustomerId: {
+      type: String,
+    },
+    savedCard: {
+      paymentMethodId: { type: String },
+      brand: { type: String },
+      last4: { type: String },
+      expMonth: { type: Number },
+      expYear: { type: Number },
+      // When they agreed, and to which wording (see CARD_CONSENT_VERSION).
+      consentAt: { type: Date },
+      consentVersion: { type: String },
+    },
     // Two-step login (see two-factor.service.js). The authenticator secret is
     // stored encrypted and recovery codes only as hashes.
     twoFactor: {

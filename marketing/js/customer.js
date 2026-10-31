@@ -6,7 +6,7 @@ import { mountJobPhotos, uploadJobPhotos } from './job-photos.js';
 import { avatarHtml, hydrateAvatars } from './avatar.js';
 import { fetchGuide, renderGuide } from './price-guide.js';
 import { mountChat, fetchUnread, setupConversations } from './chat.js';
-import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate } from './dashboard-ui.js';
+import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate, formatVisit } from './dashboard-ui.js';
 
 requireRole('customer');
 
@@ -107,6 +107,11 @@ try {
   // Storage unavailable: they just type it again.
 }
 
+// Earliest choosable visit: now, in the browser's local time, as datetime-local expects.
+const preferredStartInput = document.getElementById('preferredStart');
+const soonest = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+preferredStartInput.min = soonest.toISOString().slice(0, 16);
+
 document.getElementById('create-job-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   hideAlert('create-alert');
@@ -127,6 +132,13 @@ document.getElementById('create-job-form').addEventListener('submit', async (eve
     if (requirements) payload.tender.requirements = requirements;
   }
   if (estimatedHours) payload.estimatedHours = Number(estimatedHours);
+  const preferredStart = document.getElementById('preferredStart').value;
+  if (preferredStart) {
+    payload.preferredStartAt = new Date(preferredStart).toISOString();
+  } else if (!payload.tender) {
+    showAlert('create-alert', 'Choose a preferred date and time.');
+    return;
+  }
 
   const button = event.target.querySelector('button[type="submit"]');
   button.disabled = true;
@@ -291,6 +303,7 @@ async function openJob(jobId, { focusReview = false, focusPayment = false } = {}
   document.getElementById('job-status-text').innerHTML = `${statusBadge(label, statusInfo(job)[1])} ${escapeHtml(explanation)}`;
   document.getElementById('job-facts').innerHTML = [
     ['Cleaner', listed.cleaner?.name ? `${listed.cleaner.name}${listed.cleaner.ratingCount ? ` (★ ${Number(listed.cleaner.ratingAverage).toFixed(1)} from ${listed.cleaner.ratingCount})` : ''}` : '—'],
+    ['Preferred date and time', formatVisit(job.preferredStartAt)],
     ['Price', formatPence(job.pricePence)],
     ['Budget', `£${job.budgetMin}–£${job.budgetMax}`],
     ['Booked', formatDate(job.bookedAt)],
@@ -688,16 +701,130 @@ const conversations = setupConversations({
   emptyText: 'No conversations yet. Chat opens when a cleaner accepts your job.',
 });
 
+// --- Saved card (Stripe Payment Element; card details go straight to Stripe) ---
+let cardStripe;
+let cardElements;
+
+function cardMessage(id, text) {
+  const el = document.getElementById(id);
+  el.textContent = text || '';
+  el.hidden = !text;
+}
+
+function closeCardForm() {
+  document.getElementById('card-form').hidden = true;
+  document.getElementById('card-consent').checked = false;
+  document.getElementById('card-element').innerHTML = '';
+  cardElements = undefined;
+}
+
+async function loadCard() {
+  cardMessage('card-alert', '');
+  try {
+    const card = await apiRequest('/customers/me/card', { auth: true });
+    const summary = document.getElementById('card-summary');
+    summary.textContent = card.saved
+      ? `${card.brand.toUpperCase()} ending ${card.last4}, expires ${String(card.expMonth).padStart(2, '0')}/${card.expYear}.`
+      : 'No card saved.';
+    document.getElementById('card-remove').hidden = !card.saved;
+    document.getElementById('card-add').textContent = card.saved ? 'Replace card' : 'Add a card';
+    document.getElementById('card-add').hidden = false;
+    closeCardForm();
+  } catch (err) {
+    cardMessage('card-alert', err.message);
+  }
+}
+
+document.getElementById('card-add').addEventListener('click', async (event) => {
+  cardMessage('card-alert', '');
+  cardMessage('card-success', '');
+  if (!STRIPE_PUBLISHABLE_KEY) {
+    cardMessage('card-alert', 'Card payments are not set up on this site yet. Please contact us.');
+    return;
+  }
+  event.target.disabled = true;
+  try {
+    const [{ clientSecret }, StripeJs] = await Promise.all([
+      apiRequest('/customers/me/card/setup-intent', { method: 'POST', auth: true }),
+      loadStripeJs(),
+    ]);
+    cardStripe = cardStripe || StripeJs(STRIPE_PUBLISHABLE_KEY);
+    cardElements = cardStripe.elements({ clientSecret });
+    const container = document.getElementById('card-element');
+    container.innerHTML = '';
+    cardElements.create('payment').mount(container);
+    document.getElementById('card-form').hidden = false;
+    event.target.hidden = true;
+  } catch (err) {
+    cardMessage('card-alert', err.message);
+  } finally {
+    event.target.disabled = false;
+  }
+});
+
+document.getElementById('card-cancel').addEventListener('click', loadCard);
+
+document.getElementById('card-save').addEventListener('click', async (event) => {
+  cardMessage('card-alert', '');
+  if (!document.getElementById('card-consent').checked) {
+    cardMessage('card-alert', 'Please tick the box to agree before saving your card.');
+    return;
+  }
+  event.target.disabled = true;
+  try {
+    const { error, setupIntent } = await cardStripe.confirmSetup({
+      elements: cardElements,
+      confirmParams: { return_url: window.location.href },
+      redirect: 'if_required',
+    });
+    if (error) throw new Error(error.message);
+    await apiRequest('/customers/me/card', {
+      method: 'POST',
+      body: { paymentMethodId: setupIntent.payment_method, consent: true },
+      auth: true,
+    });
+    await loadCard();
+    cardMessage('card-success', 'Card saved.');
+  } catch (err) {
+    cardMessage('card-alert', err.message);
+  } finally {
+    event.target.disabled = false;
+  }
+});
+
+document.getElementById('card-remove').addEventListener('click', async (event) => {
+  if (!window.confirm('Remove your saved card?')) return;
+  cardMessage('card-alert', '');
+  event.target.disabled = true;
+  try {
+    await apiRequest('/customers/me/card', { method: 'DELETE', auth: true });
+    await loadCard();
+    cardMessage('card-success', 'Card removed.');
+  } catch (err) {
+    cardMessage('card-alert', err.message);
+  } finally {
+    event.target.disabled = false;
+  }
+});
+
 async function showView(name, { openJobId } = {}) {
   const messages = name === 'messages';
+  const cardView = name === 'card';
   document.querySelectorAll('.tab-button').forEach((tab) => {
     const active = tab.dataset.view === name;
     tab.classList.toggle('is-active', active);
     tab.setAttribute('aria-selected', String(active));
   });
-  show('view-jobs', !messages);
+  show('view-jobs', name === 'jobs');
   show('view-messages', messages);
-  document.getElementById('show-post-job').hidden = messages;
+  show('view-card', cardView);
+  document.getElementById('show-post-job').hidden = name !== 'jobs';
+
+  if (cardView) {
+    cardMessage('card-success', '');
+    await loadCard();
+    return;
+  }
 
   if (messages) {
     // Only one live chat at a time: drop the one inside the job detail.

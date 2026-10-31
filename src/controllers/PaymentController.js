@@ -93,7 +93,7 @@ const paymentIntent = wrap(async (req) => {
     err.status = 400;
     throw err;
   }
-  const intent = await stripeService.retrievePaymentIntent(job.stripePaymentIntentId);
+  const intent = await paymentService.getOrRenewPaymentIntent(job);
   return { body: { clientSecret: intent.client_secret, amountPence: job.pricePence, status: intent.status } };
 });
 
