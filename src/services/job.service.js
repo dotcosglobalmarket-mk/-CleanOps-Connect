@@ -7,6 +7,7 @@ const aiScoringService = require('./ai-scoring.service');
 const insuranceService = require('./insurance.service');
 const paymentService = require('./payment.service');
 const subscriptionService = require('./subscription.service');
+const seriesService = require('./series.service');
 const notifications = require('./notification.service');
 const { maskContactDetails } = require('./contact-filter.service');
 
@@ -105,7 +106,8 @@ function stripInternalFields(job) {
 
 // Customer's own jobs, newest first, without payment internals.
 async function listJobsForCustomer(customerId) {
-  const jobs = await Job.find({ customer: customerId })
+  // Visits the series has made ahead (not yet charged) stay out of this list.
+  const jobs = await Job.find({ customer: customerId, visitState: { $ne: 'scheduled' } })
     .populate('serviceType', 'name')
     .populate('cleaner', 'name ratingAverage ratingCount')
     .sort({ createdAt: -1 })
@@ -312,6 +314,8 @@ async function acceptOffer(jobId, offerId, requestingUser, pricePence) {
     fromStatus: 'sent',
     otherStatuses: 'sent',
   });
+  // A recurring job becomes a series with this booking as its first visit.
+  await seriesService.startFromBookedJob(booked);
   notifications.jobBooked(booked);
 
   return booked;

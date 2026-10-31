@@ -5,6 +5,7 @@ const User = require('../models/User');
 const stripeService = require('./stripe.service');
 const paymentService = require('./payment.service');
 const subscriptionService = require('./subscription.service');
+const seriesService = require('./series.service');
 const { haversineDistanceKm } = require('./coverage.service');
 const { STATES } = require('./payment-state-machine');
 const { outwardCode } = require('./cleaner.service');
@@ -114,6 +115,8 @@ function offerView(offer, cleaner) {
       estimatedHours: job.estimatedHours,
       frequency: job.frequency,
       preferredStartAt: job.preferredStartAt,
+      // Present only for a recurring booking: accepting commits the cleaner to every visit.
+      recurring: seriesService.describeForOffer(job),
       budgetMin: job.budgetMin,
       budgetMax: job.budgetMax,
       booked: Boolean(job.cleaner),
@@ -152,7 +155,7 @@ const MY_JOB_FIELDS =
 
 async function listMyJobs(userId) {
   const cleaner = await requireProfile(userId);
-  return Job.find({ cleaner: cleaner._id })
+  return Job.find({ cleaner: cleaner._id, visitState: { $ne: 'scheduled' } })
     .select(MY_JOB_FIELDS)
     .populate('serviceType', 'name')
     .populate('customer', 'name')
