@@ -406,6 +406,28 @@ describe('Jobs routes', () => {
       };
     }
 
+    it('hands the booked job to the series service, so a recurring job becomes a series', async () => {
+      const seriesService = require('../../src/services/series.service');
+      const start = jest.spyOn(seriesService, 'startFromBookedJob').mockResolvedValue(null);
+      Job.findById.mockResolvedValue({ _id: jobId, cleaner: null });
+      JobOffer.findById.mockResolvedValue(sentOffer());
+      JobOffer.findOneAndUpdate.mockResolvedValue({ ...sentOffer(), status: 'accepted' });
+      Job.findOneAndUpdate.mockResolvedValue({ _id: jobId, cleaner: 'my-cleaner-profile-id' });
+      JobOffer.updateMany.mockResolvedValue({ modifiedCount: 0 });
+      CleanerProfile.findOne.mockResolvedValue({ _id: 'my-cleaner-profile-id' });
+      const booked = { _id: jobId, paymentStatus: 'BOOKED', pricePence: 5000 };
+      paymentService.bookJob.mockResolvedValue(booked);
+
+      const res = await request(app)
+        .post(`/jobs/${jobId}/offers/${offerId}/accept`)
+        .set('Authorization', authHeaderFor('cleaner', 'user2'))
+        .send({ pricePence: 5000 });
+
+      expect(res.status).toBe(200);
+      expect(start).toHaveBeenCalledWith(booked);
+      start.mockRestore();
+    });
+
     it('accepts the offer at the price the cleaner sets, books the job, and declines the other offers', async () => {
       Job.findById.mockResolvedValue({ _id: jobId, cleaner: null });
       JobOffer.findById.mockResolvedValue(sentOffer());

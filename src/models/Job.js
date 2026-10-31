@@ -35,9 +35,16 @@ const jobSchema = new mongoose.Schema(
     },
     frequency: {
       type: String,
-      enum: ['one_off', 'weekly', 'monthly', 'contract'],
+      enum: ['one_off', 'weekly', 'fortnightly', 'monthly', 'contract'],
       default: 'one_off',
     },
+    // Set on every visit of a recurring series (visit 1 is the job the customer
+    // posted). The pair is unique, so a visit can never be created twice.
+    series: { type: mongoose.Schema.Types.ObjectId, ref: 'Series' },
+    visitNumber: { type: Number },
+    // 'scheduled' = made ahead by the series and not yet charged; it stays out of
+    // the ordinary job lists until then.
+    visitState: { type: String, enum: ['scheduled'] },
     // When the customer would like the visit (UK time on screen, stored as an
     // instant). Optional: tenders and older jobs have none.
     preferredStartAt: {
@@ -168,5 +175,9 @@ const jobSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// One job per visit of a series: the guarantee that running the visit generator
+// twice (or two servers at once) cannot make the same visit twice.
+jobSchema.index({ series: 1, visitNumber: 1 }, { unique: true, partialFilterExpression: { series: { $exists: true } } });
 
 module.exports = mongoose.model('Job', jobSchema);

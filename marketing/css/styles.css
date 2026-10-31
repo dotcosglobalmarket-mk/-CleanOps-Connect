@@ -1786,3 +1786,13 @@ table.data-table.fit td select { max-width: 100%; }
 .offer-head { display: flex; align-items: center; gap: 0.75rem; }
 .offer-head .avatar { margin-right: 0; }
 .offer-head-text { min-width: 0; overflow-wrap: anywhere; }
+
+/* Shown to a cleaner before they accept a recurring booking. */
+.recurring-notice {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-primary, #0f766e);
+  border-radius: var(--radius, 8px);
+  background: var(--color-bg, #f6f7f9);
+}

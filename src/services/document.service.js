@@ -41,7 +41,7 @@ function pounds(pence) {
   return typeof pence === 'number' ? `£${(pence / 100).toFixed(2)}` : 'Not recorded';
 }
 
-const FREQUENCY = { one_off: 'One-off', weekly: 'Weekly', monthly: 'Monthly', contract: 'Contract' };
+const FREQUENCY = { one_off: 'One-off', weekly: 'Weekly', fortnightly: 'Fortnightly', monthly: 'Monthly', contract: 'Contract' };
 
 const PAYMENT_WORDS = {
   BOOKED: 'Booked, awaiting payment',

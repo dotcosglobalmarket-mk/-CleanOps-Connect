@@ -181,3 +181,56 @@ describe('offers need a paid-up subscription', () => {
     expect(JobOffer.find).not.toHaveBeenCalled();
   });
 });
+
+describe('recurring bookings in the cleaner’s views', () => {
+  const offerFor = (jobOverrides) =>
+    chainable([
+      {
+        _id: 'offerR',
+        status: 'sent',
+        job: {
+          _id: 'jobR',
+          postcode: 'LS12 1AB',
+          lat: 53.79,
+          lng: -1.59,
+          category: 'domestic',
+          frequency: 'weekly',
+          preferredStartAt: new Date('2026-02-03T10:00:00Z'),
+          budgetMin: 20,
+          budgetMax: 30,
+          serviceType: { name: 'Regular clean' },
+          ...jobOverrides,
+        },
+      },
+    ]);
+
+  afterEach(() => {
+    delete process.env.RECURRING_JOBS_ENABLED;
+  });
+
+  it('tells the cleaner the frequency, end date and number of visits before they accept', async () => {
+    process.env.RECURRING_JOBS_ENABLED = 'true';
+    CleanerProfile.findOne.mockResolvedValue(profile());
+    JobOffer.find.mockReturnValue(offerFor({}));
+    const [offer] = await portal.listMyOffers('user1');
+    expect(offer.job.recurring).toMatchObject({ frequency: 'weekly', visits: 26 });
+    expect(offer.job.recurring.endsOn).toBeInstanceOf(Date);
+  });
+
+  it('says nothing about a series while recurring bookings are off, or for a one-off', async () => {
+    CleanerProfile.findOne.mockResolvedValue(profile());
+    JobOffer.find.mockReturnValue(offerFor({}));
+    expect((await portal.listMyOffers('user1'))[0].job.recurring).toBeUndefined();
+
+    process.env.RECURRING_JOBS_ENABLED = 'true';
+    JobOffer.find.mockReturnValue(offerFor({ frequency: 'one_off' }));
+    expect((await portal.listMyOffers('user1'))[0].job.recurring).toBeUndefined();
+  });
+
+  it('keeps visits made ahead out of My Jobs until they are charged', async () => {
+    CleanerProfile.findOne.mockResolvedValue(profile());
+    Job.find.mockReturnValue(chainable([]));
+    await portal.listMyJobs('user1');
+    expect(Job.find).toHaveBeenCalledWith({ cleaner: 'profile1', visitState: { $ne: 'scheduled' } });
+  });
+});

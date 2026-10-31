@@ -33,7 +33,7 @@ const createJobSchema = z
     postcode: z.string().min(1),
     description: z.string().optional(),
     estimatedHours: z.number().positive().optional(),
-    frequency: z.enum(['one_off', 'weekly', 'monthly', 'contract']).optional(),
+    frequency: z.enum(['one_off', 'weekly', 'fortnightly', 'monthly', 'contract']).optional(),
     preferredStartAt: preferredStartSchema.optional(),
     budgetMin: z.number().nonnegative(),
     budgetMax: z.number().nonnegative(),
@@ -51,7 +51,7 @@ const createJobSchema = z
 const describeJobSchema = z.object({
   category: z.enum(['domestic', 'industrial']),
   serviceType: objectId().optional(),
-  frequency: z.enum(['one_off', 'weekly', 'monthly', 'contract']).optional(),
+  frequency: z.enum(['one_off', 'weekly', 'fortnightly', 'monthly', 'contract']).optional(),
   estimatedHours: z.number().positive().max(1000).optional(),
   draft: z.string().trim().max(2000).optional(),
 });

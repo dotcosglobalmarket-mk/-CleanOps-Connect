@@ -8,7 +8,7 @@ import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate
 // Offers inbox, booked jobs, earnings and Stripe payouts for the cleaner
 // dashboard. The profile/coverage tabs live in cleaner.js.
 
-const FREQUENCY = { one_off: 'One-off', weekly: 'Weekly', monthly: 'Monthly', contract: 'Contract' };
+const FREQUENCY = { one_off: 'One-off', weekly: 'Weekly', fortnightly: 'Fortnightly', monthly: 'Monthly', contract: 'Contract' };
 
 // Distance comes from the API in km; the UI shows miles.
 const KM_PER_MILE = 1.609344;
@@ -68,10 +68,15 @@ function offerForm(o) {
         </div>
       </form>`;
   }
+  const recurring = o.job.recurring;
+  const recurringNotice = recurring
+    ? `<p class="recurring-notice"><strong>This is a recurring booking.</strong> ${escapeHtml(FREQUENCY[recurring.frequency] || recurring.frequency)} until ${escapeHtml(formatDate(recurring.endsOn).split(',')[0])}, about ${escapeHtml(recurring.visits)} visits. The price you set applies to every visit and stays the same for the whole series. Cancelling a series later needs 14 days' notice.</p>`
+    : '';
   return `
-    <form class="accept-form">
+    <form class="accept-form"${recurring ? ` data-recurring="${escapeHtml(recurring.visits)}"` : ''}>
+      ${recurringNotice}
       <div class="form-row">
-        <label for="price-${id}">Your price for this job (£)</label>
+        <label for="price-${id}">${recurring ? 'Your price per visit (£)' : 'Your price for this job (£)'}</label>
         <input id="price-${id}" type="number" min="1" step="0.01" inputmode="decimal" required />
       </div>
       <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem;">
@@ -140,7 +145,11 @@ async function loadOffers() {
             showAlert('offers-alert', 'Enter your price in pounds.');
             return;
           }
-          if (!window.confirm(`Accept this job for ${formatPence(pricePence)}? The customer will be asked to pay this amount.`)) return;
+          const visits = acceptForm.dataset.recurring;
+          const question = visits
+            ? `Accept this recurring booking at ${formatPence(pricePence)} per visit, for about ${visits} visits? This price applies to every visit. The customer will be asked to pay for the first visit now.`
+            : `Accept this job for ${formatPence(pricePence)}? The customer will be asked to pay this amount.`;
+          if (!window.confirm(question)) return;
           event.target.querySelectorAll('button').forEach((b) => { b.disabled = true; });
           try {
             await apiRequest(`/jobs/${job}/offers/${offer}/accept`, { method: 'POST', body: { pricePence }, auth: true });
