@@ -72,6 +72,7 @@ JWT_SECRET=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 STRIPE_CONNECT_WEBHOOK_SECRET=
+# RECURRING_JOBS_ENABLED=true   (optional; off unless set: see Regular bookings below)
 ```
 
 `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_CONNECT_WEBHOOK_SECRET`
@@ -244,6 +245,41 @@ All routes below require `requireRole('admin')`. This is the platform's super-ad
 
 The existing `GET /payments/ops/queue` and `POST /payments/ops/jobs/:id/manual-retry` (documented under Payments above) are also admin-only and surface in the same dashboard's Payments Ops Queue tab.
 
+## Regular bookings (recurring jobs)
+
+A customer and a cleaner can agree a **weekly, fortnightly or monthly** domestic booking. Each visit is an ordinary job linked to a **series**, so payment holds, check-in, confirmation, disputes, reviews, commission and payouts all run per visit, with no separate money logic. It is **off unless `RECURRING_JOBS_ENABLED=true`**; until then accepting a recurring job books a single job, as before, and the screens stay hidden.
+
+**Lifecycle**
+
+1. The customer posts a domestic job with a frequency and a preferred date and time (UK time). The cleaner sets their price per visit when accepting and is told it applies to every visit. The accepted job becomes visit 1 of a series ending six months after it.
+2. The customer pays visit 1 as normal and saves a card, ticking the agreement (see below). Only then does the series start (`awaiting_card` to `active`).
+3. A worker (`src/workers/series.worker.js`, every 6 hours) makes visits up to 14 days ahead as `scheduled` jobs. A unique index on `series + visitNumber` guarantees a visit is never made twice, however often or wherever it runs. Visit times keep the same UK clock time across clock changes.
+4. A second worker (every 15 minutes) charges each visit **48 hours before it** to the saved card: the visit is booked and its PaymentIntent stored first, then Stripe is asked to take the money, each step with its own idempotency key. The usual payment webhook completes it.
+5. 14 days before the end the customer is emailed that it does not renew by itself.
+
+**Rules** (constants at the top of `visit-charging.service.js` and `series-rules.service.js`)
+
+| Situation | What happens |
+|---|---|
+| Customer skips a visit | Free until it is charged; once charged, 50% back (the usual late rule) |
+| Customer pauses / resumes / cancels | Pause stops visits and charging; resume needs a card agreed under the current wording; cancel drops uncharged visits, paid ones stay |
+| Card declined | Customer told, one retry 12 hours later; still unpaid 24 hours before, the visit is skipped; two skipped in a row pause the series |
+| Unclear Stripe failure (e.g. timeout) | Not guessed at: the visit stays booked with its intent and the webhook settles it |
+| Cleaner cancels a visit | Full refund if charged; counted against the cleaner; a second one pauses the series |
+| Cleaner ends the series | 14 days' notice |
+
+**Card agreement.** The wording shown beside the tick box, and its version, live in `customer-card.service.js` (`CARD_CONSENT`) and are sent to the page, so what is displayed is what is recorded. Changing the text means changing the version: a card agreed under an older version is kept but is not charged automatically until the customer agrees again (`POST /customers/me/card/consent`). Every save, re-agreement and removal is appended to `cardConsentLog`, which survives removing the card. The text, the terms (section 5) and the privacy notice were drafted to match the code and **should be reviewed by someone qualified before you turn this on**.
+
+**Endpoints**
+
+- `GET /customers/me/card` / `POST /customers/me/card/setup-intent` / `POST /customers/me/card` / `POST /customers/me/card/consent` / `DELETE /customers/me/card` 🔒 (customer): the saved card and its agreement
+- `GET /series/mine` 🔒 (customer or cleaner): own series with upcoming visits and which buttons apply
+- `POST /series/:id/visits/:jobId/skip`, `/pause`, `/resume`, `/cancel` 🔒 (customer)
+- `POST /series/:id/visits/:jobId/cleaner-cancel`, `/end` 🔒 (cleaner)
+- `GET /ops/series` 🔒 (staff): every series with failed cards and cleaner cancellations
+
+**Turning it on.** Check the wording, terms and privacy notice with whoever advises you, set `RECURRING_JOBS_ENABLED=true` on DigitalOcean and redeploy. Customers who saved a card before the current wording are asked to agree again on their Payment card tab. Turning it off again stops new series, new visits and charging; visits already booked carry on as ordinary jobs.
+
 ## Mapbox Integration
 
 Mapbox is used for:
@@ -386,6 +422,7 @@ Admin accounts need a six-digit code from an authenticator app as well as the pa
 - Escrow payments (see Payments above).
 - Industrial tendering (see Industrial tenders above).
 - Suggested local rates for customers and cleaners (see Price guide above).
+- Regular bookings: weekly, fortnightly and monthly cleaning with per-visit charging (see Regular bookings above; off until enabled).
 - Job documents: a printable service record for every booked job, and a pre-start compliance pack for industrial jobs (see Job documents above).
 
 ## License

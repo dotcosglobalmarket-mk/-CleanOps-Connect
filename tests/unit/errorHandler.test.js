@@ -75,7 +75,7 @@ describe('errorHandler', () => {
 
   describe('payment provider errors', () => {
     const leaky =
-      "The provided key 'rk_live_********************ijCbUs' does not have access to account 'acct_1UUvpO0XdUxZqQ9F' (or that account does not exist).";
+      "The provided key 'rk_live_********************AbCdEf' does not have access to account 'acct_1AbCdEfGhIjKlMnO' (or that account does not exist).";
 
     it('never sends a Stripe error message to the browser', () => {
       const res = mockRes();
@@ -87,7 +87,7 @@ describe('errorHandler', () => {
       expect(res.status).toHaveBeenCalledWith(502);
       const { message } = res.json.mock.calls[0][0];
       expect(message).toMatch(/payment provider/);
-      expect(message).not.toMatch(/rk_live|acct_|ijCbUs/);
+      expect(message).not.toMatch(/rk_live|acct_|AbCdEf/);
     });
 
     it('still writes the full Stripe error to the server log', () => {
@@ -97,7 +97,7 @@ describe('errorHandler', () => {
 
       errorHandler(err, {}, res, jest.fn());
 
-      expect(consoleErrorSpy.mock.calls.flat().join(' ')).toContain('acct_1UUvpO0XdUxZqQ9F');
+      expect(consoleErrorSpy.mock.calls.flat().join(' ')).toContain('acct_1AbCdEfGhIjKlMnO');
     });
 
     it('keeps the message of a declined card, which is written for the customer', () => {

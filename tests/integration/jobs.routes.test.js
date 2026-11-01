@@ -406,6 +406,36 @@ describe('Jobs routes', () => {
       };
     }
 
+    it('refuses an offer whose preferred date has already passed, and books nothing', async () => {
+      Job.findById.mockResolvedValue({ _id: jobId, cleaner: null, preferredStartAt: new Date(Date.now() - 3600 * 1000) });
+      const res = await request(app)
+        .post(`/jobs/${jobId}/offers/${offerId}/accept`)
+        .set('Authorization', authHeaderFor('cleaner', 'user2'))
+        .send({ pricePence: 5000 });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/already passed/);
+      expect(paymentService.bookJob).not.toHaveBeenCalled();
+      expect(JobOffer.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('still accepts a job with a date in the future, or with no date', async () => {
+      for (const preferredStartAt of [new Date(Date.now() + 3 * 24 * 3600 * 1000), undefined]) {
+        jest.clearAllMocks();
+        Job.findById.mockResolvedValue({ _id: jobId, cleaner: null, preferredStartAt });
+        JobOffer.findById.mockResolvedValue(sentOffer());
+        JobOffer.findOneAndUpdate.mockResolvedValue({ ...sentOffer(), status: 'accepted' });
+        Job.findOneAndUpdate.mockResolvedValue({ _id: jobId, cleaner: 'my-cleaner-profile-id' });
+        JobOffer.updateMany.mockResolvedValue({ modifiedCount: 0 });
+        CleanerProfile.findOne.mockResolvedValue({ _id: 'my-cleaner-profile-id' });
+        paymentService.bookJob.mockResolvedValue({ _id: jobId, paymentStatus: 'BOOKED', pricePence: 5000 });
+        const res = await request(app)
+          .post(`/jobs/${jobId}/offers/${offerId}/accept`)
+          .set('Authorization', authHeaderFor('cleaner', 'user2'))
+          .send({ pricePence: 5000 });
+        expect(res.status).toBe(200);
+      }
+    });
+
     it('hands the booked job to the series service, so a recurring job becomes a series', async () => {
       const seriesService = require('../../src/services/series.service');
       const start = jest.spyOn(seriesService, 'startFromBookedJob').mockResolvedValue(null);

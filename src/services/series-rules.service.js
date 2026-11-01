@@ -2,6 +2,7 @@ const Job = require('../models/Job');
 const Series = require('../models/Series');
 const User = require('../models/User');
 const CleanerProfile = require('../models/CleanerProfile');
+const { hasRecurringConsent } = require('./customer-card.service');
 const paymentService = require('./payment.service');
 const visitCharging = require('./visit-charging.service');
 const notifications = require('./notification.service');
@@ -79,8 +80,8 @@ async function resume(seriesId, userId) {
   const series = await customerSeries(seriesId, userId);
   if (series.status !== 'paused') throw httpError(400, 'This series is not paused');
   const customer = await User.findById(userId);
-  if (!customer || !customer.savedCard || !customer.savedCard.paymentMethodId) {
-    throw httpError(400, 'Save a card first, so your visits can be paid for');
+  if (!hasRecurringConsent(customer)) {
+    throw httpError(400, 'Save a card and agree to the wording first, so your visits can be paid for');
   }
   series.status = 'active';
   series.pausedBy = undefined;

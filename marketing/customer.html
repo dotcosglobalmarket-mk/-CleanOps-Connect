@@ -55,10 +55,22 @@
         <div id="card-alert" class="alert alert-error" hidden></div>
         <div id="card-success" class="alert alert-success" hidden></div>
         <p id="card-summary"></p>
+        <div id="card-series-summary" class="recurring-notice" hidden></div>
+
+        <div id="card-agree" hidden>
+          <p class="field-help">This card was saved before regular cleaning was available. To use it for regular visits, please read and agree to the wording below.</p>
+          <div class="form-row">
+            <label><input id="card-agree-consent" type="checkbox" /> <span class="card-consent-text"></span></label>
+            <span class="field-help"><a href="terms.html#regular-bookings">Read the terms for regular bookings</a></span>
+          </div>
+          <button type="button" id="card-agree-btn">I agree</button>
+        </div>
+
         <div id="card-form" hidden>
           <div id="card-element"></div>
           <div class="form-row">
-            <label><input id="card-consent" type="checkbox" /> I agree that CleanOps Connect may keep this card with Stripe and use it only for bookings I confirm. I can remove it here at any time.</label>
+            <label><input id="card-consent" type="checkbox" /> <span class="card-consent-text"></span></label>
+            <span class="field-help"><a href="terms.html#regular-bookings">Read the terms for regular bookings</a></span>
           </div>
           <button type="button" id="card-save">Save card</button>
           <button type="button" id="card-cancel" class="secondary">Cancel</button>

@@ -62,7 +62,7 @@ describe("a customer's own series", () => {
   it('shows the cleaner, the price, and the visits, and offers a skip only where one is allowed', async () => {
     process.env.RECURRING_JOBS_ENABLED = 'true';
     Series.find.mockReturnValue(query([seriesDoc()]));
-    User.findById.mockResolvedValue({ savedCard: { paymentMethodId: 'pm_1' } });
+    User.findById.mockResolvedValue({ savedCard: { paymentMethodId: 'pm_1', consentVersion: 'card-v2' } });
     Job.find.mockReturnValue(
       query([
         job({ visitNumber: 1, preferredStartAt: inDays(-7), paymentStatus: 'CONFIRMED' }),
@@ -95,6 +95,13 @@ describe("a customer's own series", () => {
     expect(s.needsCard).toBe(true);
   });
 
+  it('asks again when the saved card was agreed under older wording', async () => {
+    Series.find.mockReturnValue(query([seriesDoc({ status: 'awaiting_card' })]));
+    User.findById.mockResolvedValue({ savedCard: { paymentMethodId: 'pm_1', consentVersion: 'card-v1' } });
+    Job.find.mockReturnValue(query([]));
+    expect((await view.listMine({ id: 'cust1', role: 'customer' }, now)).series[0].needsCard).toBe(true);
+  });
+
   it('does not ask for a card on a series that has ended', async () => {
     Series.find.mockReturnValue(query([seriesDoc({ status: 'cancelled' })]));
     User.findById.mockResolvedValue({});
@@ -109,7 +116,7 @@ describe("a customer's own series", () => {
 
   it('only shows the most recent visits', async () => {
     Series.find.mockReturnValue(query([seriesDoc()]));
-    User.findById.mockResolvedValue({ savedCard: { paymentMethodId: 'pm_1' } });
+    User.findById.mockResolvedValue({ savedCard: { paymentMethodId: 'pm_1', consentVersion: 'card-v2' } });
     Job.find.mockReturnValue(query(Array.from({ length: 20 }, (_, i) => job({ visitNumber: i + 2, preferredStartAt: inDays(3 + i * 7), visitState: 'scheduled' }))));
     expect((await view.listMine({ id: 'cust1', role: 'customer' }, now)).series[0].visits).toHaveLength(12);
   });

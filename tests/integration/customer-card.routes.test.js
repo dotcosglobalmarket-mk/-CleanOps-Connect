@@ -41,28 +41,68 @@ describe('customer saved card routes', () => {
   });
 
   it('will not save a card without consent', async () => {
-    const res = await request(app).post('/customers/me/card').set('Authorization', auth('customer')).send({ paymentMethodId: 'pm_1' });
+    const res = await request(app).post('/customers/me/card').set('Authorization', auth('customer')).send({ paymentMethodId: 'pm_1', consentVersion: 'card-v2' });
     expect(res.status).toBe(400);
-    const res2 = await request(app).post('/customers/me/card').set('Authorization', auth('customer')).send({ paymentMethodId: 'pm_1', consent: false });
+    const res2 = await request(app).post('/customers/me/card').set('Authorization', auth('customer')).send({ paymentMethodId: 'pm_1', consent: false, consentVersion: 'card-v2' });
     expect(res2.status).toBe(400);
     expect(cards.saveCard).not.toHaveBeenCalled();
   });
 
   it('rejects something that is not a card reference', async () => {
-    const res = await request(app).post('/customers/me/card').set('Authorization', auth('customer')).send({ paymentMethodId: 'tok; drop', consent: true });
+    const res = await request(app).post('/customers/me/card').set('Authorization', auth('customer')).send({ paymentMethodId: 'tok; drop', consent: true, consentVersion: 'card-v2' });
     expect(res.status).toBe(400);
   });
 
   it('saves with consent', async () => {
     cards.saveCard.mockResolvedValue({ saved: true });
-    const res = await request(app).post('/customers/me/card').set('Authorization', auth('customer', 'c2')).send({ paymentMethodId: 'pm_1', consent: true });
+    const res = await request(app).post('/customers/me/card').set('Authorization', auth('customer', 'c2')).send({ paymentMethodId: 'pm_1', consent: true, consentVersion: 'card-v2' });
     expect(res.status).toBe(201);
-    expect(cards.saveCard).toHaveBeenCalledWith('c2', 'pm_1', true);
+    expect(cards.saveCard).toHaveBeenCalledWith('c2', 'pm_1', true, 'card-v2');
   });
 
   it('removes the card', async () => {
     cards.removeCard.mockResolvedValue({ saved: false });
     const res = await request(app).delete('/customers/me/card').set('Authorization', auth('customer'));
     expect(res.status).toBe(200);
+  });
+
+  it('will not save a card without saying which wording was shown', async () => {
+    const res = await request(app).post('/customers/me/card').set('Authorization', auth('customer')).send({ paymentMethodId: 'pm_1', consent: true });
+    expect(res.status).toBe(400);
+    expect(cards.saveCard).not.toHaveBeenCalled();
+  });
+
+  describe('POST /customers/me/card/consent', () => {
+    it('is for customers only', async () => {
+      const res = await request(app).post('/customers/me/card/consent').set('Authorization', auth('cleaner')).send({ consent: true, consentVersion: 'card-v2' });
+      expect(res.status).toBe(403);
+    });
+
+    it('needs the tick and the wording version', async () => {
+      expect((await request(app).post('/customers/me/card/consent').set('Authorization', auth('customer')).send({ consent: true })).status).toBe(400);
+      expect((await request(app).post('/customers/me/card/consent').set('Authorization', auth('customer')).send({ consent: false, consentVersion: 'card-v2' })).status).toBe(400);
+      expect(cards.agreeToCurrentWording).not.toHaveBeenCalled();
+    });
+
+    it('records the agreement for the signed-in customer', async () => {
+      cards.agreeToCurrentWording.mockResolvedValue({ saved: true });
+      const res = await request(app).post('/customers/me/card/consent').set('Authorization', auth('customer', 'c3')).send({ consent: true, consentVersion: 'card-v2' });
+      expect(res.status).toBe(200);
+      expect(cards.agreeToCurrentWording).toHaveBeenCalledWith('c3', true, 'card-v2');
+    });
+  });
+
+  it('limits how many times one customer can start saving a card in an hour', async () => {
+    cards.createSetupIntent.mockResolvedValue({ clientSecret: 'x' });
+    const fresh = require('../../src/app')();
+    let blockedAt = null;
+    for (let i = 1; i <= 15; i += 1) {
+      const res = await request(fresh).post('/customers/me/card/setup-intent').set('Authorization', auth('customer', 'carder'));
+      if (res.status === 429 && blockedAt === null) blockedAt = i;
+    }
+    expect(blockedAt).toBeGreaterThan(1);
+    expect(blockedAt).toBeLessThanOrEqual(11);
+    // Someone else is unaffected.
+    expect((await request(fresh).post('/customers/me/card/setup-intent').set('Authorization', auth('customer', 'someone-else'))).status).toBe(200);
   });
 });

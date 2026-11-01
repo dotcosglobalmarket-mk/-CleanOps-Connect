@@ -719,10 +719,42 @@ function closeCardForm() {
   cardElements = undefined;
 }
 
+// The wording and its version come from the server, so what is shown is exactly what is recorded.
+let cardConsentVersion = null;
+
+const FREQUENCY_WORDS = { weekly: 'Weekly', fortnightly: 'Fortnightly', monthly: 'Monthly' };
+
+// Lists the regular bookings the customer is agreeing to, so the price and schedule are in front of them.
+async function renderCardSeriesSummary() {
+  const box = document.getElementById('card-series-summary');
+  try {
+    const data = await apiRequest('/series/mine', { auth: true });
+    const live = (data.series || []).filter((s) => ['awaiting_card', 'active', 'paused'].includes(s.status));
+    box.hidden = !live.length;
+    box.innerHTML = live.length
+      ? `<strong>This card will be used for:</strong><ul>${live
+          .map(
+            (s) =>
+              `<li>${escapeHtml(FREQUENCY_WORDS[s.frequency] || s.frequency)} ${escapeHtml(s.serviceType?.name || 'cleaning')} with ${escapeHtml(s.with || 'your cleaner')}: ${escapeHtml(formatPence(s.pricePence))} per visit, charged 48 hours before each visit, until ${escapeHtml(new Date(s.endsOn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }))}.</li>`
+          )
+          .join('')}</ul>`
+      : '';
+  } catch (err) {
+    box.hidden = true;
+  }
+}
+
 async function loadCard() {
   cardMessage('card-alert', '');
   try {
     const card = await apiRequest('/customers/me/card', { auth: true });
+    cardConsentVersion = card.consent.version;
+    document.querySelectorAll('.card-consent-text').forEach((el) => {
+      el.textContent = card.consent.text;
+    });
+    document.getElementById('card-agree').hidden = !(card.saved && card.recurringConsent === false && seriesFeatureOn);
+    document.getElementById('card-agree-consent').checked = false;
+    await renderCardSeriesSummary();
     const summary = document.getElementById('card-summary');
     summary.textContent = card.saved
       ? `${card.brand.toUpperCase()} ending ${card.last4}, expires ${String(card.expMonth).padStart(2, '0')}/${card.expYear}.`
@@ -781,11 +813,33 @@ document.getElementById('card-save').addEventListener('click', async (event) => 
     if (error) throw new Error(error.message);
     await apiRequest('/customers/me/card', {
       method: 'POST',
-      body: { paymentMethodId: setupIntent.payment_method, consent: true },
+      body: { paymentMethodId: setupIntent.payment_method, consent: true, consentVersion: cardConsentVersion },
       auth: true,
     });
     await loadCard();
     cardMessage('card-success', 'Card saved.');
+  } catch (err) {
+    cardMessage('card-alert', err.message);
+  } finally {
+    event.target.disabled = false;
+  }
+});
+
+document.getElementById('card-agree-btn').addEventListener('click', async (event) => {
+  cardMessage('card-alert', '');
+  if (!document.getElementById('card-agree-consent').checked) {
+    cardMessage('card-alert', 'Please tick the box to agree.');
+    return;
+  }
+  event.target.disabled = true;
+  try {
+    await apiRequest('/customers/me/card/consent', {
+      method: 'POST',
+      body: { consent: true, consentVersion: cardConsentVersion },
+      auth: true,
+    });
+    await loadCard();
+    cardMessage('card-success', 'Thank you. Your card can now be used for regular visits.');
   } catch (err) {
     cardMessage('card-alert', err.message);
   } finally {
@@ -821,10 +875,12 @@ async function loadSeries() {
 }
 
 // The tab only shows once recurring bookings are on, or the customer already has one.
+let seriesFeatureOn = false;
 async function revealSeriesTab() {
   try {
     const data = await apiRequest('/series/mine', { auth: true });
-    document.getElementById('tab-series').hidden = !(data.enabled || (data.series || []).length);
+    seriesFeatureOn = Boolean(data.enabled || (data.series || []).length);
+    document.getElementById('tab-series').hidden = !seriesFeatureOn;
   } catch (err) {
     // Leave it hidden: the rest of the page works without it.
   }

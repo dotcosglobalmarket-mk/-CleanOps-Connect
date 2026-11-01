@@ -84,7 +84,7 @@ function bookedJob(overrides = {}) {
 beforeEach(() => {
   mockStore.jobs = [];
   mockStore.series = [];
-  mockStore.users = { cust1: { savedCard: { paymentMethodId: 'pm_1' } } };
+  mockStore.users = { cust1: { savedCard: { paymentMethodId: 'pm_1', consentVersion: 'card-v2' } } };
   jest.clearAllMocks();
   process.env.RECURRING_JOBS_ENABLED = 'true';
 });
@@ -229,10 +229,20 @@ describe('the visit generator', () => {
     await startedSeries();
     expect((await seriesService.runVisitGenerator(now)).visits).toBe(0);
 
-    mockStore.users.cust1 = { savedCard: { paymentMethodId: 'pm_1' } };
+    mockStore.users.cust1 = { savedCard: { paymentMethodId: 'pm_1', consentVersion: 'card-v2' } };
     expect((await seriesService.runVisitGenerator(now)).visits).toBe(2);
     expect(mockStore.series[0]).toMatchObject({ status: 'active' });
     expect(mockStore.series[0].activatedAt).toBeInstanceOf(Date);
+  });
+
+  it('a card saved under older wording does not start a series until the customer agrees to the new wording', async () => {
+    mockStore.users.cust1 = { savedCard: { paymentMethodId: 'pm_1', consentVersion: 'card-v1' } };
+    await startedSeries();
+    expect((await seriesService.runVisitGenerator(now)).visits).toBe(0);
+    expect(mockStore.series[0].status).toBe('awaiting_card');
+
+    mockStore.users.cust1 = { savedCard: { paymentMethodId: 'pm_1', consentVersion: 'card-v2' } };
+    expect((await seriesService.runVisitGenerator(now)).visits).toBe(2);
   });
 
   it.each(['CANCELLED', 'CANCELLED_BY_CUSTOMER', 'REFUNDED'])('stops the series if visit 1 ends as %s', async (status) => {
