@@ -89,9 +89,11 @@ async function handle(req, res, next) {
     // The work failed, so this event has NOT been handled. Forget that we saw it, or
     // Stripe's retry would be answered "duplicate" and a payment that really happened
     // would never reach the job.
-    await ProcessedWebhookEvent.deleteOne({ eventId: event.id }).catch((deleteErr) =>
-      logger.error(`[webhooks] Could not release event ${event.id} for retry: ${deleteErr.message}`)
-    );
+    try {
+      await ProcessedWebhookEvent.deleteOne({ eventId: event.id });
+    } catch (deleteErr) {
+      logger.error(`[webhooks] Could not release event ${event.id} for retry: ${deleteErr.message}`);
+    }
     return next(err);
   }
 }

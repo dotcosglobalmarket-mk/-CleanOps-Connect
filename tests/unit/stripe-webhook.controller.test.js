@@ -1,84 +1,135 @@
+// Lifecycle emails are fire-and-forget side effects; tested in notification.service.test.js.
+jest.mock('../../src/services/notification.service');
 jest.mock('../../src/services/stripe.service');
+jest.mock('../../src/models/ProcessedWebhookEvent');
 jest.mock('../../src/services/payment.service');
 jest.mock('../../src/services/subscription.service');
 
-// A stand-in for the processed-events collection with the same unique-id rule.
-const mockSeen = new Set();
-jest.mock('../../src/models/ProcessedWebhookEvent', () => ({
-  create: jest.fn(async ({ eventId }) => {
-    if (mockSeen.has(eventId)) throw Object.assign(new Error('duplicate key'), { code: 11000 });
-    mockSeen.add(eventId);
-  }),
-  deleteOne: jest.fn(async ({ eventId }) => {
-    mockSeen.delete(eventId);
-  }),
-}));
-
 const stripeService = require('../../src/services/stripe.service');
-const paymentService = require('../../src/services/payment.service');
 const ProcessedWebhookEvent = require('../../src/models/ProcessedWebhookEvent');
-const { handle } = require('../../src/controllers/StripeWebhookController');
+const paymentService = require('../../src/services/payment.service');
+const subscriptionService = require('../../src/services/subscription.service');
+const StripeWebhookController = require('../../src/controllers/StripeWebhookController');
 
-const res = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis(), send: jest.fn().mockReturnThis() });
-const req = { body: '', headers: { 'stripe-signature': 'sig' } };
-const paid = { id: 'evt_1', type: 'payment_intent.succeeded', data: { object: { id: 'pi_1', amount_received: 2600 } } };
+function makeRes() {
+  return {
+    status: jest.fn().mockReturnThis(),
+    json: jest.fn().mockReturnThis(),
+    send: jest.fn().mockReturnThis(),
+  };
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockSeen.clear();
-  stripeService.constructWebhookEvent.mockReturnValue(paid);
-  paymentService.handlePaymentSucceeded.mockResolvedValue({});
 });
 
-describe('Stripe webhook handling', () => {
-  it('handles an event once, and answers a repeat delivery as a duplicate without redoing the work', async () => {
-    await handle(req, res(), jest.fn());
-    const again = res();
-    await handle(req, again, jest.fn());
-
-    expect(paymentService.handlePaymentSucceeded).toHaveBeenCalledTimes(1);
-    expect(again.json).toHaveBeenCalledWith({ received: true, duplicate: true });
-  });
-
-  it('a failure is passed on as an error so Stripe retries, and the retry really is handled again', async () => {
-    paymentService.handlePaymentSucceeded.mockRejectedValueOnce(new Error('database blip'));
-
-    const next = jest.fn();
-    await handle(req, res(), next);
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'database blip' }));
-
-    const retry = res();
-    await handle(req, retry, jest.fn());
-    expect(paymentService.handlePaymentSucceeded).toHaveBeenCalledTimes(2);
-    expect(retry.json).toHaveBeenCalledWith({ received: true });
-  });
-
-  it('once it has succeeded, further repeats are ignored again', async () => {
-    paymentService.handlePaymentSucceeded.mockRejectedValueOnce(new Error('blip'));
-    await handle(req, res(), jest.fn());
-    await handle(req, res(), jest.fn()); // the retry succeeds
-    const third = res();
-    await handle(req, third, jest.fn());
-    expect(paymentService.handlePaymentSucceeded).toHaveBeenCalledTimes(2);
-    expect(third.json).toHaveBeenCalledWith({ received: true, duplicate: true });
-  });
-
-  it('still reports the original failure if releasing the event also fails', async () => {
-    paymentService.handlePaymentSucceeded.mockRejectedValueOnce(new Error('first failure'));
-    ProcessedWebhookEvent.deleteOne.mockRejectedValueOnce(new Error('db down'));
-    const next = jest.fn();
-    await handle(req, res(), next);
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'first failure' }));
-  });
-
-  it('rejects a bad signature before recording or doing anything', async () => {
+describe('StripeWebhookController.handle', () => {
+  it('rejects a payload with an invalid signature before touching the dedup table', async () => {
     stripeService.constructWebhookEvent.mockImplementation(() => {
-      throw new Error('No signatures found');
+      throw new Error('bad signature');
     });
-    const bad = res();
-    await handle(req, bad, jest.fn());
-    expect(bad.status).toHaveBeenCalledWith(400);
+    const req = { body: Buffer.from('{}'), headers: { 'stripe-signature': 'bad' } };
+    const res = makeRes();
+
+    await StripeWebhookController.handle(req, res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(400);
     expect(ProcessedWebhookEvent.create).not.toHaveBeenCalled();
+  });
+
+  it('dispatches payment_intent.succeeded to the payment service on first delivery', async () => {
+    const event = {
+      id: 'evt_1',
+      type: 'payment_intent.succeeded',
+      data: { object: { id: 'pi_1', amount_received: 10000 } },
+    };
+    stripeService.constructWebhookEvent.mockReturnValue(event);
+    ProcessedWebhookEvent.create.mockResolvedValue({ eventId: 'evt_1' });
+
+    const req = { body: Buffer.from('{}'), headers: { 'stripe-signature': 'good' } };
+    const res = makeRes();
+
+    await StripeWebhookController.handle(req, res, jest.fn());
+
+    expect(paymentService.handlePaymentSucceeded).toHaveBeenCalledWith('pi_1', 10000);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('short-circuits a duplicate delivery of the same event id without dispatching twice', async () => {
+    const event = {
+      id: 'evt_1',
+      type: 'payment_intent.succeeded',
+      data: { object: { id: 'pi_1', amount_received: 10000 } },
+    };
+    stripeService.constructWebhookEvent.mockReturnValue(event);
+    const duplicateKeyError = new Error('duplicate');
+    duplicateKeyError.code = 11000;
+    ProcessedWebhookEvent.create.mockRejectedValue(duplicateKeyError);
+
+    const req = { body: Buffer.from('{}'), headers: { 'stripe-signature': 'good' } };
+    const res = makeRes();
+
+    await StripeWebhookController.handle(req, res, jest.fn());
+
     expect(paymentService.handlePaymentSucceeded).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ duplicate: true }));
+  });
+
+  it('routes payout.failed against the cleaner only, never a Job', async () => {
+    const event = {
+      id: 'evt_2',
+      type: 'payout.failed',
+      data: { object: { destination: 'acct_1' } },
+    };
+    stripeService.constructWebhookEvent.mockReturnValue(event);
+    ProcessedWebhookEvent.create.mockResolvedValue({ eventId: 'evt_2' });
+
+    const req = { body: Buffer.from('{}'), headers: { 'stripe-signature': 'good' } };
+    const res = makeRes();
+
+    await StripeWebhookController.handle(req, res, jest.fn());
+
+    expect(paymentService.handlePayoutFailed).toHaveBeenCalledWith('acct_1');
+  });
+
+  it('syncs subscription status from customer.subscription.updated', async () => {
+    const subscriptionObject = { id: 'sub_1', status: 'past_due' };
+    const event = { id: 'evt_3', type: 'customer.subscription.updated', data: { object: subscriptionObject } };
+    stripeService.constructWebhookEvent.mockReturnValue(event);
+    ProcessedWebhookEvent.create.mockResolvedValue({ eventId: 'evt_3' });
+
+    const req = { body: Buffer.from('{}'), headers: { 'stripe-signature': 'good' } };
+    const res = makeRes();
+
+    await StripeWebhookController.handle(req, res, jest.fn());
+
+    expect(subscriptionService.handleStripeSubscriptionUpdated).toHaveBeenCalledWith(subscriptionObject);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('routes invoice.payment_failed to the subscription service', async () => {
+    const invoice = { id: 'in_1', subscription: 'sub_1' };
+    const event = { id: 'evt_4', type: 'invoice.payment_failed', data: { object: invoice } };
+    stripeService.constructWebhookEvent.mockReturnValue(event);
+    ProcessedWebhookEvent.create.mockResolvedValue({ eventId: 'evt_4' });
+
+    const req = { body: Buffer.from('{}'), headers: { 'stripe-signature': 'good' } };
+    const res = makeRes();
+
+    await StripeWebhookController.handle(req, res, jest.fn());
+
+    expect(subscriptionService.handleInvoicePaymentFailed).toHaveBeenCalledWith(invoice);
+  });
+
+  it('routes invoice.payment_succeeded and invoice.paid to the subscription service', async () => {
+    for (const type of ['invoice.payment_succeeded', 'invoice.paid']) {
+      const invoice = { id: `in_${type}`, subscription: 'sub_1' };
+      stripeService.constructWebhookEvent.mockReturnValue({ id: `evt_${type}`, type, data: { object: invoice } });
+      ProcessedWebhookEvent.create.mockResolvedValue({});
+      const req = { body: Buffer.from('{}'), headers: { 'stripe-signature': 'good' } };
+      await StripeWebhookController.handle(req, makeRes(), jest.fn());
+      expect(subscriptionService.handleInvoicePaid).toHaveBeenCalledWith(invoice);
+    }
   });
 });
