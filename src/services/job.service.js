@@ -302,6 +302,11 @@ async function acceptOffer(jobId, offerId, requestingUser, pricePence) {
   if (job.procurement === 'tender') {
     throw badRequest('This job is open for quotes: send your quote instead');
   }
+  // An offer can sit for days. Booking a visit for a time that has gone would start a
+  // series (or a one-off) in the past, so the customer is asked to post it again.
+  if (job.preferredStartAt && job.preferredStartAt.getTime() <= Date.now()) {
+    throw badRequest("This job's preferred date and time has already passed. Ask the customer to post it again with a new date.");
+  }
 
   const { offer, cleaner } = await requireOwnOffer(jobId, offerId, requestingUser.id);
   await subscriptionService.requireActiveSubscription(cleaner._id);

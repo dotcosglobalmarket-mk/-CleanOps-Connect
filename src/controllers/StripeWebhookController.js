@@ -2,6 +2,7 @@ const stripeService = require('../services/stripe.service');
 const ProcessedWebhookEvent = require('../models/ProcessedWebhookEvent');
 const paymentService = require('../services/payment.service');
 const subscriptionService = require('../services/subscription.service');
+const logger = require('../utils/logger');
 
 async function dispatch(event) {
   switch (event.type) {
@@ -85,6 +86,12 @@ async function handle(req, res, next) {
     await dispatch(event);
     return res.status(200).json({ received: true });
   } catch (err) {
+    // The work failed, so this event has NOT been handled. Forget that we saw it, or
+    // Stripe's retry would be answered "duplicate" and a payment that really happened
+    // would never reach the job.
+    await ProcessedWebhookEvent.deleteOne({ eventId: event.id }).catch((deleteErr) =>
+      logger.error(`[webhooks] Could not release event ${event.id} for retry: ${deleteErr.message}`)
+    );
     return next(err);
   }
 }

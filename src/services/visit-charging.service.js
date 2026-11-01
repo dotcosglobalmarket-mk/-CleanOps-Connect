@@ -4,7 +4,7 @@ const User = require('../models/User');
 const { hasRecurringConsent } = require('./customer-card.service');
 const stripeService = require('./stripe.service');
 const notifications = require('./notification.service');
-const { EVENTS, transition } = require('./payment-state-machine');
+const { STATES, EVENTS, transition } = require('./payment-state-machine');
 const logger = require('../utils/logger');
 
 const HOUR = 3600 * 1000;
@@ -62,15 +62,21 @@ async function handleDeclined(job, series, attempt, now, reason) {
   const canRetry = attempt < MAX_ATTEMPTS && startsAt.getTime() - proposedRetryAt.getTime() > GIVE_UP_AHEAD_HOURS * HOUR;
   const retryAt = canRetry ? proposedRetryAt : undefined;
 
-  job.paymentStatus = undefined;
-  job.stripePaymentIntentId = undefined;
-  job.bookedAt = undefined;
-  job.visitState = 'scheduled';
-  job.nextChargeAttemptAt = retryAt;
-  await job.save();
+  // Conditional, so it only applies if the visit is still exactly as this attempt left it:
+  // if the customer skipped or cancelled it meanwhile, that decision stands.
+  const wasBooked = Boolean(job.stripePaymentIntentId);
+  const filter = wasBooked
+    ? { _id: job._id, paymentStatus: STATES.BOOKED, stripePaymentIntentId: job.stripePaymentIntentId }
+    : { _id: job._id, visitState: 'scheduled' };
+  const update = {
+    $set: { visitState: 'scheduled', ...(retryAt ? { nextChargeAttemptAt: retryAt } : {}) },
+    $unset: { paymentStatus: 1, stripePaymentIntentId: 1, bookedAt: 1, ...(retryAt ? {} : { nextChargeAttemptAt: 1 }) },
+  };
+  const reverted = await Job.findOneAndUpdate(filter, update, { new: true });
+  if (!reverted) return 'busy';
 
   if (canRetry) {
-    notifications.visitPaymentFailed(job, { retryAt });
+    notifications.visitPaymentFailed(reverted, { retryAt });
     return 'retry';
   }
   const skipped = await skipScheduledVisit(job._id, 'payment');
@@ -119,32 +125,43 @@ async function chargeVisit(job, series, now = new Date()) {
     throw err;
   }
 
-  claimed.stripePaymentIntentId = intent.id;
-  claimed.bookedAt = now;
-  claimed.visitState = undefined;
-  transition(claimed, EVENTS.BOOK);
-  await claimed.save();
+  // The state machine says what "booked" is; the write itself is conditional on the visit
+  // still being scheduled. Saving a copy loaded earlier would overwrite a skip or cancel
+  // made in the meantime and still take the money.
+  const next = { paymentStatus: undefined };
+  transition(next, EVENTS.BOOK);
+  const booked = await Job.findOneAndUpdate(
+    { _id: claimed._id, visitState: 'scheduled' },
+    { $set: { stripePaymentIntentId: intent.id, bookedAt: now, paymentStatus: next.paymentStatus }, $unset: { visitState: 1 } },
+    { new: true }
+  );
+  if (!booked) {
+    // Skipped or cancelled while we were setting up: nothing has been charged, so drop the intent.
+    await stripeService.cancelPaymentIntent(intent.id).catch(() => {});
+    logger.info(`[visit-charging] Visit ${claimed._id} was changed during charging; not charged`);
+    return 'busy';
+  }
 
   try {
     const result = await stripeService.confirmOffSession({
       paymentIntentId: intent.id,
       paymentMethodId: card.paymentMethodId,
-      idempotencyKey: `${attemptKey(claimed, attempt)}:confirm`,
+      idempotencyKey: `${attemptKey(booked, attempt)}:confirm`,
     });
     if (result.status === 'succeeded' || result.status === 'processing') {
       await Series.updateOne({ _id: series._id }, { $set: { paymentFailureStreak: 0 } });
       return 'paid';
     }
     // requires_action: the bank wants the customer present. Treated as a decline.
-    return handleDeclined(claimed, series, attempt, now, result.status);
+    return handleDeclined(booked, series, attempt, now, result.status);
   } catch (err) {
     if (err.type === 'StripeCardError') {
-      return handleDeclined(claimed, series, attempt, now, err.code || 'card_error');
+      return handleDeclined(booked, series, attempt, now, err.code || 'card_error');
     }
     // We cannot tell whether the money was taken (e.g. a timeout). Leave the visit
     // booked with its intent: the payment webhook settles it if it did go through,
     // and otherwise the customer can pay or cancel it as an ordinary unpaid job.
-    logger.error(`[visit-charging] Visit ${claimed._id}: could not confirm payment: ${err.message}`);
+    logger.error(`[visit-charging] Visit ${booked._id}: could not confirm payment: ${err.message}`);
     return 'pending';
   }
 }

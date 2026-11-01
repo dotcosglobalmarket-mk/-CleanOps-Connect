@@ -186,4 +186,8 @@ const jobSchema = new mongoose.Schema(
 // twice (or two servers at once) cannot make the same visit twice.
 jobSchema.index({ series: 1, visitNumber: 1 }, { unique: true, partialFilterExpression: { series: { $exists: true } } });
 
+// The charge sweep (every 15 minutes) only ever looks at scheduled visits by date: a small
+// partial index keeps that cheap however many jobs there are.
+jobSchema.index({ visitState: 1, preferredStartAt: 1 }, { partialFilterExpression: { visitState: 'scheduled' } });
+
 module.exports = mongoose.model('Job', jobSchema);

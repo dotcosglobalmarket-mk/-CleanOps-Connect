@@ -91,4 +91,18 @@ describe('customer saved card routes', () => {
       expect(cards.agreeToCurrentWording).toHaveBeenCalledWith('c3', true, 'card-v2');
     });
   });
+
+  it('limits how many times one customer can start saving a card in an hour', async () => {
+    cards.createSetupIntent.mockResolvedValue({ clientSecret: 'x' });
+    const fresh = require('../../src/app')();
+    let blockedAt = null;
+    for (let i = 1; i <= 15; i += 1) {
+      const res = await request(fresh).post('/customers/me/card/setup-intent').set('Authorization', auth('customer', 'carder'));
+      if (res.status === 429 && blockedAt === null) blockedAt = i;
+    }
+    expect(blockedAt).toBeGreaterThan(1);
+    expect(blockedAt).toBeLessThanOrEqual(11);
+    // Someone else is unaffected.
+    expect((await request(fresh).post('/customers/me/card/setup-intent').set('Authorization', auth('customer', 'someone-else'))).status).toBe(200);
+  });
 });
