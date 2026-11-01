@@ -543,16 +543,39 @@ document.getElementById('coverage-form').addEventListener('submit', async (event
   }
 });
 
+// The result of activating a plan or adding insurance shows twice: at the top of the section, and
+// under the card form next to the buttons that were pressed.
+function clearSubscriptionMessages() {
+  ['subscription-alert', 'subscription-alert-top'].forEach((id) => hideAlert(id));
+  ['subscription-success', 'subscription-success-top'].forEach((id) => {
+    document.getElementById(id).hidden = true;
+  });
+}
+
+function showSubscriptionAlert(message) {
+  showAlert('subscription-alert', message);
+  showAlert('subscription-alert-top', message);
+  document.getElementById('subscription-alert').scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function showSubscriptionSuccess(message) {
+  ['subscription-success', 'subscription-success-top'].forEach((id) => {
+    const el = document.getElementById(id);
+    el.textContent = message;
+    el.hidden = false;
+  });
+  document.getElementById('subscription-success').scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
 document.getElementById('activate-subscription-button').addEventListener('click', async (event) => {
-  hideAlert('subscription-alert');
-  document.getElementById('subscription-success').hidden = true;
+  clearSubscriptionMessages();
 
   if (!cleanerId) {
-    showAlert('subscription-alert', 'Register your profile first.');
+    showSubscriptionAlert('Register your profile first.');
     return;
   }
   if (!STRIPE_PUBLISHABLE_KEY) {
-    showAlert('subscription-alert', 'Card payments are not set up on this site yet. Please contact us.');
+    showSubscriptionAlert('Card payments are not set up on this site yet. Please contact us.');
     return;
   }
 
@@ -564,7 +587,7 @@ document.getElementById('activate-subscription-button').addEventListener('click'
       redirect: 'if_required',
     });
     if (error) {
-      showAlert('subscription-alert', error.message);
+      showSubscriptionAlert(error.message);
       return;
     }
 
@@ -581,35 +604,30 @@ document.getElementById('activate-subscription-button').addEventListener('click'
       auth: true,
     });
 
-    const successEl = document.getElementById('subscription-success');
-    successEl.textContent = 'Subscription activated.';
-    successEl.hidden = false;
-    successEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    // Refresh the plan first: it adds the cancellation box above, which moves the page, and the
+    // result should be scrolled into view after that has settled.
     await loadMySubscription();
+    showSubscriptionSuccess('Subscription activated.');
   } catch (err) {
-    showAlert('subscription-alert', err.message);
+    showSubscriptionAlert(err.message);
   } finally {
     event.target.disabled = false;
   }
 });
 
 document.getElementById('add-insurance-button').addEventListener('click', async () => {
-  hideAlert('subscription-alert');
-  document.getElementById('subscription-success').hidden = true;
+  clearSubscriptionMessages();
 
   if (!cleanerId) {
-    showAlert('subscription-alert', 'Register your profile first.');
+    showSubscriptionAlert('Register your profile first.');
     return;
   }
 
   try {
     await apiRequest('/subscriptions/insurance', { method: 'POST', body: { cleanerId }, auth: true });
-    const successEl = document.getElementById('subscription-success');
-    successEl.textContent = 'Insurance add-on activated.';
-    successEl.hidden = false;
-    successEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    showSubscriptionSuccess('Insurance add-on activated.');
   } catch (err) {
-    showAlert('subscription-alert', err.message);
+    showSubscriptionAlert(err.message);
   }
 });
 
