@@ -83,6 +83,26 @@ describe('payout onboarding (Stripe Connect Express)', () => {
     expect(paymentService.handleAccountUpdated).toHaveBeenCalledWith('acct_1', true);
   });
 
+  it('shows the last known state when Stripe is slow or unreachable', async () => {
+    CleanerProfile.findOne.mockResolvedValue(profile({ stripeConnectedAccountId: 'acct_1', payoutsEnabled: true }));
+    stripeService.retrieveAccount.mockRejectedValue(new Error('timeout'));
+    stripeService.isTemporaryFailure.mockReturnValue(true);
+
+    await expect(portal.getPayoutStatus('user1')).resolves.toMatchObject({
+      connected: true,
+      payoutsEnabled: true,
+      lastKnown: true,
+    });
+    expect(paymentService.handleAccountUpdated).not.toHaveBeenCalled();
+  });
+
+  it('still raises other Stripe errors', async () => {
+    CleanerProfile.findOne.mockResolvedValue(profile({ stripeConnectedAccountId: 'acct_1' }));
+    stripeService.retrieveAccount.mockRejectedValue(new Error('bad'));
+    stripeService.isTemporaryFailure.mockReturnValue(false);
+    await expect(portal.getPayoutStatus('user1')).rejects.toThrow('bad');
+  });
+
   it('reports not connected before onboarding starts', async () => {
     CleanerProfile.findOne.mockResolvedValue(profile());
     await expect(portal.getPayoutStatus('user1')).resolves.toEqual({

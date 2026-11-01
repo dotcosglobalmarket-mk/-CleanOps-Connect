@@ -378,7 +378,9 @@ async function loadPayoutStatus() {
   const text = document.getElementById('payouts-status-text');
   const setup = document.getElementById('payouts-setup-button');
   const dashboard = document.getElementById('payouts-dashboard-button');
+  const retry = document.getElementById('payouts-retry-button');
   try {
+    retry.hidden = true;
     const status = await apiRequest('/cleaners/me/payouts/status', { auth: true });
     if (status.payoutsEnabled) {
       text.textContent = 'Payouts are set up. Money for confirmed jobs is sent to your Stripe account automatically.';
@@ -394,8 +396,16 @@ async function loadPayoutStatus() {
       setup.hidden = false;
       dashboard.hidden = true;
     }
+    if (status.lastKnown) {
+      text.textContent += ' (This is your last known status: we could not reach Stripe just now.)';
+      retry.hidden = false;
+    }
   } catch (err) {
     text.textContent = err.status === 404 ? 'Register your profile first, then set up payouts.' : err.message;
+    setup.hidden = true;
+    dashboard.hidden = true;
+    // Anything other than "no profile yet" is worth trying again.
+    retry.hidden = err.status === 404;
   }
 }
 
@@ -411,6 +421,7 @@ async function goToStripe(path, button) {
   }
 }
 
+document.getElementById('payouts-retry-button').addEventListener('click', loadPayoutStatus);
 document.getElementById('payouts-setup-button').addEventListener('click', (e) =>
   goToStripe('/cleaners/me/payouts/onboarding', e.target)
 );

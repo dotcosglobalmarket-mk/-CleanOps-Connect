@@ -117,8 +117,14 @@ async function createAccountOnboardingLink({ accountId, refreshUrl, returnUrl })
   });
 }
 
-async function retrieveAccount(accountId) {
-  return getClient().accounts.retrieve(accountId);
+async function retrieveAccount(accountId, { timeout } = {}) {
+  return getClient().accounts.retrieve(accountId, {}, timeout ? { timeout } : undefined);
+}
+
+// Errors that mean "Stripe could not be reached right now" (a timeout, a dropped connection, a
+// Stripe-side fault or rate limiting), as opposed to an answer such as "no such account".
+function isTemporaryFailure(err) {
+  return Boolean(err) && ['StripeConnectionError', 'StripeAPIError', 'StripeRateLimitError'].includes(err.type);
 }
 
 // Single-use link into the cleaner's Stripe Express dashboard (payouts,
@@ -263,6 +269,7 @@ module.exports = {
   retrieveAccount,
   createExpressDashboardLink,
   isMissingResource,
+  isTemporaryFailure,
   retrieveCustomer,
   createCustomer,
   createSetupIntent,
