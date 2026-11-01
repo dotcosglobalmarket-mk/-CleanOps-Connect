@@ -1812,3 +1812,7 @@ table.data-table.fit td select { max-width: 100%; }
 #card-form .field-help a,
 #card-agree .field-help a { color: var(--color-primary); }
 #card-form #card-save { margin-top: 0.5rem; }
+
+/* The subscription result sits between the card form and its buttons: give it room. */
+#subscription-alert,
+#subscription-success { margin: 0.75rem 0 1rem; }

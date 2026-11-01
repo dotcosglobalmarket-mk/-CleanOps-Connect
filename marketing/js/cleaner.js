@@ -141,19 +141,19 @@ document.getElementById('subscription-cancel-back').addEventListener('click', ()
 
 document.getElementById('subscription-cancel-send').addEventListener('click', async (event) => {
   const button = event.currentTarget;
-  hideAlert('subscription-alert');
-  document.getElementById('subscription-success').hidden = true;
+  hideAlert('subscription-cancel-alert');
+  document.getElementById('subscription-cancel-success').hidden = true;
   button.disabled = true;
   try {
     const reason = document.getElementById('subscription-cancel-reason').value.trim();
     await apiRequest('/subscriptions/me/cancellation-request', { method: 'POST', body: reason ? { reason } : {}, auth: true });
     document.getElementById('subscription-cancel-reason').value = '';
-    const success = document.getElementById('subscription-success');
+    const success = document.getElementById('subscription-cancel-success');
     success.textContent = 'Request sent. We will email you once it is confirmed.';
     success.hidden = false;
     await loadMySubscription();
   } catch (err) {
-    showAlert('subscription-alert', err.message);
+    showAlert('subscription-cancel-alert', err.message);
   } finally {
     button.disabled = false;
   }
@@ -161,14 +161,14 @@ document.getElementById('subscription-cancel-send').addEventListener('click', as
 
 document.getElementById('subscription-cancel-withdraw').addEventListener('click', async (event) => {
   const button = event.currentTarget;
-  hideAlert('subscription-alert');
-  document.getElementById('subscription-success').hidden = true;
+  hideAlert('subscription-cancel-alert');
+  document.getElementById('subscription-cancel-success').hidden = true;
   button.disabled = true;
   try {
     await apiRequest('/subscriptions/me/cancellation-request', { method: 'DELETE', auth: true });
     await loadMySubscription();
   } catch (err) {
-    showAlert('subscription-alert', err.message);
+    showAlert('subscription-cancel-alert', err.message);
   } finally {
     button.disabled = false;
   }
@@ -584,6 +584,7 @@ document.getElementById('activate-subscription-button').addEventListener('click'
     const successEl = document.getElementById('subscription-success');
     successEl.textContent = 'Subscription activated.';
     successEl.hidden = false;
+    successEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     await loadMySubscription();
   } catch (err) {
     showAlert('subscription-alert', err.message);
@@ -606,6 +607,7 @@ document.getElementById('add-insurance-button').addEventListener('click', async 
     const successEl = document.getElementById('subscription-success');
     successEl.textContent = 'Insurance add-on activated.';
     successEl.hidden = false;
+    successEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   } catch (err) {
     showAlert('subscription-alert', err.message);
   }
