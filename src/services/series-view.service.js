@@ -84,6 +84,7 @@ function base(series) {
     pausedBy: series.pausedBy,
     frequency: series.frequency,
     pricePence: series.pricePence,
+    estimatedHours: series.estimatedHours,
     firstVisitAt: series.firstVisitAt,
     endsOn: series.endsOn,
     endNoticeGivenAt: series.endNoticeGivenAt,

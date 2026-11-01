@@ -224,9 +224,14 @@ exponential backoff (5min → 30min → 2hr, capped at 3 attempts before
 escalating to `MANUAL_REVIEW_HOLD`), and auto-confirms jobs whose 48hr
 customer-confirmation window has elapsed with no dispute raised.
 
-Cancellation policy: full refund within `24hr` of booking, `50%` partial
-refund after that — confirmed business rule, defined in
-`src/services/payment.service.js`.
+Cancellation policy: a full refund until `24hr` before the job's start time, `50%`
+after that (including once it has started) — confirmed business rule, defined in
+`cancellationPolicy()` in `src/services/payment.service.js`. The start time is the
+preferred date and time the customer chose; a job with none (older jobs, tenders)
+counts the 24 hours from booking instead. A job that has not been paid for can always
+be cancelled at no cost. The server sends the policy with each customer job, so the
+cancel screen says exactly what will happen. The end time shown on job cards is
+the start plus the customer's estimated hours.
 
 🔒 requires a `Authorization: Bearer <token>` header from `/auth/login`.
 

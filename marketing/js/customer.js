@@ -7,11 +7,10 @@ import { avatarHtml, hydrateAvatars } from './avatar.js';
 import { fetchGuide, renderGuide } from './price-guide.js';
 import { mountChat, fetchUnread, setupConversations } from './chat.js';
 import { mountSeries } from './series-ui.js';
-import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate, formatVisit } from './dashboard-ui.js';
+import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate, formatVisit, formatWhen } from './dashboard-ui.js';
 
 requireRole('customer');
 
-const FULL_REFUND_WINDOW_HOURS = 24;
 const CONFIRM_WINDOW_HOURS = 48;
 
 // What the customer sees for each payment state: [short label, badge kind, explanation].
@@ -112,6 +111,16 @@ try {
 const preferredStartInput = document.getElementById('preferredStart');
 const soonest = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
 preferredStartInput.min = soonest.toISOString().slice(0, 16);
+
+// Shows the customer the end time their estimated hours give, as they type.
+function updateEndPreview() {
+  const preview = document.getElementById('preferred-end-preview');
+  const start = preferredStartInput.value;
+  const hours = Number(document.getElementById('estimatedHours').value);
+  preview.textContent = start && hours > 0 ? `Ends about ${formatWhen(new Date(start).toISOString(), hours).split(' to about ')[1]}.` : '';
+}
+preferredStartInput.addEventListener('input', updateEndPreview);
+document.getElementById('estimatedHours').addEventListener('input', updateEndPreview);
 
 document.getElementById('create-job-form').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -251,7 +260,7 @@ async function loadJobs() {
     container.innerHTML = renderTable({
       fit: true,
       phoneOnly: true,
-      columns: ['Job', 'Posted', 'Cleaner', 'Price', 'Status', 'Actions'],
+      columns: ['Job', 'When', 'Posted', 'Cleaner', 'Price', 'Status', 'Actions'],
       emptyMessage: "You haven't posted any jobs yet. Use Post a job to get started.",
       rows: jobs.map((job) => {
         const [label, kind] = statusInfo(job);
@@ -262,6 +271,7 @@ async function loadJobs() {
         return `
           <tr>
             <td>${escapeHtml(job.serviceType?.name || 'Cleaning')} · ${escapeHtml(job.postcode)}</td>
+            <td>${escapeHtml(formatWhen(job.preferredStartAt, job.estimatedHours))}</td>
             <td>${formatDate(job.createdAt)}</td>
             <td>${escapeHtml(job.cleaner?.name || '—')}</td>
             <td>${formatPence(job.pricePence)}</td>
@@ -304,7 +314,7 @@ async function openJob(jobId, { focusReview = false, focusPayment = false } = {}
   document.getElementById('job-status-text').innerHTML = `${statusBadge(label, statusInfo(job)[1])} ${escapeHtml(explanation)}`;
   document.getElementById('job-facts').innerHTML = [
     ['Cleaner', listed.cleaner?.name ? `${listed.cleaner.name}${listed.cleaner.ratingCount ? ` (★ ${Number(listed.cleaner.ratingAverage).toFixed(1)} from ${listed.cleaner.ratingCount})` : ''}` : '—'],
-    ['Preferred date and time', formatVisit(job.preferredStartAt)],
+    ['Date and time', formatWhen(job.preferredStartAt, job.estimatedHours)],
     ['Price', formatPence(job.pricePence)],
     ['Budget', `£${job.budgetMin}–£${job.budgetMax}`],
     ['Booked', formatDate(job.bookedAt)],
@@ -326,6 +336,9 @@ async function openJob(jobId, { focusReview = false, focusPayment = false } = {}
   show('job-detail', true);
 
   if (!status) await renderOffers(job);
+  const paymentWhen = document.getElementById('payment-when');
+  paymentWhen.hidden = !job.preferredStartAt;
+  paymentWhen.textContent = job.preferredStartAt ? `The job is on ${formatWhen(job.preferredStartAt, job.estimatedHours)}.` : '';
   if (status === 'BOOKED') await mountPayment(job);
   if (status === 'AWAITING_CONFIRMATION') renderConfirmDeadline(job);
   renderCancelPolicy(job);
@@ -607,15 +620,24 @@ document.getElementById('dispute-form').addEventListener('submit', async (event)
 });
 
 // --- Cancel ---
+// The server works out the refund rule (see cancellationPolicy in payment.service.js) and sends it
+// with the job, so this says exactly what will happen. The rule counts from the job's start time.
 function renderCancelPolicy(job) {
   const text = document.getElementById('cancel-policy');
   if (job.paymentStatus === 'PAID_HELD') {
-    const bookedAt = new Date(job.bookedAt || job.createdAt);
-    const fullRefundUntil = new Date(bookedAt.getTime() + FULL_REFUND_WINDOW_HOURS * 3600 * 1000);
-    text.textContent =
-      Date.now() <= fullRefundUntil.getTime()
-        ? `Cancel before ${fullRefundUntil.toLocaleString('en-GB')} for a full refund. After that, you get 50% back.`
+    const policy = job.cancellationPolicy;
+    const until = policy && policy.fullRefundUntil ? formatVisit(policy.fullRefundUntil) : '';
+    if (policy && policy.basis === 'start') {
+      text.textContent = policy.fullRefund
+        ? `The job starts ${formatVisit(job.preferredStartAt)}. Cancel before ${until} (24 hours before it starts) for a full refund. After that you get 50% back.`
+        : `The job starts ${formatVisit(job.preferredStartAt)}, which is less than 24 hours away (or has passed), so cancelling now refunds 50% of the price.`;
+    } else if (policy && policy.basis === 'booking') {
+      text.textContent = policy.fullRefund
+        ? `Cancel before ${until} for a full refund. After that, you get 50% back.`
         : 'You booked more than 24 hours ago, so cancelling now refunds 50% of the price.';
+    } else {
+      text.textContent = 'This is a visit of a regular booking that has already been charged, so cancelling it refunds 50% of the price.';
+    }
   } else {
     text.textContent = "You haven't paid yet, so you can cancel at no cost.";
   }

@@ -22,12 +22,34 @@ const DISPUTE_REASON_CODES = [
   'other',
 ];
 
-// Cancellation policy — the spec referenced "check cancellation policy
-// window" without specifying the exact hours/percentage; these numbers are
-// the confirmed business rule (full refund within 24hr of booking, 50% back
-// on a later cancellation), not a placeholder.
+// Cancellation policy — the confirmed business rule, not a placeholder: a full
+// refund up to 24 hours before the job starts, 50% back after that (see
+// cancellationPolicy below for jobs with no start time).
 const CUSTOMER_FULL_REFUND_WINDOW_HOURS = 24;
 const CUSTOMER_LATE_CANCELLATION_REFUND_RATE = 0.5;
+
+// When a customer can still cancel a paid job for a full refund.
+//  - A job with a start time: full refund until 24 hours before it starts, then 50%.
+//  - A job with no start time (older jobs, tenders): 24 hours from booking, as before.
+//  - A later visit of a regular booking is charged 48 hours ahead, so once paid it is
+//    always a late cancellation (skipping it before it is charged is free: see
+//    series-rules.service.js).
+// Returned for the screen too, so the customer is told the same thing the server will do.
+function cancellationPolicy(job, now = new Date()) {
+  if (job.series && job.visitNumber > 1) {
+    return { basis: 'visit', fullRefund: false, fullRefundUntil: null };
+  }
+  const window = CUSTOMER_FULL_REFUND_WINDOW_HOURS * 3600 * 1000;
+  if (job.preferredStartAt) {
+    const fullRefundUntil = new Date(new Date(job.preferredStartAt).getTime() - window);
+    return { basis: 'start', fullRefund: now.getTime() <= fullRefundUntil.getTime(), fullRefundUntil };
+  }
+  // Jobs booked before bookedAt existed fall back to createdAt.
+  const bookedAt = job.bookedAt || job.createdAt;
+  if (!bookedAt) return { basis: 'booking', fullRefund: false, fullRefundUntil: null };
+  const fullRefundUntil = new Date(new Date(bookedAt).getTime() + window);
+  return { basis: 'booking', fullRefund: now.getTime() <= fullRefundUntil.getTime(), fullRefundUntil };
+}
 
 function notFound(message) {
   const error = new Error(message);
@@ -193,15 +215,7 @@ async function cancelByCustomer(jobId) {
     throw badRequest('Job can only be cancelled by the customer before it has started');
   }
 
-  // The refund window runs from when the job was booked, not when it was
-  // posted. Jobs booked before bookedAt existed fall back to createdAt.
-  const bookedAt = job.bookedAt || job.createdAt;
-  const hoursSinceBooking = (Date.now() - bookedAt.getTime()) / (1000 * 60 * 60);
-  // A later visit of a series is charged 48 hours ahead, so cancelling it once paid
-  // is always a late cancellation: the 24-hours-from-booking window does not apply.
-  // (Skipping it before it is charged is free, see series-rules.service.js.)
-  const isLaterSeriesVisit = Boolean(job.series) && job.visitNumber > 1;
-  const isWithinFullRefundWindow = !isLaterSeriesVisit && hoursSinceBooking <= CUSTOMER_FULL_REFUND_WINDOW_HOURS;
+  const isWithinFullRefundWindow = cancellationPolicy(job).fullRefund;
 
   transition(job, EVENTS.CANCEL_BY_CUSTOMER);
   job.status = 'cancelled';
@@ -559,6 +573,7 @@ module.exports = {
   MAX_TRANSFER_ATTEMPTS,
   RETRY_BACKOFF_MINUTES,
   bookJob,
+  cancellationPolicy,
   getOrRenewPaymentIntent,
   cancelBooked,
   handlePaymentSucceeded,
