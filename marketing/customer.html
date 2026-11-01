@@ -164,7 +164,7 @@
         <div class="form-row">
           <label for="preferredStart">Preferred date and time</label>
           <input id="preferredStart" type="datetime-local" />
-          <span class="field-help">UK time. Your cleaner sees this with the offer. If it does not suit them, you can agree a change in chat.</span>
+          <span class="field-help">UK time. Your cleaner sees this with the offer. If it does not suit them, you can agree a change in chat. The end time is worked out from your estimated hours. <strong id="preferred-end-preview"></strong></span>
         </div>
 
         <div class="form-row">
@@ -255,6 +255,7 @@
 
       <section id="payment-section" hidden>
         <h3>Pay to confirm your booking</h3>
+        <p id="payment-when" class="field-help" hidden></p>
         <p class="field-help">
           Your payment is held securely by Stripe and only released to the cleaner after you confirm the job is done
           (or 48 hours after they finish, if you don't report a problem).

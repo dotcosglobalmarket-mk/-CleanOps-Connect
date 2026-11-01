@@ -1,6 +1,6 @@
 import { apiRequest } from './api.js';
 import { escapeHtml } from './dom.js';
-import { renderTable, statusBadge, formatPence, formatVisit, showAlert, hideAlert } from './dashboard-ui.js';
+import { renderTable, statusBadge, formatPence, formatVisit, formatWhen, showAlert, hideAlert } from './dashboard-ui.js';
 
 // The "regular cleaning" cards, shared by the customer and cleaner pages. The
 // server decides which buttons each person may press (canSkip / canCancel); this
@@ -117,7 +117,7 @@ function card(series, role) {
       (v) => `
         <tr data-job="${escapeHtml(v._id)}">
           <td>#${escapeHtml(v.visitNumber)}</td>
-          <td>${escapeHtml(formatVisit(v.startsAt))}</td>
+          <td>${escapeHtml(formatWhen(v.startsAt, series.estimatedHours))}</td>
           <td>${visitStatusCell(v, role)}</td>
           <td class="table-actions">${visitButton(v, role)}</td>
         </tr>`

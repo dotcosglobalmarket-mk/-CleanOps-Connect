@@ -101,6 +101,22 @@ export function formatVisit(value) {
   });
 }
 
+// "Tue, 3 Nov 2026, 10:00 to about 13:00": the start, and an end worked out from the hours the
+// customer estimated. Times are UK time. With no hours it is just the start.
+export function formatWhen(value, hours) {
+  if (!value) return '—';
+  const start = new Date(value);
+  const hrs = Number(hours);
+  if (!hrs || hrs <= 0) return formatVisit(start);
+  const end = new Date(start.getTime() + hrs * 3600 * 1000);
+  const day = (d) => d.toLocaleDateString('en-GB', { timeZone: 'Europe/London' });
+  const endText =
+    day(start) === day(end)
+      ? end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' })
+      : formatVisit(end);
+  return `${formatVisit(start)} to about ${endText}`;
+}
+
 export function shortId(id) {
   return escapeHtml(String(id || '').slice(-8));
 }

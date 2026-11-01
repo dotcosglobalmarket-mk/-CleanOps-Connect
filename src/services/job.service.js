@@ -83,7 +83,7 @@ async function getJobForUser(jobId, requestingUser) {
   if (requestingUser.role === 'admin') return job;
 
   if (requestingUser.role === 'customer' && job.customer && job.customer.toString() === requestingUser.id) {
-    return stripInternalFields(job);
+    return withCancellationPolicy(stripInternalFields(job));
   }
 
   if (requestingUser.role === 'cleaner') {
@@ -96,6 +96,11 @@ async function getJobForUser(jobId, requestingUser) {
   }
 
   throw forbidden('You do not have access to this job');
+}
+
+// What the customer is told on the cancel screen: only meaningful once the job is paid.
+function withCancellationPolicy(plain) {
+  return { ...plain, cancellationPolicy: plain.paymentStatus === 'PAID_HELD' ? paymentService.cancellationPolicy(plain) : null };
 }
 
 function stripInternalFields(job) {
@@ -112,7 +117,7 @@ async function listJobsForCustomer(customerId) {
     .populate('cleaner', 'name ratingAverage ratingCount')
     .sort({ createdAt: -1 })
     .limit(200);
-  return jobs.map(stripInternalFields);
+  return jobs.map((job) => withCancellationPolicy(stripInternalFields(job)));
 }
 
 // Offers on the customer's job with each cleaner's public details only.

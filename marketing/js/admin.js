@@ -11,6 +11,7 @@ import {
   formatPence,
   formatDate,
   formatVisit,
+  formatWhen,
   shortId,
   setupTabs,
 } from './dashboard-ui.js';
@@ -684,7 +685,7 @@ function renderJobDetail(job) {
       ['Postcode', escapeHtml((job.postcode || '—').toUpperCase())],
       ['Description', escapeHtml(job.description || '—')],
       ['Estimated hours', escapeHtml(job.estimatedHours ?? '—')],
-      ['Preferred date and time', escapeHtml(formatVisit(job.preferredStartAt))],
+      ['Date and time', escapeHtml(formatWhen(job.preferredStartAt, job.estimatedHours))],
       ['Frequency', escapeHtml(FREQUENCY_LABELS[job.frequency] || job.frequency || '—')],
       ['Customer budget', budget],
     ]],

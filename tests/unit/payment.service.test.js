@@ -437,3 +437,74 @@ describe('cancelling a later visit of a recurring series', () => {
     expect(job.paymentStatus).toBe(STATES.REFUNDED);
   });
 });
+
+describe('the refund rule counts from the job’s start time', () => {
+  const HOUR = 3600 * 1000;
+  const inHours = (h) => new Date(Date.now() + h * HOUR);
+
+  const paid = (overrides) =>
+    makeJob({ paymentStatus: STATES.PAID_HELD, stripePaymentIntentId: 'pi_1', pricePence: 5000, ...overrides });
+
+  describe('cancellationPolicy', () => {
+    it('is full until 24 hours before the start, whenever the job was booked', () => {
+      const start = inHours(72);
+      const policy = paymentService.cancellationPolicy({ preferredStartAt: start, bookedAt: inHours(-200) });
+      expect(policy).toMatchObject({ basis: 'start', fullRefund: true });
+      expect(policy.fullRefundUntil).toEqual(new Date(start.getTime() - 24 * HOUR));
+    });
+
+    it('is 50% once inside 24 hours of the start, even straight after booking', () => {
+      const policy = paymentService.cancellationPolicy({ preferredStartAt: inHours(10), bookedAt: inHours(-0.1) });
+      expect(policy).toMatchObject({ basis: 'start', fullRefund: false });
+    });
+
+    it('is exactly on the line at 24 hours before: still full', () => {
+      const now = new Date('2026-03-01T10:00:00Z');
+      const start = new Date(now.getTime() + 24 * HOUR);
+      expect(paymentService.cancellationPolicy({ preferredStartAt: start }, now).fullRefund).toBe(true);
+      expect(paymentService.cancellationPolicy({ preferredStartAt: new Date(start.getTime() - 1) }, now).fullRefund).toBe(false);
+    });
+
+    it('is 50% after the start time has passed', () => {
+      expect(paymentService.cancellationPolicy({ preferredStartAt: inHours(-2) }).fullRefund).toBe(false);
+    });
+
+    it('falls back to 24 hours from booking for a job with no start time', () => {
+      expect(paymentService.cancellationPolicy({ bookedAt: inHours(-3) })).toMatchObject({ basis: 'booking', fullRefund: true });
+      expect(paymentService.cancellationPolicy({ bookedAt: inHours(-30) })).toMatchObject({ basis: 'booking', fullRefund: false });
+      expect(paymentService.cancellationPolicy({ createdAt: inHours(-3) }).fullRefund).toBe(true);
+    });
+
+    it('is always a late cancellation for a later visit of a regular booking', () => {
+      expect(paymentService.cancellationPolicy({ series: 's1', visitNumber: 3, preferredStartAt: inHours(500) })).toMatchObject({
+        basis: 'visit',
+        fullRefund: false,
+      });
+    });
+  });
+
+  describe('cancelByCustomer', () => {
+    it('refunds in full when the job starts in more than 24 hours, even if it was booked weeks ago', async () => {
+      const job = paid({ preferredStartAt: inHours(48), bookedAt: inHours(-24 * 20) });
+      Job.findById.mockResolvedValue(job);
+      await paymentService.cancelByCustomer('job1');
+      expect(stripeService.createRefund).toHaveBeenCalledWith(expect.not.objectContaining({ amountPence: expect.anything() }));
+      expect(job.paymentStatus).toBe(STATES.REFUNDED);
+    });
+
+    it('refunds half when the job starts in less than 24 hours, even if it was booked a minute ago', async () => {
+      const job = paid({ preferredStartAt: inHours(12), bookedAt: inHours(-0.02) });
+      Job.findById.mockResolvedValue(job);
+      await paymentService.cancelByCustomer('job1');
+      expect(stripeService.createRefund).toHaveBeenCalledWith(expect.objectContaining({ amountPence: 2500 }));
+      expect(job.paymentStatus).toBe(STATES.PARTIALLY_REFUNDED);
+    });
+
+    it('keeps the booking-time rule for a job with no start time', async () => {
+      const job = paid({ preferredStartAt: undefined, bookedAt: inHours(-30) });
+      Job.findById.mockResolvedValue(job);
+      await paymentService.cancelByCustomer('job1');
+      expect(stripeService.createRefund).toHaveBeenCalledWith(expect.objectContaining({ amountPence: 2500 }));
+    });
+  });
+});

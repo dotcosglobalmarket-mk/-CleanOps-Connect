@@ -89,6 +89,34 @@ describe('Phase 3 journey routes', () => {
       expect(res.body[0].stripePaymentIntentId).toBeUndefined();
     });
 
+    it('tells the customer, with each paid job, until when a cancellation is fully refunded', async () => {
+      const start = new Date(Date.now() + 72 * 3600 * 1000);
+      Job.find.mockReturnValue(
+        chainable([
+          { _id: jobId, customer: 'cust1', paymentStatus: 'PAID_HELD', preferredStartAt: start, bookedAt: new Date() },
+          { _id: 'j2', customer: 'cust1', paymentStatus: 'BOOKED', preferredStartAt: start },
+        ])
+      );
+      const res = await request(app).get('/jobs/mine').set('Authorization', tokenFor('customer', 'cust1'));
+      expect(res.status).toBe(200);
+      expect(res.body[0].cancellationPolicy).toMatchObject({ basis: 'start', fullRefund: true });
+      expect(new Date(res.body[0].cancellationPolicy.fullRefundUntil).getTime()).toBe(start.getTime() - 24 * 3600 * 1000);
+      expect(res.body[1].cancellationPolicy).toBeNull(); // unpaid: nothing to refund yet
+    });
+
+    it('gives the same policy on a single job', async () => {
+      Job.findById.mockResolvedValue({
+        _id: jobId,
+        customer: { toString: () => 'cust1' },
+        paymentStatus: 'PAID_HELD',
+        preferredStartAt: new Date(Date.now() + 5 * 3600 * 1000),
+        bookedAt: new Date(),
+      });
+      const res = await request(app).get(`/jobs/${jobId}`).set('Authorization', tokenFor('customer', 'cust1'));
+      expect(res.status).toBe(200);
+      expect(res.body.cancellationPolicy).toMatchObject({ basis: 'start', fullRefund: false });
+    });
+
     it('shows offers on the customer’s own job only', async () => {
       Job.findById.mockResolvedValue({ _id: jobId, customer: { toString: () => 'cust1' } });
       JobOffer.find.mockReturnValue(chainable([{ _id: 'o1', status: 'sent', score: 70, cleaner: { name: 'Sam' } }]));
