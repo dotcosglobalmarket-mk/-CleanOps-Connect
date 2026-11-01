@@ -34,6 +34,16 @@ function frontendUrl() {
 
 // --- Stripe Connect payout onboarding ---
 
+// A payout account saved during testing is not valid for the live Stripe key. Forget it so the
+// cleaner can set up payouts again; nothing is lost because Stripe no longer knows the account.
+async function forgetStaleAccount(cleaner, err) {
+  logger.error(`[cleaner-portal] Forgetting unusable Stripe account ${cleaner.stripeConnectedAccountId}: ${err.message}`);
+  await CleanerProfile.findOneAndUpdate(
+    { _id: cleaner._id, stripeConnectedAccountId: cleaner.stripeConnectedAccountId },
+    { $unset: { stripeConnectedAccountId: 1 }, $set: { payoutsEnabled: false } }
+  );
+}
+
 async function startPayoutOnboarding(userId) {
   const cleaner = await requireProfile(userId);
 
@@ -54,11 +64,20 @@ async function startPayoutOnboarding(userId) {
   }
 
   const base = frontendUrl();
-  const link = await stripeService.createAccountOnboardingLink({
-    accountId,
-    refreshUrl: `${base}/cleaner.html?payouts=refresh`,
-    returnUrl: `${base}/cleaner.html?payouts=return`,
-  });
+  const linkFor = (id) =>
+    stripeService.createAccountOnboardingLink({
+      accountId: id,
+      refreshUrl: `${base}/cleaner.html?payouts=refresh`,
+      returnUrl: `${base}/cleaner.html?payouts=return`,
+    });
+  let link;
+  try {
+    link = await linkFor(accountId);
+  } catch (err) {
+    if (!stripeService.isStaleConnectedAccount(err)) throw err;
+    await forgetStaleAccount(cleaner, err);
+    return startPayoutOnboarding(userId);
+  }
   return { url: link.url };
 }
 
@@ -78,6 +97,10 @@ async function getPayoutStatus(userId) {
   try {
     account = await stripeService.retrieveAccount(cleaner.stripeConnectedAccountId, { timeout: PAYOUT_STATUS_TIMEOUT_MS });
   } catch (err) {
+    if (stripeService.isStaleConnectedAccount(err)) {
+      await forgetStaleAccount(cleaner, err);
+      return { connected: false, detailsSubmitted: false, payoutsEnabled: false };
+    }
     if (!stripeService.isTemporaryFailure(err)) throw err;
     logger.error(`[cleaner-portal] Payout status: Stripe not reachable, showing last known state: ${err.message}`);
     return {
@@ -103,7 +126,14 @@ async function getPayoutStatus(userId) {
 async function createPayoutDashboardLink(userId) {
   const cleaner = await requireProfile(userId);
   if (!cleaner.stripeConnectedAccountId) throw httpError(400, 'Set up payouts first');
-  const link = await stripeService.createExpressDashboardLink(cleaner.stripeConnectedAccountId);
+  let link;
+  try {
+    link = await stripeService.createExpressDashboardLink(cleaner.stripeConnectedAccountId);
+  } catch (err) {
+    if (!stripeService.isStaleConnectedAccount(err)) throw err;
+    await forgetStaleAccount(cleaner, err);
+    throw httpError(400, 'Your earlier payout set-up is no longer valid. Please set up payouts again.');
+  }
   return { url: link.url };
 }
 
