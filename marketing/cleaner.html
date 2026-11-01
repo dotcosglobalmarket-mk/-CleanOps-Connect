@@ -160,6 +160,7 @@
           <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
             <button id="payouts-setup-button" type="button" hidden>Set up payouts with Stripe</button>
             <button id="payouts-dashboard-button" type="button" class="secondary" hidden>Open my Stripe dashboard</button>
+            <button id="payouts-retry-button" type="button" class="secondary" hidden>Try again</button>
           </div>
           <p class="field-help">
             Stripe checks your identity and bank details for us. We never see your bank account number.
@@ -398,11 +399,14 @@
             A small monthly platform fee covers costs like SMS notifications and payment processing. Cleaners set
             their own job prices — this fee is separate from and never affects your commission rate.
           </p>
-          <div id="subscription-alert" class="alert alert-error" hidden></div>
-          <div id="subscription-success" class="alert alert-success" hidden></div>
+          <!-- The result shows here (top of the section) and again under the card form, next to the buttons. -->
+          <div id="subscription-alert-top" class="alert alert-error" hidden></div>
+          <div id="subscription-success-top" class="alert alert-success" hidden></div>
           <p id="subscription-status-text" class="field-help"></p>
 
           <div id="subscription-cancel" class="subscription-cancel" style="margin-bottom:1rem" hidden>
+            <div id="subscription-cancel-alert" class="alert alert-error" hidden></div>
+            <div id="subscription-cancel-success" class="alert alert-success" hidden></div>
             <p id="subscription-cancel-text" class="field-help"></p>
             <div id="subscription-cancel-form" hidden>
               <div class="form-row">
@@ -431,6 +435,10 @@
             <label>Card details</label>
             <div id="subscription-payment-element"></div>
           </div>
+
+          <!-- Right under the card form and above the buttons, so the result shows where it was asked for. -->
+          <div id="subscription-alert" class="alert alert-error" hidden></div>
+          <div id="subscription-success" class="alert alert-success" hidden></div>
 
           <div style="display: flex; gap: 0.75rem;">
             <button id="activate-subscription-button" type="button">Save card &amp; activate subscription</button>

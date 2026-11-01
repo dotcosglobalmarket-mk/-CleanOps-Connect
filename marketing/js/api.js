@@ -64,6 +64,11 @@ export function requireRole(role) {
   window.location.href = 'login.html';
 }
 
+const GATEWAY_ERRORS = [502, 503, 504];
+const READ_RETRIES = 2;
+const READ_RETRY_DELAY_MS = 1500;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function apiRequest(path, { method = 'GET', body, auth = false } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (auth) {
@@ -72,17 +77,32 @@ export async function apiRequest(path, { method = 'GET', body, auth = false } = 
     headers.Authorization = `Bearer ${token}`;
   }
 
+  // A host that is restarting (e.g. just after an update) answers 502, 503 or 504, or drops the
+  // connection, for a few seconds. Reading is safe to repeat, so do that quietly; never repeat a
+  // write, which could happen twice.
+  const retryable = method === 'GET';
   let response;
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      method,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
-  } catch (networkErr) {
-    throw new Error(
-      `Could not reach the API at ${API_BASE_URL}. Check VITE_API_URL and that the backend is running.`
-    );
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      response = await fetch(`${API_BASE_URL}${path}`, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    } catch (networkErr) {
+      if (retryable && attempt < READ_RETRIES) {
+        await sleep(READ_RETRY_DELAY_MS * (attempt + 1));
+        continue;
+      }
+      throw new Error(
+        `Could not reach the API at ${API_BASE_URL}. Check VITE_API_URL and that the backend is running.`
+      );
+    }
+    if (retryable && attempt < READ_RETRIES && GATEWAY_ERRORS.includes(response.status)) {
+      await sleep(READ_RETRY_DELAY_MS * (attempt + 1));
+      continue;
+    }
+    break;
   }
 
   const data = await response.json().catch(() => ({}));
@@ -91,7 +111,9 @@ export async function apiRequest(path, { method = 'GET', body, auth = false } = 
     const message =
       data.message ||
       (data.details && data.details.map((d) => `${d.path}: ${d.message}`).join(', ')) ||
-      `Request failed with status ${response.status}`;
+      (GATEWAY_ERRORS.includes(response.status)
+        ? 'The service is busy or restarting. Please try again in a minute.'
+        : `Request failed with status ${response.status}`);
     const error = new Error(message);
     error.status = response.status;
     error.details = data.details;

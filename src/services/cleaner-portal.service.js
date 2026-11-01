@@ -9,8 +9,10 @@ const seriesService = require('./series.service');
 const { haversineDistanceKm } = require('./coverage.service');
 const { STATES } = require('./payment-state-machine');
 const { outwardCode } = require('./cleaner.service');
+const logger = require('../utils/logger');
 
 const LIST_LIMIT = 200;
+const PAYOUT_STATUS_TIMEOUT_MS = 8000;
 
 function httpError(status, message) {
   const error = new Error(message);
@@ -69,7 +71,23 @@ async function getPayoutStatus(userId) {
     return { connected: false, detailsSubmitted: false, payoutsEnabled: false };
   }
 
-  const account = await stripeService.retrieveAccount(cleaner.stripeConnectedAccountId);
+  // This runs every time the Payouts panel opens, and the panel must not break because Stripe is
+  // slow. Wait a few seconds (well inside the host's gateway limit); if Stripe cannot be reached,
+  // show what we last knew, from the account.updated webhook, and say so.
+  let account;
+  try {
+    account = await stripeService.retrieveAccount(cleaner.stripeConnectedAccountId, { timeout: PAYOUT_STATUS_TIMEOUT_MS });
+  } catch (err) {
+    if (!stripeService.isTemporaryFailure(err)) throw err;
+    logger.error(`[cleaner-portal] Payout status: Stripe not reachable, showing last known state: ${err.message}`);
+    return {
+      connected: true,
+      detailsSubmitted: Boolean(cleaner.payoutsEnabled),
+      payoutsEnabled: Boolean(cleaner.payoutsEnabled),
+      requirementsDue: [],
+      lastKnown: true,
+    };
+  }
   const payoutsEnabled = Boolean(account.payouts_enabled);
   if (payoutsEnabled !== Boolean(cleaner.payoutsEnabled)) {
     await paymentService.handleAccountUpdated(cleaner.stripeConnectedAccountId, payoutsEnabled);
