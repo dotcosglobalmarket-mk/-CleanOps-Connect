@@ -96,10 +96,46 @@ describe('payout onboarding (Stripe Connect Express)', () => {
     expect(paymentService.handleAccountUpdated).not.toHaveBeenCalled();
   });
 
+  it('forgets a payout account that the live key cannot see so the cleaner can set up again', async () => {
+    CleanerProfile.findOne.mockResolvedValue(profile({ stripeConnectedAccountId: 'acct_test_old', payoutsEnabled: true }));
+    CleanerProfile.findOneAndUpdate.mockResolvedValue({});
+    stripeService.retrieveAccount.mockRejectedValue(new Error('No such account'));
+    stripeService.isStaleConnectedAccount.mockReturnValue(true);
+
+    await expect(portal.getPayoutStatus('user1')).resolves.toEqual({
+      connected: false,
+      detailsSubmitted: false,
+      payoutsEnabled: false,
+    });
+    expect(CleanerProfile.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'profile1', stripeConnectedAccountId: 'acct_test_old' },
+      { $unset: { stripeConnectedAccountId: 1 }, $set: { payoutsEnabled: false } }
+    );
+  });
+
+  it('starts onboarding on a fresh account when the saved one is unusable', async () => {
+    CleanerProfile.findOne
+      .mockResolvedValueOnce(profile({ stripeConnectedAccountId: 'acct_test_old' }))
+      .mockResolvedValueOnce(profile());
+    User.findById.mockResolvedValue({ email: 'c@example.com' });
+    stripeService.isStaleConnectedAccount.mockReturnValue(true);
+    stripeService.createAccountOnboardingLink
+      .mockRejectedValueOnce(new Error('No such account'))
+      .mockResolvedValueOnce({ url: 'https://connect.stripe.com/new' });
+    stripeService.createExpressAccount.mockResolvedValue({ id: 'acct_live_new' });
+    CleanerProfile.findOneAndUpdate
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ stripeConnectedAccountId: 'acct_live_new' });
+
+    await expect(portal.startPayoutOnboarding('user1')).resolves.toEqual({ url: 'https://connect.stripe.com/new' });
+    expect(stripeService.createExpressAccount).toHaveBeenCalledTimes(1);
+  });
+
   it('still raises other Stripe errors', async () => {
     CleanerProfile.findOne.mockResolvedValue(profile({ stripeConnectedAccountId: 'acct_1' }));
     stripeService.retrieveAccount.mockRejectedValue(new Error('bad'));
     stripeService.isTemporaryFailure.mockReturnValue(false);
+    stripeService.isStaleConnectedAccount.mockReturnValue(false);
     await expect(portal.getPayoutStatus('user1')).rejects.toThrow('bad');
   });
 

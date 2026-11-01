@@ -144,6 +144,14 @@ function isMissingResource(err) {
   return Boolean(err) && (err.code === 'resource_missing' || err.statusCode === 404);
 }
 
+// A connected account saved while testing does not exist for the live key. Stripe answers that
+// with "no such account" (404) or a permission error saying the key has no access to the account.
+function isStaleConnectedAccount(err) {
+  if (!err) return false;
+  if (isMissingResource(err) || err.code === 'account_invalid' || err.type === 'StripePermissionError') return true;
+  return /no such account|does not have access to account|application access may have been revoked/i.test(err.message || '');
+}
+
 async function retrieveCustomer(customerId) {
   return getClient().customers.retrieve(customerId);
 }
@@ -270,6 +278,7 @@ module.exports = {
   createExpressDashboardLink,
   isMissingResource,
   isTemporaryFailure,
+  isStaleConnectedAccount,
   retrieveCustomer,
   createCustomer,
   createSetupIntent,
