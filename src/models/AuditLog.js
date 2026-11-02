@@ -41,14 +41,19 @@ const auditLogSchema = new mongoose.Schema(
     ip: {
       type: String,
     },
+    // When MongoDB deletes this entry: 12 months after it was written, or 6 years for
+    // refund, payout and dispute decisions (see audit.service.js).
+    expireAt: {
+      type: Date,
+    },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
 
 auditLogSchema.index({ targetType: 1, targetId: 1, createdAt: -1 });
 auditLogSchema.index({ actor: 1, createdAt: -1 });
-// Entries are kept for 12 months and then deleted by MongoDB (see the privacy notice).
-auditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 365 * 24 * 60 * 60 });
+// Each entry carries its own deletion date, so the two retention periods share one index.
+auditLogSchema.index({ expireAt: 1 }, { expireAfterSeconds: 0 });
 
 function refuseChange(next) {
   next(new Error('Audit log entries cannot be changed or deleted'));

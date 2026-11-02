@@ -224,6 +224,20 @@ describe('expireLapsedDocuments', () => {
     expect(notifications.complianceDocumentExpired).toHaveBeenCalledTimes(2);
   });
 
+  it('deletes the file of an expired certificate and records that it is gone, keeping the record of the check', async () => {
+    const doc = { _id: 'a', cleaner: 'cp1', type: 'insurance', status: 'approved', file: 'file9', save: jest.fn() };
+    CleanerDocument.find.mockResolvedValue([doc]);
+    CleanerProfile.findById.mockResolvedValue({ insuranceStatus: 'own', save: jest.fn() });
+    const now = new Date('2026-12-01T00:00:00Z');
+
+    await svc.expireLapsedDocuments(now);
+
+    expect(DocumentFile.deleteMany).toHaveBeenCalledWith({ _id: 'file9' });
+    expect(doc.fileDeletedAt).toEqual(now);
+    expect(doc.status).toBe('expired');
+    expect(doc.save).toHaveBeenCalled();
+  });
+
   it('leaves insurance the platform provides alone', async () => {
     CleanerDocument.find.mockResolvedValue([{ _id: 'a', cleaner: 'cp1', type: 'insurance', status: 'approved', save: jest.fn() }]);
     const p = { insuranceStatus: 'platform', save: jest.fn() };

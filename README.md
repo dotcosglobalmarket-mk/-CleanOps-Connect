@@ -411,6 +411,22 @@ A cleaner can add before/after photos to a job in progress, and a customer can a
 - `DELETE /jobs/:id/photos/:photoId` 🔒 — the person who added it, until the job is `DISPUTED`.
 - **Retention:** each picture is a `DocumentFile` with a TTL date. It starts at 12 months from upload, and when the job is closed (customer or automatic confirmation, or a dispute resolved by refund, partial split or payout) it is reset to 90 days from that moment.
 
+## Data retention
+
+What is deleted, and what does the deleting (the privacy notice states the same periods):
+
+| Data | Kept | How |
+|---|---|---|
+| Chat messages | 6 months after sent | TTL index on `Message.createdAt` |
+| Staff notes on a job | 12 months after written | TTL index on `JobNote.createdAt` |
+| Staff audit log | 12 months; refund, payout and dispute decisions (`dispute.`, `approval.`, `payout.` actions) 6 years | Each entry carries `expireAt` (set in `audit.service.js`); TTL index on it. At start-up `migrateAuditRetention` drops the old `createdAt` TTL index and dates older entries |
+| Written description of a problem (`Job.disputeDetail`) | 12 months after reported | Daily sweep in `retention.service.js` |
+| Job photos | 90 days after the job closes, never more than 12 months | `DocumentFile.expireAt`; the daily sweep removes photo records whose picture is gone |
+| DBS certificate copy | 6 months after checked; rejected files 30 days | `DocumentFile.expireAt` |
+| COSHH / insurance file | While in use; deleted when replaced or when it expires | Compliance service |
+| Profile picture or logo | While on the profile | Deleted when replaced or removed |
+| Payments, refund approvals | 6 years | Not deleted by the app |
+
 ## Two-step login (admins)
 
 Admin accounts need a six-digit code from an authenticator app as well as the password.

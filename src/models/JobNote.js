@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 
 // Internal support notes on a job, written by staff. Never shown to the
-// customer or cleaner. Append-only: notes are not edited or deleted.
+// customer or cleaner. Not edited by anyone; MongoDB deletes each note 12 months
+// after it was written (see the privacy notice).
 const jobNoteSchema = new mongoose.Schema(
   {
     job: {
@@ -23,5 +24,7 @@ const jobNoteSchema = new mongoose.Schema(
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
+
+jobNoteSchema.index({ createdAt: 1 }, { expireAfterSeconds: 365 * 24 * 60 * 60 });
 
 module.exports = mongoose.model('JobNote', jobNoteSchema);

@@ -62,6 +62,24 @@ describe('getRevenue', () => {
     ['REFUNDED', 'PARTIALLY_REFUNDED', 'DISPUTED', 'CANCELLED', 'PAID_HELD'].forEach((s) => expect(REVENUE_STATES).not.toContain(s));
   });
 
+  it('counts commission from the day it was settled, falling back to the confirmation date for older jobs', async () => {
+    await getRevenue({ range: '30d' }, NOW);
+    const { $or } = Job.find.mock.calls[0][0];
+    expect($or).toEqual([
+      { commissionSettledAt: { $gte: expect.any(Date) } },
+      { commissionSettledAt: { $exists: false }, confirmedAt: { $gte: expect.any(Date) } },
+    ]);
+
+    Job.find.mockReturnValue(query([
+      { commissionPence: 500, commissionSettledAt: daysAgo(3) }, // a dispute resolved in the cleaner's favour: no confirmedAt
+      { commissionPence: 300, confirmedAt: daysAgo(4) }, // settled before the field existed
+      { commissionPence: 700, confirmedAt: daysAgo(90), commissionSettledAt: daysAgo(2) }, // settled date wins
+    ]));
+    const r = await getRevenue({ range: '30d' }, NOW);
+    expect(r.totals.commissionPence).toBe(1500);
+    expect(r.totals.jobsCount).toBe(3);
+  });
+
   it('totals commission and subscription billing for the range and compares with the previous one', async () => {
     Job.find.mockReturnValue(query([
       { commissionPence: 300, confirmedAt: daysAgo(2) },

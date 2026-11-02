@@ -24,10 +24,14 @@ function startComplianceDocumentExpiry() {
 
 // Deletes the written description of a problem report 12 months after it was raised.
 function startRetentionSweep() {
-  const run = () =>
-    retentionService
-      .purgeOldDisputeText()
-      .catch((err) => logger.error(`Retention sweep failed: ${err.message}`));
+  const run = async () => {
+    try {
+      await retentionService.purgeOldDisputeText();
+      await retentionService.purgeOrphanJobPhotos();
+    } catch (err) {
+      logger.error(`Retention sweep failed: ${err.message}`);
+    }
+  };
   run();
   setInterval(run, 24 * 60 * 60 * 1000).unref();
 }
@@ -53,7 +57,10 @@ async function start() {
   startSeriesWorker();
   startChargeWorker();
   startComplianceDocumentExpiry();
-  startRetentionSweep();
+  retentionService
+    .migrateAuditRetention()
+    .catch((err) => logger.error(`Audit log retention set-up failed: ${err.message}`))
+    .finally(startRetentionSweep);
 }
 
 start().catch((err) => {
