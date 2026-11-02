@@ -281,33 +281,8 @@ function constructWebhookEvent(payload, signatureHeader) {
   throw lastError;
 }
 
-// Stripe-hosted Checkout page (additional to the PaymentIntent job flow).
-// The fixed parameters come from the Checkout Studio configuration.
-// TODO: replace the placeholders below (mode, URLs, price) with real values;
-// see STRIPE_INTEGRATION_TODO.md.
-async function createCheckoutSession() {
-  const base = (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
-  if (!base) throw new Error('FRONTEND_URL is not set in the environment');
-  return getClient().checkout.sessions.create({
-    ui_mode: 'hosted_page',
-    billing_address_collection: 'auto',
-    phone_number_collection: { enabled: false },
-    automatic_tax: { enabled: false },
-    allow_promotion_codes: false,
-    submit_type: 'auto',
-    integration_identifier: 'hosted_mobile_app_0001',
-    origin_context: 'mobile_app',
-    // Placeholders (sample only):
-    mode: 'payment',
-    success_url: `${base}/customer.html?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${base}/customer.html?checkout=cancelled`,
-    line_items: [{ price: 'price_...', quantity: 1 }],
-  });
-}
-
 module.exports = {
   getClient,
-  createCheckoutSession,
   createPaymentIntent,
   confirmOffSession,
   createTransfer,

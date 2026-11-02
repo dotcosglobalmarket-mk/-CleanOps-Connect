@@ -32,7 +32,6 @@ router.get(
   validateParams(jobIdParamSchema),
   PaymentController.paymentIntent
 );
-router.post('/checkout-session', requireAuth, requireRole('customer'), PaymentController.checkoutSession);
 router.post(
   '/jobs/:id/check-in',
   requireAuth,
