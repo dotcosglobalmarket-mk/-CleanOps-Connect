@@ -1828,3 +1828,11 @@ table.data-table.fit td select { max-width: 100%; }
 /* The subscription result sits between the card form and its buttons: give it room. */
 #subscription-alert,
 #subscription-success { margin: 0.75rem 0 1rem; }
+
+/* Privacy requests (admin) */
+button.danger { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+button.danger:hover:not(:disabled) { background: #991b1b; border-color: #991b1b; }
+button.danger:disabled { opacity: 0.5; cursor: not-allowed; }
+.check-row { display: flex; gap: 0.6rem; align-items: flex-start; margin: 1rem 0; font-weight: 600; }
+.check-row input { margin-top: 0.25rem; flex: 0 0 auto; }
+#privacy-blockers ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }

@@ -165,6 +165,18 @@ async function createCustomer({ email, metadata }) {
   return getClient().customers.create({ email, metadata });
 }
 
+// Removes the customer from Stripe (their saved cards go with it). Charges and refunds
+// already made stay in Stripe's own records, as the law requires. A customer that is
+// already gone counts as done.
+async function deleteCustomer(customerId) {
+  try {
+    return await getClient().customers.del(customerId);
+  } catch (err) {
+    if (isMissingResource(err)) return { id: customerId, deleted: true };
+    throw err;
+  }
+}
+
 async function createSetupIntent({ customerId, metadata, paymentMethodTypes }) {
   // usage: 'off_session' — this payment method is charged automatically
   // every month, not while the cleaner is present to re-authenticate.
@@ -286,6 +298,7 @@ module.exports = {
   isStaleConnectedAccount,
   retrieveCustomer,
   createCustomer,
+  deleteCustomer,
   createSetupIntent,
   retrievePaymentMethod,
   detachPaymentMethod,

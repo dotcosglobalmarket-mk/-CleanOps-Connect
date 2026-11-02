@@ -52,9 +52,19 @@ describe('afterPassword', () => {
     expect(decode(out.challengeToken).purpose).toBe('mfa');
   });
 
-  it('lets other roles straight in, unless they have turned it on', () => {
+  it('lets customers and cleaners straight in, unless they have turned it on', () => {
     expect(svc.afterPassword(baseUser({ role: 'customer' })).token).toEqual(expect.any(String));
-    expect(svc.afterPassword({ ...enrolled().user, role: 'operator' }).twoFactorRequired).toBe(true);
+    expect(svc.afterPassword(baseUser({ role: 'cleaner' })).token).toEqual(expect.any(String));
+    expect(svc.afterPassword({ ...enrolled().user, role: 'customer' }).twoFactorRequired).toBe(true);
+  });
+
+  it('makes operators set it up too, and ask for a code once they have', () => {
+    const fresh = svc.afterPassword(baseUser({ role: 'operator' }));
+    expect(fresh.token).toBeUndefined();
+    expect(fresh.twoFactorSetupRequired).toBe(true);
+    const done = svc.afterPassword({ ...enrolled().user, role: 'operator' });
+    expect(done.twoFactorRequired).toBe(true);
+    expect(done.token).toBeUndefined();
   });
 
   it('puts the account\'s session version in the session, so a reset can end it', () => {
@@ -62,9 +72,10 @@ describe('afterPassword', () => {
     expect(decode(out.token).tv).toBe(4);
   });
 
-  it('ADMIN_2FA_REQUIRED=false only spares admins who have not set it up; enrolled admins are still asked', () => {
+  it('ADMIN_2FA_REQUIRED=false only spares staff who have not set it up; enrolled staff are still asked', () => {
     process.env.ADMIN_2FA_REQUIRED = 'false';
     expect(svc.afterPassword(baseUser()).token).toEqual(expect.any(String));
+    expect(svc.afterPassword(baseUser({ role: 'operator' })).token).toEqual(expect.any(String));
     expect(svc.afterPassword(enrolled().user).twoFactorRequired).toBe(true);
   });
 

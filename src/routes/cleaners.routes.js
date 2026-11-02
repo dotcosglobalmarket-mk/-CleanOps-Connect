@@ -4,6 +4,9 @@ const CleanerPortalController = require('../controllers/CleanerPortalController'
 const ReviewController = require('../controllers/ReviewController');
 const CleanerPhotoController = require('../controllers/CleanerPhotoController');
 const { STAFF_ROLES } = require('../config/permissions');
+const { uploadLimiter } = require('../middleware/upload-rate-limit');
+
+const pictureUploadLimiter = uploadLimiter({ limit: 20 });
 const { requireAuth, requireRole, requireActiveIfStaff } = require('../middleware/auth');
 const { aiWritingLimiter } = require('../middleware/ai-rate-limit');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
@@ -62,6 +65,7 @@ router.post('/me/payouts/dashboard', ...cleanerOnly, CleanerPortalController.pay
 router.post(
   '/me/photo',
   ...cleanerOnly,
+  pictureUploadLimiter,
   express.raw({ type: ['image/jpeg', 'image/png'], limit: '1mb' }),
   CleanerPhotoController.upload
 );

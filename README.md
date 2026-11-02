@@ -411,6 +411,19 @@ A cleaner can add before/after photos to a job in progress, and a customer can a
 - `DELETE /jobs/:id/photos/:photoId` 🔒 — the person who added it, until the job is `DISPUTED`.
 - **Retention:** each picture is a `DocumentFile` with a TTL date. It starts at 12 months from upload, and when the job is closed (customer or automatic confirmation, or a dispute resolved by refund, partial split or payout) it is reset to 90 days from that moment.
 
+## Privacy requests (copy of data, erasure)
+
+Admin only: **Admin dashboard → Privacy Requests**. The admin looks the person up by email, ticks that they have checked who is asking, then either downloads a copy of their data or erases the account. Both are recorded in the audit log (kept 6 years).
+
+- `GET /admin/privacy/lookup?email=` — who they are, how many bookings, and anything stopping erasure.
+- `GET /admin/privacy/:id/export?identityChecked=true` — a JSON file (never cached). No passwords, authenticator secrets or tokens. A cleaner's copy shows customers' postcodes only as the area; staff notes on their bookings are included for the admin to check before sending. Uploaded files are listed, not repeated.
+- `POST /admin/privacy/:id/erase` `{ identityChecked: true, confirmEmail, reason }` — refused while a booking is in progress or has money to settle, while a regular booking is running, or while a cleaner has an active subscription. Otherwise: the Stripe customer is deleted first (if that fails nothing else changes, so it can be retried); pictures, certificate files, job photos and their messages are deleted; address detail and free text come out of their bookings (the booking and payment record stays 6 years); a cleaner's profile is blanked and taken off the marketplace; reviews keep their stars but lose their words; the account row is anonymised, locked and signed out (`erasedAt`). Staff accounts are not erased here: use Deactivate.
+- Not done by the tool: a cleaner's Stripe Connect account is left in place (Stripe keeps its own payout records); the audit log entries about them stay for their normal period.
+
+## Upload limits
+
+Per logged-in person per hour: 60 job photo uploads, 20 cleaner picture uploads, 20 compliance document uploads (`uploadLimiter` in `src/middleware/upload-rate-limit.js`; it runs before the upload is read). `UPLOAD_RATE_LIMIT_MAX` replaces all three, for tests.
+
 ## Data retention
 
 What is deleted, and what does the deleting (the privacy notice states the same periods):
@@ -427,16 +440,16 @@ What is deleted, and what does the deleting (the privacy notice states the same 
 | Profile picture or logo | While on the profile | Deleted when replaced or removed |
 | Payments, refund approvals | 6 years | Not deleted by the app |
 
-## Two-step login (admins)
+## Two-step login (staff)
 
-Admin accounts need a six-digit code from an authenticator app as well as the password.
+Staff accounts (admins and operators) need a six-digit code from an authenticator app as well as the password.
 
 - The first time an admin signs in after this is switched on, they are taken through set-up: enter the key in an authenticator app, type the first code, and save the ten one-time recovery codes (shown once).
 - A correct password alone never gives an admin a session, including through "Forgot password".
 - Five wrong codes lock that account for 15 minutes (counted in one atomic database step, so a burst of simultaneous guesses cannot get past the limit); a code or recovery code cannot be used twice, even by two requests at the same moment. Authenticator secrets are stored encrypted (key: `TWO_FACTOR_ENCRYPTION_KEY`, or derived from `JWT_SECRET` if unset) and recovery codes only as hashes.
-- Lost phone and recovery codes: another admin uses **Staff Accounts → Reset two-step** (audited). If *no* admin can get in, set `ADMIN_2FA_RESET_EMAIL` to that admin's email on the API and redeploy: at start-up their two-step login is cleared and their sessions end, so after their password they set it up again. It is logged, and it never lets anyone in without a password. **Remove the setting afterwards**, or it clears it again at every restart. (`ADMIN_2FA_REQUIRED=false` only stops admins who have not set it up yet from being made to; anyone who has it on is still asked for a code.)
+- Lost phone and recovery codes: another admin uses **Staff Accounts → Reset two-step** (audited). If *no* admin can get in, set `ADMIN_2FA_RESET_EMAIL` to that staff member's email on the API and redeploy: at start-up their two-step login is cleared and their sessions end, so after their password they set it up again. It is logged, and it never lets anyone in without a password. **Remove the setting afterwards**, or it clears it again at every restart. (`ADMIN_2FA_REQUIRED=false` only stops staff who have not set it up yet from being made to; anyone who has it on is still asked for a code.)
 - Sessions last 7 days but end sooner when they should: a password reset, a two-step login reset or deactivating a staff account ends every session already issued (each session carries the account's `tokenVersion`; sessions issued before this existed simply run out).
-- It is required for admins only. Operators, customers and cleaners sign in with a password, as before.
+- It is required for admins and operators (operators can read chats, disputes and photos). Customers and cleaners sign in with a password, as before; anyone can turn it on. Operators who were already signed in before it was required keep that session until it runs out (up to 7 days).
 
 ## Roadmap
 

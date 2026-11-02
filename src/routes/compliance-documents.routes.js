@@ -3,6 +3,9 @@ const ComplianceDocumentController = require('../controllers/ComplianceDocumentC
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { validateQuery } = require('../middleware/validate');
 const { uploadQuerySchema } = require('../validation/compliance-document.validation');
+const { uploadLimiter } = require('../middleware/upload-rate-limit');
+
+const documentUploadLimiter = uploadLimiter({ limit: 20 });
 
 const router = express.Router();
 
@@ -14,6 +17,7 @@ router.post(
   '/',
   requireAuth,
   requireRole('cleaner'),
+  documentUploadLimiter,
   express.raw({ type: ['application/pdf', 'image/jpeg', 'image/png'], limit: '5mb' }),
   validateQuery(uploadQuerySchema),
   ComplianceDocumentController.upload

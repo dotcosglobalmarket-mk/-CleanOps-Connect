@@ -3,9 +3,11 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const totp = require('./totp.service');
 const { signToken, toPublicUser, revokeSessions } = require('./session.service');
+const { STAFF_ROLES } = require('../config/permissions');
 
-// Two-step login. Admin accounts must use an authenticator app (a six-digit
-// code on top of the password); anyone else who has turned it on is asked too.
+// Two-step login. Staff accounts (admins and operators) must use an authenticator
+// app (a six-digit code on top of the password); anyone else who has turned it on
+// is asked too.
 //
 // - The password step never returns a session for such an account. It returns
 //   a short-lived "challenge" (code needed) or "setup" (first time) token.
@@ -18,12 +20,12 @@ const { signToken, toPublicUser, revokeSessions } = require('./session.service')
 // sending many guesses at once cannot get past the limit, and a code or recovery
 // code is claimed in one database step, so it cannot be used twice at once.
 //
-// ADMIN_2FA_REQUIRED=false only stops admins who have NOT set it up yet from
+// ADMIN_2FA_REQUIRED=false only stops staff who have NOT set it up yet from
 // being made to; anyone who has it on is still asked for a code.
 //
-// Break glass for an admin locked out of their own account (lost phone and
-// recovery codes, and no other admin to reset them): set ADMIN_2FA_RESET_EMAIL
-// to that admin's email on the server and redeploy. At start-up that admin's
+// Break glass for a staff member locked out of their own account (lost phone and
+// recovery codes, and no admin to reset them): set ADMIN_2FA_RESET_EMAIL
+// to their email on the server and redeploy. At start-up that admin's
 // two-step login is cleared, so after the password they are taken through
 // set-up again. Remove the setting afterwards, or it clears it at every restart.
 
@@ -44,7 +46,7 @@ function httpError(status, message) {
 const unauthorized = (message) => httpError(401, message);
 
 function isRequiredFor(user) {
-  return user.role === 'admin' && process.env.ADMIN_2FA_REQUIRED !== 'false';
+  return STAFF_ROLES.includes(user.role) && process.env.ADMIN_2FA_REQUIRED !== 'false';
 }
 
 function tokenSecret() {
