@@ -97,6 +97,11 @@ const paymentIntent = wrap(async (req) => {
   return { body: { clientSecret: intent.client_secret, amountPence: job.pricePence, status: intent.status } };
 });
 
+const checkoutSession = wrap(async () => {
+  const session = await stripeService.createCheckoutSession();
+  return { body: { url: session.url } };
+});
+
 const checkIn = wrap(async (req) => {
   await requireOwningCleaner(req);
   return { body: await paymentService.checkIn(req.params.id) };
@@ -151,6 +156,7 @@ module.exports = {
   book,
   cancel,
   paymentIntent,
+  checkoutSession,
   checkIn,
   markComplete,
   confirm,
