@@ -477,20 +477,41 @@ async function loadPaymentsQueue() {
       emptyMessage: 'Nothing in the ops queue — no stuck payouts right now.',
       rows: jobs.map((job) => {
         const canRetry = job.paymentStatus === 'MANUAL_REVIEW_HOLD';
+        const held = job.paymentStatus === 'PAYOUT_PENDING' && !job.stripeTransferId && job.payoutReleaseAt;
         return `
           <tr>
             <td><code>${escapeHtml((job._id || '').slice(-8))}</code></td>
-            <td>${paymentStatusBadge(job.paymentStatus)}</td>
+            <td>${paymentStatusBadge(job.paymentStatus)}${held ? `<div class="field-help">Held until ${escapeHtml(new Date(job.payoutReleaseAt).toLocaleString())}</div>` : ''}</td>
             <td>${escapeHtml(job.customer?.name || job.customer || '—')}</td>
             <td>${escapeHtml(job.cleaner?.name || job.cleaner || '—')}</td>
             <td>${job.payoutAttemptCount ?? 0}</td>
             <td>${job.updatedAt ? new Date(job.updatedAt).toLocaleString() : '—'}</td>
             <td class="table-actions">
               ${canRetry ? `<button type="button" class="secondary manual-retry-btn" data-id="${job._id}">Retry transfer</button>` : ''}
+              ${held ? `<button type="button" class="secondary release-payout-btn" data-id="${job._id}">Release payout now</button>` : ''}
             </td>
           </tr>
         `;
       }),
+    });
+
+    container.querySelectorAll('.release-payout-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const reason = window.prompt('Why release this payout before the hold ends?');
+        if (!reason || reason.trim().length < 3) return;
+        btn.disabled = true;
+        try {
+          await apiRequest(`/payments/ops/jobs/${btn.dataset.id}/release-payout`, {
+            method: 'POST',
+            body: { reason: reason.trim() },
+            auth: true,
+          });
+          await loadPaymentsQueue();
+        } catch (err) {
+          showAlert('payments-alert', err.message);
+          btn.disabled = false;
+        }
+      });
     });
 
     container.querySelectorAll('.manual-retry-btn').forEach((btn) => {
