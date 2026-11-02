@@ -4,6 +4,9 @@ const { requireAuth, requireRole, requireActiveIfStaff } = require('../middlewar
 const { validateParams, validateQuery } = require('../middleware/validate');
 const { photoParamSchema, jobParamSchema, uploadQuerySchema } = require('../validation/job-photo.validation');
 const { STAFF_ROLES } = require('../config/permissions');
+const { uploadLimiter } = require('../middleware/upload-rate-limit');
+
+const photoUploadLimiter = uploadLimiter({ limit: 60 });
 
 // Mounted at /jobs/:id/photos. The job's customer and booked cleaner, and staff,
 // can see the photos; only the two parties add them (see job-photo.service.js).
@@ -20,6 +23,7 @@ router.get('/', validateParams(jobParamSchema), JobPhotoController.list);
 router.post(
   '/',
   requireRole('customer', 'cleaner'),
+  photoUploadLimiter,
   express.raw({ type: ['image/jpeg', 'image/png'], limit: '5mb' }),
   validateParams(jobParamSchema),
   validateQuery(uploadQuerySchema),

@@ -34,6 +34,8 @@ const userSchema = new mongoose.Schema(
     // two-step login reset, staff deactivation). Sessions carry the number they
     // were issued under; see session.service.js.
     tokenVersion: { type: Number, default: 0 },
+    // Set when the account was erased at the person's request (see privacy-request.service.js).
+    erasedAt: { type: Date },
     // Customer's saved card (see customer-card.service.js). Only Stripe ids and
     // the non-sensitive summary Stripe returns are kept here, never card numbers.
     stripeCustomerId: {

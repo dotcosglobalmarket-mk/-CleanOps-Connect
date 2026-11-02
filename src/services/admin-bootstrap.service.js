@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const User = require('../models/User');
+const { STAFF_ROLES } = require('../config/permissions');
 const authService = require('./auth.service');
 const twoFactorService = require('./two-factor.service');
 const logger = require('../utils/logger');
@@ -27,18 +28,18 @@ function maskEmail(email) {
   return `${local.slice(0, 1)}${'*'.repeat(Math.max(local.length - 1, 1))}@${domain}`;
 }
 
-// Break glass for an admin locked out of their own account (lost phone and
-// recovery codes, no other admin to reset them). While ADMIN_2FA_RESET_EMAIL
-// names an admin, that admin's two-step login is cleared at start-up and they
+// Break glass for a staff member locked out of their own account (lost phone and
+// recovery codes, no admin to reset them). While ADMIN_2FA_RESET_EMAIL
+// names a staff account, its two-step login is cleared at start-up and they
 // set it up again after their password. It never lets anyone in without a
 // password, and it is logged every time: remove the setting afterwards.
 async function resetAdminTwoFactorIfRequested() {
   const email = (process.env.ADMIN_2FA_RESET_EMAIL || '').trim().toLowerCase();
   if (!email) return { status: 'not_requested' };
 
-  const user = await User.findOne({ email, role: 'admin' });
+  const user = await User.findOne({ email, role: { $in: STAFF_ROLES } });
   if (!user) {
-    logger.error(`[security] ADMIN_2FA_RESET_EMAIL is set, but no admin account matches ${maskEmail(email)}: nothing was reset`);
+    logger.error(`[security] ADMIN_2FA_RESET_EMAIL is set, but no staff account matches ${maskEmail(email)}: nothing was reset`);
     return { status: 'no_such_admin' };
   }
   await twoFactorService.reset(user);

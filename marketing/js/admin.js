@@ -1,6 +1,7 @@
 import { apiRequest, apiFetchBlob, requireRole, startImpersonation } from './api.js';
 import { escapeHtml } from './dom.js';
 import { mountJobPhotos } from './job-photos.js';
+import './admin-privacy.js';
 import {
   PAYMENT_STATES,
   showAlert,
@@ -1053,7 +1054,7 @@ async function loadStaff() {
           <td><span class="wrap-anywhere">${escapeHtml(u.email)}</span></td>
           <td>${escapeHtml(u.role)}</td>
           <td>${u.active ? statusBadge('Active', 'good') : statusBadge('Deactivated', 'bad')}</td>
-          <td>${u.twoFactorEnabled ? statusBadge('On', 'good') : statusBadge(u.role === 'admin' ? 'Not set up' : 'Off', u.role === 'admin' ? 'warn' : '')}</td>
+          <td>${u.twoFactorEnabled ? statusBadge('On', 'good') : statusBadge('Not set up', 'warn')}</td>
           <td>${formatDate(u.createdAt)}</td>
           <td class="table-actions">
             ${u.twoFactorEnabled ? '<button type="button" class="secondary reset-2fa-btn">Reset two-step</button>' : ''}

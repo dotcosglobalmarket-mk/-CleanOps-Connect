@@ -138,19 +138,19 @@ describe('resetAdminTwoFactorIfRequested', () => {
     expect(twoFactorService.reset).not.toHaveBeenCalled();
   });
 
-  it('clears two-step login for that admin only, and says so in the log without printing the whole email', async () => {
+  it('clears two-step login for that staff account only, and says so in the log without printing the whole email', async () => {
     process.env.ADMIN_2FA_RESET_EMAIL = ' Ops@CleanOp-Connect.co.uk ';
     const admin = { _id: 'a1', email: 'ops@cleanop-connect.co.uk', role: 'admin' };
     User.findOne.mockResolvedValue(admin);
     expect(await resetAdminTwoFactorIfRequested()).toEqual({ status: 'reset' });
-    expect(User.findOne).toHaveBeenCalledWith({ email: 'ops@cleanop-connect.co.uk', role: 'admin' });
+    expect(User.findOne).toHaveBeenCalledWith({ email: 'ops@cleanop-connect.co.uk', role: { $in: ['operator', 'admin'] } });
     expect(twoFactorService.reset).toHaveBeenCalledWith(admin);
     const logged = logger.info.mock.calls.map((c) => c[0]).join('\n');
     expect(logged).toMatch(/Remove that setting/);
     expect(logged).not.toContain('ops@cleanop-connect.co.uk');
   });
 
-  it('only ever resets an admin: another role or an unknown email is left alone and reported', async () => {
+  it('only ever resets a staff account: a customer, a cleaner or an unknown email is left alone and reported', async () => {
     process.env.ADMIN_2FA_RESET_EMAIL = 'customer@example.com';
     User.findOne.mockResolvedValue(null);
     expect(await resetAdminTwoFactorIfRequested()).toEqual({ status: 'no_such_admin' });

@@ -95,7 +95,19 @@ const jobIdParamSchema = z.object({
   id: objectId(),
 });
 
+// Privacy requests: always after the person's identity has been checked.
+const privacyLookupQuerySchema = z.object({ email: z.string().trim().min(3).max(254) });
+const privacyExportQuerySchema = z.object({ identityChecked: z.literal('true', { message: 'Confirm you have checked who is asking' }) });
+const privacyEraseSchema = z.object({
+  identityChecked: z.literal(true, { message: 'Confirm you have checked who is asking' }),
+  confirmEmail: z.string().trim().min(3).max(254),
+  reason: z.string().trim().min(3).max(450),
+});
+
 module.exports = {
+  privacyLookupQuerySchema,
+  privacyExportQuerySchema,
+  privacyEraseSchema,
   listCleanersQuerySchema,
   cleanerIdParamSchema,
   impersonateCleanerSchema,

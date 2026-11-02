@@ -35,6 +35,7 @@
       <button type="button" class="dash-nav-item" data-panel="approvals">Refund Approvals</button>
       <button type="button" class="dash-nav-item" data-panel="audit">Audit Log</button>
       <button type="button" class="dash-nav-item" data-panel="staff">Staff Accounts</button>
+      <button type="button" class="dash-nav-item" data-panel="privacy">Privacy Requests</button>
       <a class="dash-nav-link" href="ops.html">Disputes &amp; ops dashboard →</a>
     </aside>
 
@@ -379,6 +380,57 @@
           <button id="audit-filter-apply" type="button">Apply</button>
         </div>
         <div id="audit-table" class="table-wrap"></div>
+      </section>
+
+      <!-- Privacy requests -->
+      <section id="panel-privacy" class="dash-panel">
+        <h2 class="panel-title">Privacy Requests</h2>
+        <p class="field-help">
+          For a customer or cleaner who asks for a copy of their data, or to have it erased. Check who is asking first
+          (reply from the email on the account, or ask something only they would know). We have one month to answer.
+          Every copy and every erasure is recorded in the audit log.
+        </p>
+        <div id="privacy-alert" class="alert alert-error" hidden></div>
+        <div id="privacy-success" class="alert alert-success" hidden></div>
+        <form id="privacy-lookup-form" class="filter-bar">
+          <div class="form-row">
+            <label for="privacy-email">Email address on the account</label>
+            <input id="privacy-email" type="email" required autocomplete="off" />
+          </div>
+          <button type="submit">Look up</button>
+        </form>
+
+        <div id="privacy-person" class="job-detail" hidden>
+          <h3 id="privacy-name"></h3>
+          <dl class="job-detail-list" id="privacy-facts"></dl>
+          <div id="privacy-blockers" class="alert alert-error" hidden></div>
+          <label class="check-row">
+            <input id="privacy-identity" type="checkbox" />
+            I have checked that the person asking is the person on this account
+          </label>
+
+          <h4>A copy of their data</h4>
+          <p class="field-help">Downloads a JSON file with what we hold about them. Our team's internal notes are included for you to check before it is sent.</p>
+          <button id="privacy-export" type="button" class="secondary" disabled>Download their data</button>
+
+          <h4>Erase the account</h4>
+          <p class="field-help">
+            Removes their name, contact details, saved card, pictures, certificate files and messages, and takes the
+            address detail and written text out of their bookings. Payment and booking records stay for 6 years, without
+            those details. This cannot be undone.
+          </p>
+          <form id="privacy-erase-form">
+            <div class="form-row">
+              <label for="privacy-reason">Why (for the audit log)</label>
+              <input id="privacy-reason" type="text" required minlength="3" maxlength="450" placeholder="e.g. Asked by email on 2 November" />
+            </div>
+            <div class="form-row">
+              <label for="privacy-confirm">Type their email address to confirm</label>
+              <input id="privacy-confirm" type="text" required autocomplete="off" />
+            </div>
+            <button id="privacy-erase" type="submit" class="danger" disabled>Erase this account</button>
+          </form>
+        </div>
       </section>
 
       <!-- Staff Accounts -->
