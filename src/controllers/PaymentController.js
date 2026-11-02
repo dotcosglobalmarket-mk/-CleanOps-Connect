@@ -134,8 +134,12 @@ const manualRetry = wrap(async (req) => ({
 }));
 
 const opsQueue = wrap(async () => {
+  // Stuck payouts, plus confirmed jobs whose share is still in its hold (ops can release those early).
   const jobs = await Job.find({
-    paymentStatus: { $in: ['MANUAL_REVIEW_HOLD', 'PAYOUT_BLOCKED'] },
+    $or: [
+      { paymentStatus: { $in: ['MANUAL_REVIEW_HOLD', 'PAYOUT_BLOCKED'] } },
+      { paymentStatus: 'PAYOUT_PENDING', stripeTransferId: { $in: [null, ''] }, payoutReleaseAt: { $gt: new Date() } },
+    ],
   })
     .populate('customer', 'name email')
     .populate('cleaner', 'name')

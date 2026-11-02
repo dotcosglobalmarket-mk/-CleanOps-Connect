@@ -132,7 +132,7 @@ describe('Payments routes', () => {
       expect(res.status).toBe(403);
     });
 
-    it('lists MANUAL_REVIEW_HOLD and PAYOUT_BLOCKED jobs for admins', async () => {
+    it('lists stuck payouts and jobs still in their payout hold for admins', async () => {
       const sortMock = jest.fn().mockResolvedValue([{ _id: '1', paymentStatus: 'MANUAL_REVIEW_HOLD' }]);
       const populateCleanerMock = jest.fn().mockReturnValue({ sort: sortMock });
       const populateCustomerMock = jest.fn().mockReturnValue({ populate: populateCleanerMock });
@@ -141,7 +141,12 @@ describe('Payments routes', () => {
       const res = await request(app).get('/payments/ops/queue').set('Authorization', authHeaderFor('admin'));
 
       expect(res.status).toBe(200);
-      expect(Job.find).toHaveBeenCalledWith({ paymentStatus: { $in: ['MANUAL_REVIEW_HOLD', 'PAYOUT_BLOCKED'] } });
+      expect(Job.find).toHaveBeenCalledWith({
+        $or: [
+          { paymentStatus: { $in: ['MANUAL_REVIEW_HOLD', 'PAYOUT_BLOCKED'] } },
+          { paymentStatus: 'PAYOUT_PENDING', stripeTransferId: { $in: [null, ''] }, payoutReleaseAt: { $gt: expect.any(Date) } },
+        ],
+      });
       expect(res.body).toHaveLength(1);
     });
   });

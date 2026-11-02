@@ -233,6 +233,26 @@ describe('Ops (operator) routes', () => {
       expect(res.status).toBe(200);
     });
 
+    it('lets an operator release a held payout early and audits it', async () => {
+      paymentService.releasePayoutNow.mockResolvedValue({ _id: jobId, paymentStatus: 'PAYOUT_PENDING' });
+      const res = await request(app)
+        .post(`/payments/ops/jobs/${jobId}/release-payout`)
+        .set('Authorization', asOperator())
+        .send({ reason: 'Trusted cleaner, customer confirmed in person' });
+      expect(res.status).toBe(200);
+      expect(paymentService.releasePayoutNow).toHaveBeenCalledWith(jobId);
+      expect(AuditLog.create).toHaveBeenCalledWith(expect.objectContaining({ action: 'payout.release_early' }));
+    });
+
+    it('does not let a customer release a payout', async () => {
+      const res = await request(app)
+        .post(`/payments/ops/jobs/${jobId}/release-payout`)
+        .set('Authorization', tokenFor('customer', 'someone'))
+        .send({});
+      expect(res.status).toBe(403);
+      expect(paymentService.releasePayoutNow).not.toHaveBeenCalled();
+    });
+
     it('lets an operator retry a held payout and audits it', async () => {
       paymentService.manualRetryTransfer.mockResolvedValue({ _id: jobId, paymentStatus: 'MANUAL_REVIEW_HOLD' });
       const res = await request(app)
