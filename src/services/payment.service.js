@@ -9,6 +9,33 @@ const logger = require('../utils/logger');
 const MAX_TRANSFER_ATTEMPTS = 3;
 const RETRY_BACKOFF_MINUTES = [5, 30, 120]; // 5min -> 30min -> 2hr
 const AUTO_CONFIRM_WINDOW_HOURS = 48;
+const DEFAULT_PAYOUT_HOLD_DAYS = 3;
+const MAX_PAYOUT_HOLD_DAYS = 7;
+
+// How long the cleaner's share is held after the customer confirms: card money takes a few days
+// to clear, and the hold leaves time to put a problem right before it leaves the platform.
+// PAYOUT_HOLD_DAYS sets it (0 to 7, default 3).
+function payoutHoldDays() {
+  const raw = process.env.PAYOUT_HOLD_DAYS;
+  if (raw === undefined || raw === '') return DEFAULT_PAYOUT_HOLD_DAYS;
+  const days = Number(raw);
+  if (!Number.isFinite(days) || days < 0) return DEFAULT_PAYOUT_HOLD_DAYS;
+  return Math.min(days, MAX_PAYOUT_HOLD_DAYS);
+}
+
+// The charge behind the job's payment, so the transfer can be tied to it (see stripe.service).
+// If Stripe cannot say, the transfer is still tried without it.
+async function sourceChargeFor(job) {
+  if (!job.stripePaymentIntentId) return undefined;
+  try {
+    const intent = await stripeService.retrievePaymentIntent(job.stripePaymentIntentId);
+    const charge = intent && intent.latest_charge;
+    return typeof charge === 'string' ? charge : charge && charge.id;
+  } catch (err) {
+    logger.error(`[payment] Could not read the charge for job ${job._id}: ${err.message}`);
+    return undefined;
+  }
+}
 
 // Reason codes a customer must pick from when raising a dispute — "reason
 // code required, not free text only" per spec. Free-text detail can still
@@ -283,9 +310,14 @@ async function enterPayoutPending(job) {
   job.commissionPence = commissionPence;
   job.cleanerPayoutPence = cleanerPayoutPence;
 
+  const holdDays = payoutHoldDays();
+  job.payoutReleaseAt = new Date(Date.now() + holdDays * 24 * 60 * 60 * 1000);
+
   transition(job, EVENTS.CALCULATE_SPLIT);
   await job.save();
 
+  // During the hold the job waits in PAYOUT_PENDING; releaseDuePayouts() sends it afterwards.
+  if (holdDays > 0) return job;
   return attemptTransfer(job, cleaner);
 }
 
@@ -424,6 +456,7 @@ async function attemptTransfer(job, cleaner) {
       destinationAccountId: cleaner.stripeConnectedAccountId,
       idempotencyKey: transferIdempotencyKey(job),
       metadata: { jobId: job._id.toString() },
+      sourceTransaction: await sourceChargeFor(job),
     });
     job.stripeTransferId = transfer.id;
     await job.save();
@@ -491,10 +524,46 @@ async function manualRetryTransfer(jobId) {
     destinationAccountId: cleaner.stripeConnectedAccountId,
     idempotencyKey: transferIdempotencyKey(job),
     metadata: { jobId: job._id.toString() },
+    sourceTransaction: await sourceChargeFor(job),
   });
   job.stripeTransferId = transfer.id;
   await job.save();
   return job;
+}
+
+// Sends the cleaner's share once its hold has ended. Only jobs still waiting (no transfer yet)
+// are picked up; the transfer uses the same idempotency key on any retry.
+async function releaseDuePayouts(now = new Date()) {
+  const due = await Job.find({
+    paymentStatus: STATES.PAYOUT_PENDING,
+    stripeTransferId: { $in: [null, ''] },
+    payoutReleaseAt: { $lte: now },
+  });
+  const released = [];
+  for (const job of due) {
+    try {
+      const cleaner = await CleanerProfile.findById(job.cleaner);
+      if (!cleaner) continue;
+      await attemptTransfer(job, cleaner);
+      released.push(job._id);
+    } catch (err) {
+      logger.error(`[payment] Releasing payout for job ${job._id}: ${err.message}`);
+    }
+  }
+  return released;
+}
+
+// Ops: end the hold early for a job that is waiting.
+async function releasePayoutNow(jobId) {
+  const job = await requireJob(jobId);
+  if (job.paymentStatus !== STATES.PAYOUT_PENDING || job.stripeTransferId) {
+    throw badRequest('This job is not waiting for its payout to be released');
+  }
+  const cleaner = await CleanerProfile.findById(job.cleaner);
+  if (!cleaner) throw notFound('Cleaner not found');
+  job.payoutReleaseAt = new Date();
+  await job.save();
+  return attemptTransfer(job, cleaner);
 }
 
 // --- Webhooks that don't go through the job payment state machine ---
@@ -590,6 +659,9 @@ module.exports = {
   attemptTransfer,
   retryTransfer,
   manualRetryTransfer,
+  releaseDuePayouts,
+  releasePayoutNow,
+  payoutHoldDays,
   handleTransferPaid,
   handleTransferFailedWebhook,
   handlePayoutFailed,

@@ -199,7 +199,7 @@ async function listMyOffers(userId, { status } = {}) {
 
 const MY_JOB_FIELDS =
   'serviceType category postcode description estimatedHours frequency preferredStartAt status paymentStatus pricePence ' +
-  'commissionPence cleanerPayoutPence bookedAt awaitingConfirmationAt disputeReason customer createdAt updatedAt';
+  'commissionPence cleanerPayoutPence payoutReleaseAt bookedAt awaitingConfirmationAt disputeReason customer createdAt updatedAt';
 
 async function listMyJobs(userId) {
   const cleaner = await requireProfile(userId);

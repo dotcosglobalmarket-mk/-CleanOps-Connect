@@ -33,7 +33,12 @@ const JOB_STATUS = {
   PARTIALLY_REFUNDED: ['Cancelled — partly refunded', 'bad'],
 };
 
-function jobStatusBadge(paymentStatus) {
+function jobStatusBadge(paymentStatus, payoutReleaseAt) {
+  // After the customer confirms, the payment is held for a few days before it is sent.
+  if (paymentStatus === 'PAYOUT_PENDING' && payoutReleaseAt && new Date(payoutReleaseAt) > new Date()) {
+    const day = new Date(payoutReleaseAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Europe/London' });
+    return statusBadge(`Payment releases ${day}`, 'good');
+  }
   const [label, kind] = JOB_STATUS[paymentStatus] || [paymentStatus || '—', 'warn'];
   return statusBadge(label, kind);
 }
@@ -318,7 +323,7 @@ async function loadMyJobs() {
           <td>${escapeHtml(job.customer?.name || '—')}</td>
           <td>${escapeHtml(job.postcode || '—')}</td>
           <td>${formatPence(job.pricePence)}</td>
-          <td>${jobStatusBadge(job.paymentStatus)}</td>
+          <td>${jobStatusBadge(job.paymentStatus, job.payoutReleaseAt)}</td>
           <td>${formatDate(job.bookedAt)}</td>
           <td class="table-actions">${jobActions(job)}</td>
         </tr>

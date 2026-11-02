@@ -72,6 +72,7 @@ JWT_SECRET=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 STRIPE_CONNECT_WEBHOOK_SECRET=
+# PAYOUT_HOLD_DAYS=3            (optional; days to hold the cleaner's share after confirmation, 0-7)
 # RECURRING_JOBS_ENABLED=true   (optional; off unless set: see Regular bookings below)
 ```
 
