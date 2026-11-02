@@ -361,7 +361,10 @@ async function handleInvoicePaymentFailed(invoice) {
   const subscription = await Subscription.findOne({ stripeSubscriptionId });
   if (!subscription) return null;
 
-  await recordInvoicePayment(invoice, subscription, 'failed');
+  const payment = await recordInvoicePayment(invoice, subscription, 'failed');
+  // A "failed" event that arrives after the invoice was paid is ignored, and the
+  // cleaner is not told their payment failed.
+  if (payment.status !== 'failed') return subscription;
 
   const cleaner = await CleanerProfile.findById(subscription.cleaner);
   if (cleaner) {

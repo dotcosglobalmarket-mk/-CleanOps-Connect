@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const totp = require('./totp.service');
-const { signToken, toPublicUser } = require('./session.service');
+const { signToken, toPublicUser, revokeSessions } = require('./session.service');
 
 // Two-step login. Admin accounts must use an authenticator app (a six-digit
 // code on top of the password); anyone else who has turned it on is asked too.
@@ -14,8 +14,18 @@ const { signToken, toPublicUser } = require('./session.service');
 // - The authenticator secret is stored encrypted, recovery codes only as hashes.
 // - Wrong codes lock the account for a while; a used code cannot be replayed.
 //
-// Break glass: if every admin is locked out, set ADMIN_2FA_REQUIRED=false on the
-// server and redeploy, sign in with the password, then set it back.
+// Wrong codes are counted atomically in the database (see reserveAttempt), so
+// sending many guesses at once cannot get past the limit, and a code or recovery
+// code is claimed in one database step, so it cannot be used twice at once.
+//
+// ADMIN_2FA_REQUIRED=false only stops admins who have NOT set it up yet from
+// being made to; anyone who has it on is still asked for a code.
+//
+// Break glass for an admin locked out of their own account (lost phone and
+// recovery codes, and no other admin to reset them): set ADMIN_2FA_RESET_EMAIL
+// to that admin's email on the server and redeploy. At start-up that admin's
+// two-step login is cleared, so after the password they are taken through
+// set-up again. Remove the setting afterwards, or it clears it at every restart.
 
 const ISSUER = 'CleanOps Connect';
 const CHALLENGE_TTL = '5m';
@@ -103,22 +113,41 @@ async function loadUser(id) {
   return user;
 }
 
-function assertNotLocked(user) {
-  const until = user.twoFactor && user.twoFactor.lockedUntil;
-  if (until && until.getTime() > Date.now()) {
-    throw httpError(429, 'Too many wrong codes. Try again in 15 minutes.');
-  }
+// Every code attempt is counted BEFORE the code is checked, in one atomic
+// database update that refuses once the limit is reached. Counting after the
+// check (read, add one, save) lets a burst of simultaneous guesses all read the
+// same number and never reach the limit. The count starts again 15 minutes after
+// the last attempt that was let through.
+async function reserveAttempt(user) {
+  await User.updateOne(
+    {
+      _id: user._id,
+      'twoFactor.failedAttempts': { $gt: 0 },
+      'twoFactor.lastAttemptAt': { $lte: new Date(Date.now() - LOCK_MS) },
+    },
+    { $set: { 'twoFactor.failedAttempts': 0 } }
+  );
+  const reserved = await User.findOneAndUpdate(
+    {
+      _id: user._id,
+      $or: [{ 'twoFactor.failedAttempts': { $exists: false } }, { 'twoFactor.failedAttempts': { $lt: MAX_FAILED_ATTEMPTS } }],
+    },
+    { $inc: { 'twoFactor.failedAttempts': 1 }, $set: { 'twoFactor.lastAttemptAt': new Date() } },
+    { new: true }
+  );
+  if (!reserved) throw httpError(429, 'Too many wrong codes. Try again in 15 minutes.');
 }
 
-async function recordFailure(user) {
-  user.twoFactor.failedAttempts = (user.twoFactor.failedAttempts || 0) + 1;
-  if (user.twoFactor.failedAttempts >= MAX_FAILED_ATTEMPTS) {
-    user.twoFactor.lockedUntil = new Date(Date.now() + LOCK_MS);
-    user.twoFactor.failedAttempts = 0;
-  }
-  await user.save();
-  throw unauthorized('That code is not right');
-}
+const clearAttempts = (user) =>
+  User.updateOne(
+    { _id: user._id },
+    {
+      $set: { 'twoFactor.failedAttempts': 0 },
+      $unset: { 'twoFactor.lastAttemptAt': 1, 'twoFactor.lockedUntil': 1 },
+    }
+  );
+
+const wrongCode = () => unauthorized('That code is not right');
 
 // First-time set-up, step 1: make a secret for the authenticator app.
 async function startSetup({ setupToken }) {
@@ -138,23 +167,30 @@ async function enable({ setupToken, code }) {
   const user = await loadUser(payload.sub);
   if (user.twoFactor.enabled) throw httpError(400, 'Two-step login is already set up');
   if (!user.twoFactor.pendingSecretEnc) throw httpError(400, 'Start the set-up again');
-  assertNotLocked(user);
 
+  await reserveAttempt(user);
   const step = totp.verify(decrypt(user.twoFactor.pendingSecretEnc), String(code).replace(/\s/g, ''));
-  if (step === null) await recordFailure(user);
+  if (step === null) throw wrongCode();
 
   const recoveryCodes = newRecoveryCodes();
-  user.twoFactor.enabled = true;
-  user.twoFactor.secretEnc = user.twoFactor.pendingSecretEnc;
-  user.twoFactor.pendingSecretEnc = undefined;
-  user.twoFactor.lastUsedStep = step;
-  user.twoFactor.recoveryCodeHashes = recoveryCodes.map(hashRecoveryCode);
-  user.twoFactor.failedAttempts = 0;
-  user.twoFactor.lockedUntil = undefined;
-  user.twoFactor.enabledAt = new Date();
-  await user.save();
+  const enabled = await User.findOneAndUpdate(
+    { _id: user._id, 'twoFactor.enabled': { $ne: true } },
+    {
+      $set: {
+        'twoFactor.enabled': true,
+        'twoFactor.secretEnc': user.twoFactor.pendingSecretEnc,
+        'twoFactor.lastUsedStep': step,
+        'twoFactor.recoveryCodeHashes': recoveryCodes.map(hashRecoveryCode),
+        'twoFactor.failedAttempts': 0,
+        'twoFactor.enabledAt': new Date(),
+      },
+      $unset: { 'twoFactor.pendingSecretEnc': 1, 'twoFactor.lastAttemptAt': 1, 'twoFactor.lockedUntil': 1 },
+    },
+    { new: true }
+  );
+  if (!enabled) throw httpError(400, 'Two-step login is already set up');
 
-  return { user: toPublicUser(user), token: signToken(user), recoveryCodes };
+  return { user: toPublicUser(enabled), token: signToken(enabled), recoveryCodes };
 }
 
 // Every login after set-up: a six-digit code, or one of the recovery codes (each works once).
@@ -162,32 +198,45 @@ async function verifyLogin({ challengeToken, code }) {
   const payload = readStepToken(challengeToken, 'mfa');
   const user = await loadUser(payload.sub);
   if (!user.twoFactor || !user.twoFactor.enabled) throw unauthorized('That sign-in has expired. Please log in again.');
-  assertNotLocked(user);
+
+  await reserveAttempt(user);
 
   const entered = String(code).replace(/[\s-]/g, '');
   let recoveryUsed = false;
+  let recoveryCodesLeft = (user.twoFactor.recoveryCodeHashes || []).length;
   if (/^\d{6}$/.test(entered)) {
     const afterStep = typeof user.twoFactor.lastUsedStep === 'number' ? user.twoFactor.lastUsedStep : -1;
     const step = totp.verify(decrypt(user.twoFactor.secretEnc), entered, { afterStep });
-    if (step === null) await recordFailure(user);
-    user.twoFactor.lastUsedStep = step;
+    if (step === null) throw wrongCode();
+    // Claim the code in one step: a second request carrying the same code finds
+    // this step already used and is refused, even if it arrived at the same moment.
+    const claimed = await User.findOneAndUpdate(
+      {
+        _id: user._id,
+        $or: [
+          { 'twoFactor.lastUsedStep': { $exists: false } },
+          { 'twoFactor.lastUsedStep': null },
+          { 'twoFactor.lastUsedStep': { $lt: step } },
+        ],
+      },
+      { $set: { 'twoFactor.lastUsedStep': step } }
+    );
+    if (!claimed) throw wrongCode();
   } else {
     const hash = hashRecoveryCode(entered);
-    const hashes = user.twoFactor.recoveryCodeHashes || [];
-    if (!hashes.includes(hash)) await recordFailure(user);
-    user.twoFactor.recoveryCodeHashes = hashes.filter((h) => h !== hash);
+    // Same for recovery codes: removing the code and checking it were there is one step.
+    const claimed = await User.findOneAndUpdate(
+      { _id: user._id, 'twoFactor.recoveryCodeHashes': hash },
+      { $pull: { 'twoFactor.recoveryCodeHashes': hash } },
+      { new: true }
+    );
+    if (!claimed) throw wrongCode();
     recoveryUsed = true;
+    recoveryCodesLeft = claimed.twoFactor.recoveryCodeHashes.length;
   }
 
-  user.twoFactor.failedAttempts = 0;
-  user.twoFactor.lockedUntil = undefined;
-  await user.save();
-  return {
-    user: toPublicUser(user),
-    token: signToken(user),
-    recoveryCodesLeft: user.twoFactor.recoveryCodeHashes.length,
-    recoveryUsed,
-  };
+  await clearAttempts(user);
+  return { user: toPublicUser(user), token: signToken(user), recoveryCodesLeft, recoveryUsed };
 }
 
 // Staff action when someone loses their phone and their recovery codes.
@@ -200,8 +249,11 @@ async function reset(user) {
     lastUsedStep: undefined,
     failedAttempts: 0,
     lockedUntil: undefined,
+    lastAttemptAt: undefined,
     enabledAt: undefined,
   };
+  // Whoever was signed in under the old authenticator is signed out.
+  revokeSessions(user);
   await user.save();
 }
 

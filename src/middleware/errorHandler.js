@@ -1,3 +1,5 @@
+const GENERIC_SERVER_MESSAGE = 'Something went wrong on our side. Please try again, and contact us if it keeps happening.';
+
 const PROVIDER_ERROR_MESSAGE =
   "We couldn't complete that with our payment provider. Please try again in a moment, or contact support if it keeps happening.";
 
@@ -51,7 +53,13 @@ function errorHandler(err, req, res, next) {
   }
 
   const status = err.status || 500;
-  const body = { message: redactSecrets(err.message || 'Internal server error') };
+  // A plain 500 is a fault on our side (a missing setting, a database error).
+  // Its message is for the logs above, never for the browser: it can name
+  // settings and internals. Anything else shown to a person is still checked
+  // for keys and account ids first.
+  const body = {
+    message: status === 500 ? GENERIC_SERVER_MESSAGE : redactSecrets(err.message || GENERIC_SERVER_MESSAGE),
+  };
   if (err.details) {
     body.details = err.details;
   }

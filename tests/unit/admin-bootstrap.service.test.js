@@ -1,11 +1,13 @@
-jest.mock('../../src/models/User', () => ({ exists: jest.fn(), create: jest.fn(), find: jest.fn() }));
+jest.mock('../../src/models/User', () => ({ exists: jest.fn(), create: jest.fn(), find: jest.fn(), findOne: jest.fn() }));
+jest.mock('../../src/services/two-factor.service', () => ({ reset: jest.fn() }));
 jest.mock('../../src/services/auth.service', () => ({ hashPassword: jest.fn(async (p) => `hashed:${p}`) }));
 jest.mock('../../src/utils/logger', () => ({ info: jest.fn(), error: jest.fn() }));
 
 const User = require('../../src/models/User');
 const authService = require('../../src/services/auth.service');
 const logger = require('../../src/utils/logger');
-const { ensureSuperAdmin } = require('../../src/services/admin-bootstrap.service');
+const twoFactorService = require('../../src/services/two-factor.service');
+const { ensureSuperAdmin, resetAdminTwoFactorIfRequested } = require('../../src/services/admin-bootstrap.service');
 
 const PASSWORD = 'a-long-secret-pw-1';
 
@@ -122,6 +124,37 @@ describe('ensureSuperAdmin', () => {
   it('logs, and does not throw, on any other database error', async () => {
     User.create.mockRejectedValue(new Error('db down'));
     expect(await ensureSuperAdmin()).toEqual({ status: 'error' });
+    expect(logger.error).toHaveBeenCalled();
+  });
+});
+
+
+describe('resetAdminTwoFactorIfRequested', () => {
+  afterEach(() => { delete process.env.ADMIN_2FA_RESET_EMAIL; });
+
+  it('does nothing unless ADMIN_2FA_RESET_EMAIL is set', async () => {
+    expect(await resetAdminTwoFactorIfRequested()).toEqual({ status: 'not_requested' });
+    expect(User.findOne).not.toHaveBeenCalled();
+    expect(twoFactorService.reset).not.toHaveBeenCalled();
+  });
+
+  it('clears two-step login for that admin only, and says so in the log without printing the whole email', async () => {
+    process.env.ADMIN_2FA_RESET_EMAIL = ' Ops@CleanOp-Connect.co.uk ';
+    const admin = { _id: 'a1', email: 'ops@cleanop-connect.co.uk', role: 'admin' };
+    User.findOne.mockResolvedValue(admin);
+    expect(await resetAdminTwoFactorIfRequested()).toEqual({ status: 'reset' });
+    expect(User.findOne).toHaveBeenCalledWith({ email: 'ops@cleanop-connect.co.uk', role: 'admin' });
+    expect(twoFactorService.reset).toHaveBeenCalledWith(admin);
+    const logged = logger.info.mock.calls.map((c) => c[0]).join('\n');
+    expect(logged).toMatch(/Remove that setting/);
+    expect(logged).not.toContain('ops@cleanop-connect.co.uk');
+  });
+
+  it('only ever resets an admin: another role or an unknown email is left alone and reported', async () => {
+    process.env.ADMIN_2FA_RESET_EMAIL = 'customer@example.com';
+    User.findOne.mockResolvedValue(null);
+    expect(await resetAdminTwoFactorIfRequested()).toEqual({ status: 'no_such_admin' });
+    expect(twoFactorService.reset).not.toHaveBeenCalled();
     expect(logger.error).toHaveBeenCalled();
   });
 });

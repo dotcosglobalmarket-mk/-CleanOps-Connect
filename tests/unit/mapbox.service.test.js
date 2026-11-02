@@ -10,7 +10,7 @@ describe('mapbox.service.geocodePostcode', () => {
   });
 
   it('throws when postcode is missing', async () => {
-    await expect(mapboxService.geocodePostcode()).rejects.toThrow('postcode is required');
+    await expect(mapboxService.geocodePostcode()).rejects.toMatchObject({ status: 400, message: 'Enter a postcode' });
   });
 
   it('throws when MAPBOX_API_KEY is not set', async () => {
@@ -39,6 +39,9 @@ describe('mapbox.service.geocodePostcode', () => {
 
   it('throws when no match is found', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ features: [] }) });
-    await expect(mapboxService.geocodePostcode('ZZ99 9ZZ')).rejects.toThrow('Unable to geocode postcode');
+    await expect(mapboxService.geocodePostcode('ZZ99 9ZZ')).rejects.toMatchObject({
+      status: 400,
+      message: "We couldn't find that postcode. Check it and try again.",
+    });
   });
 });

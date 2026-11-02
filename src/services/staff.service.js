@@ -2,6 +2,7 @@ const User = require('../models/User');
 const authService = require('./auth.service');
 const auditService = require('./audit.service');
 const twoFactorService = require('./two-factor.service');
+const { revokeSessions } = require('./session.service');
 const { STAFF_ROLES } = require('../config/permissions');
 
 function httpError(status, message) {
@@ -54,6 +55,7 @@ async function setStaffActive(userId, active, reason, req) {
 
   const before = { active: user.active !== false };
   user.active = active;
+  if (!active) revokeSessions(user);
   await user.save();
 
   await auditService.record({

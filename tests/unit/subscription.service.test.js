@@ -78,6 +78,8 @@ describe('subscription.service webhook handlers', () => {
       Subscription.findOne.mockResolvedValue(subscription);
       const cleaner = { _id: 'cleaner1' };
       CleanerProfile.findById.mockResolvedValue(cleaner);
+      SubscriptionPayment.findOne.mockResolvedValue(null);
+      SubscriptionPayment.create.mockResolvedValue({ status: 'failed' });
 
       const result = await subscriptionService.handleInvoicePaymentFailed({ id: 'in_1', subscription: 'sub_1' });
 
@@ -90,6 +92,7 @@ describe('subscription.service webhook handlers', () => {
       Subscription.findOne.mockResolvedValue({ cleaner: 'cleaner1', plan: 'pro', stripeSubscriptionId: 'sub_1' });
       CleanerProfile.findById.mockResolvedValue({ _id: 'cleaner1' });
       SubscriptionPayment.findOne.mockResolvedValue(null);
+      SubscriptionPayment.create.mockResolvedValue({ status: 'failed' });
 
       await subscriptionService.handleInvoicePaymentFailed({
         id: 'in_9', subscription: 'sub_1', amount_due: 1000, attempt_count: 2, next_payment_attempt: 1790000000,
@@ -107,6 +110,7 @@ describe('subscription.service webhook handlers', () => {
       Subscription.findOne.mockResolvedValue({ cleaner: 'cleaner1', plan: 'pro', stripeSubscriptionId: 'sub_2' });
       CleanerProfile.findById.mockResolvedValue({ _id: 'cleaner1' });
       SubscriptionPayment.findOne.mockResolvedValue(null);
+      SubscriptionPayment.create.mockResolvedValue({ status: 'failed' });
 
       await subscriptionService.handleInvoicePaymentFailed({
         id: 'in_10', amount_due: 250, parent: { subscription_details: { subscription: 'sub_2' } },
@@ -142,6 +146,8 @@ describe('subscription.service webhook handlers', () => {
 
       expect(existing.status).toBe('paid');
       expect(save).not.toHaveBeenCalled();
+      // ...and the cleaner is not told a payment failed when it actually went through.
+      expect(notificationService.subscriptionPaymentFailed).not.toHaveBeenCalled();
     });
 
     it('is a no-op for an invoice that is not for a platform subscription', async () => {

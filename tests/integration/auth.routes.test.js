@@ -2,6 +2,8 @@ process.env.AUTH_RATE_LIMIT_MAX = '1000'; // these tests make many auth calls fr
 jest.mock('../../src/models/User', () => ({
   findOne: jest.fn(),
   findById: jest.fn(),
+  findOneAndUpdate: jest.fn(),
+  updateOne: jest.fn(),
   create: jest.fn(),
 }));
 jest.mock('../../src/services/notification.service', () => ({ passwordResetRequested: jest.fn() }));
@@ -14,6 +16,17 @@ const notificationService = require('../../src/services/notification.service');
 const createApp = require('../../src/app');
 const totp = require('../../src/services/totp.service');
 const twoFactor = require('../../src/services/two-factor.service');
+const fake = require('../helpers/fake-users');
+
+// Two-step login counts attempts and claims codes with single-step database updates;
+// these tests run it against a small in-memory stand-in for the users collection.
+function useFakeUsers(user) {
+  const { save, ...plain } = user;
+  fake.store.doc = fake.clone(plain);
+  User.findById.mockImplementation(fake.model.findById.getMockImplementation());
+  User.findOneAndUpdate.mockImplementation(fake.model.findOneAndUpdate.getMockImplementation());
+  User.updateOne.mockImplementation(fake.model.updateOne.getMockImplementation());
+}
 
 describe('Auth routes', () => {
   let app;
@@ -242,7 +255,7 @@ describe('Auth routes', () => {
     it('walks an admin through first-time set-up to a session', async () => {
       const user = await adminUser();
       User.findOne.mockResolvedValue(user);
-      User.findById.mockResolvedValue(user);
+      useFakeUsers(user);
       const login = await request(app).post('/auth/login').send({ email: 'ops@example.com', password: 'a-long-passphrase' });
 
       const setup = await request(app).post('/auth/2fa/setup').send({ setupToken: login.body.setupToken });
@@ -264,7 +277,7 @@ describe('Auth routes', () => {
       const secret = totp.generateSecret();
       const user = await adminUser({ twoFactor: { enabled: true, secretEnc: twoFactor.encrypt(secret), recoveryCodeHashes: [], failedAttempts: 0 } });
       User.findOne.mockResolvedValue(user);
-      User.findById.mockResolvedValue(user);
+      useFakeUsers(user);
 
       const login = await request(app).post('/auth/login').send({ email: 'ops@example.com', password: 'a-long-passphrase' });
       expect(login.body.twoFactorRequired).toBe(true);
@@ -286,6 +299,15 @@ describe('Auth routes', () => {
       const login = await request(app).post('/auth/login').send({ email: 'ops@example.com', password: 'a-long-passphrase' });
       const res = await request(app).get('/admin/summary').set('Authorization', `Bearer ${login.body.challengeToken}`);
       expect(res.status).toBe(401);
+    });
+
+    it('ends every session already issued when the password is reset', async () => {
+      const user = await adminUser({ tokenVersion: 2, role: 'customer', resetPasswordTokenHash: 'x', resetPasswordExpiresAt: new Date(Date.now() + 60000) });
+      User.findOne.mockResolvedValue(user);
+      const res = await request(app).post('/auth/reset-password').send({ token: 'abc', password: 'a-new-long-passphrase' });
+      expect(res.status).toBe(200);
+      expect(user.tokenVersion).toBe(3);
+      expect(jwt.verify(res.body.token, process.env.JWT_SECRET).tv).toBe(3);
     });
 
     it('does not let a password-reset link skip the second step', async () => {

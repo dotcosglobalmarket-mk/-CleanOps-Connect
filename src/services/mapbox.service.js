@@ -1,3 +1,9 @@
+function userError(message) {
+  const error = new Error(message);
+  error.status = 400;
+  return error;
+}
+
 const MAPBOX_GEOCODING_URL = 'https://api.mapbox.com/geocoding/v5/mapbox.places';
 
 /**
@@ -6,7 +12,7 @@ const MAPBOX_GEOCODING_URL = 'https://api.mapbox.com/geocoding/v5/mapbox.places'
  */
 async function geocodePostcode(postcode) {
   if (!postcode || typeof postcode !== 'string') {
-    throw new Error('postcode is required');
+    throw userError('Enter a postcode');
   }
 
   const apiKey = process.env.MAPBOX_API_KEY;
@@ -24,7 +30,7 @@ async function geocodePostcode(postcode) {
   const data = await response.json();
   const [feature] = data.features || [];
   if (!feature || !Array.isArray(feature.center) || feature.center.length !== 2) {
-    throw new Error(`Unable to geocode postcode: ${postcode}`);
+    throw userError("We couldn't find that postcode. Check it and try again.");
   }
 
   const [lng, lat] = feature.center;

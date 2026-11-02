@@ -65,12 +65,38 @@ describe('errorHandler', () => {
     });
   });
 
-  it('defaults to 500 for an unrecognized error', () => {
+  it('defaults to 500 for an unrecognized error, without revealing its message', () => {
     const res = mockRes();
     errorHandler(new Error('boom'), {}, res, jest.fn());
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ message: 'boom' });
+    const { message } = res.json.mock.calls[0][0];
+    expect(message).not.toMatch(/boom/);
+    expect(message).toMatch(/Something went wrong/);
+  });
+
+  it('never sends a missing-setting or database message to the browser', () => {
+    for (const secret of ['STRIPE_SECRET_KEY is not set in the environment', 'connect ECONNREFUSED 10.0.0.5:27017', 'E11000 duplicate key']) {
+      const res = mockRes();
+      const err = new Error(secret);
+      if (secret.startsWith('E11000')) err.code = 11000;
+      errorHandler(err, {}, res, jest.fn());
+      expect(JSON.stringify(res.json.mock.calls[0][0])).not.toContain(secret);
+    }
+  });
+
+  it('still tells people what they did wrong on 4xx, and passes deliberate 503s through', () => {
+    const bad = mockRes();
+    const err = new Error('That file is over 5 MB');
+    err.status = 413;
+    errorHandler(err, {}, bad, jest.fn());
+    expect(bad.json).toHaveBeenCalledWith({ message: 'That file is over 5 MB' });
+
+    const down = mockRes();
+    const unavailable = new Error('Suggestions are unavailable right now');
+    unavailable.status = 503;
+    errorHandler(unavailable, {}, down, jest.fn());
+    expect(down.json).toHaveBeenCalledWith({ message: 'Suggestions are unavailable right now' });
   });
 
   describe('payment provider errors', () => {
@@ -112,13 +138,20 @@ describe('errorHandler', () => {
       expect(res.json).toHaveBeenCalledWith({ message: 'Your card was declined.' });
     });
 
-    it('hides keys, webhook secrets and account ids if one reaches an ordinary error', () => {
+    it('hides keys, webhook secrets and account ids if one reaches a message that is shown', () => {
       const res = mockRes();
       const err = new Error('failed with sk_live_abc123 and whsec_XyZ789 for acct_1ABC');
+      err.status = 400;
 
       errorHandler(err, {}, res, jest.fn());
 
       expect(res.json).toHaveBeenCalledWith({ message: 'failed with [hidden] and [hidden] for [hidden]' });
+    });
+
+    it('does not show an ordinary 500 at all, secrets or not', () => {
+      const res = mockRes();
+      errorHandler(new Error('failed with sk_live_abc123'), {}, res, jest.fn());
+      expect(JSON.stringify(res.json.mock.calls[0][0])).not.toMatch(/sk_live|failed with/);
     });
   });
 });

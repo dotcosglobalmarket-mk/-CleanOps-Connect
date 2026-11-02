@@ -49,6 +49,14 @@ describe('cleaner picture routes', () => {
     }
   });
 
+  it('turns away a deactivated staff account even though its token is still valid', async () => {
+    service.getPhoto.mockResolvedValue({ file: { data: JPG, mimeType: 'image/jpeg' } });
+    User.findById.mockImplementation((id) => Promise.resolve({ _id: id, name: 'S', role: 'operator', active: false }));
+    const res = await request(app).get(`/cleaners/${CLEANER}/photo`).set('Authorization', auth('operator'));
+    expect(res.status).toBe(401);
+    expect(service.getPhoto).not.toHaveBeenCalled();
+  });
+
   it('answers 404 when the service says there is no picture', async () => {
     const err = new Error('No picture'); err.status = 404;
     service.getPhoto.mockRejectedValue(err);

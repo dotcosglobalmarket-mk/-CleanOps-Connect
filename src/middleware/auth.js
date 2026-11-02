@@ -1,8 +1,9 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { STAFF_ROLES, hasPermission } = require('../config/permissions');
+const { isCurrent } = require('../services/session.service');
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'Authentication required' });
@@ -10,8 +11,24 @@ function requireAuth(req, res, next) {
 
   const token = authHeader.slice('Bearer '.length);
 
+  let payload;
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    payload = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ message: 'Invalid or expired token' });
+  }
+
+  try {
+    // A session carries the version it was issued under. A password reset, a
+    // two-step login reset or a deactivation raises the version, which ends
+    // every earlier session. Impersonation tokens are short and carry no version.
+    if (payload.tv !== undefined && !payload.imp) {
+      const user = await User.findById(payload.sub);
+      if (!isCurrent(payload, user)) {
+        return res.status(401).json({ message: 'Your session has ended. Please log in again.' });
+      }
+    }
+
     req.user = { id: payload.sub, role: payload.role };
 
     // Impersonation tokens (see impersonation.service.js) carry the real
@@ -27,7 +44,7 @@ function requireAuth(req, res, next) {
 
     next();
   } catch (err) {
-    return res.status(401).json({ message: 'Invalid or expired token' });
+    next(err);
   }
 }
 
@@ -60,6 +77,13 @@ async function requireActiveStaff(req, res, next) {
   }
 }
 
+// For routes open to staff and to other roles: staff are re-checked against the
+// database (a staff JWT lasts 7 days), everyone else passes straight through.
+function requireActiveIfStaff(req, res, next) {
+  if (req.user && STAFF_ROLES.includes(req.user.role)) return requireActiveStaff(req, res, next);
+  return next();
+}
+
 // Every listed permission is required.
 function requirePermission(...permissions) {
   return (req, res, next) => {
@@ -74,5 +98,6 @@ module.exports = {
   requireAuth,
   requireRole,
   requireActiveStaff,
+  requireActiveIfStaff,
   requirePermission,
 };
