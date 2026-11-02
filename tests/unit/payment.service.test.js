@@ -288,6 +288,53 @@ describe('resolveDisputePartial — only runs on a disputed job', () => {
   });
 });
 
+describe('resolveDisputePartial — the platform still takes its commission', () => {
+  const run = async ({ refundPence, payoutPence, rate = 0.15, pricePence = 10000 }) => {
+    const job = makeJob({ paymentStatus: STATES.DISPUTED, pricePence, stripePaymentIntentId: 'pi_1' });
+    Job.findById.mockResolvedValue(job);
+    CleanerProfile.findById.mockResolvedValue(makeCleaner({ commissionTierRate: rate }));
+    stripeService.createRefund.mockResolvedValue({ id: 're_1' });
+    stripeService.createTransfer.mockResolvedValue({ id: 'tr_1' });
+    await paymentService.resolveDisputePartial('job1', { refundPence, payoutPence });
+    return job;
+  };
+
+  it('takes commission from the cleaner\'s share only, refunds the customer in full for their part, and records it for revenue', async () => {
+    const job = await run({ refundPence: 4000, payoutPence: 6000 });
+
+    expect(stripeService.createRefund).toHaveBeenCalledWith(expect.objectContaining({ amountPence: 4000 }));
+    expect(stripeService.createTransfer).toHaveBeenCalledWith(expect.objectContaining({ amountPence: 5100 })); // 6000 less 15%
+    expect(job.commissionRate).toBe(0.15);
+    expect(job.commissionPence).toBe(900);
+    expect(job.cleanerPayoutPence).toBe(5100);
+    expect(job.commissionSettledAt).toBeInstanceOf(Date);
+    expect(job.paymentStatus).toBe(STATES.PAID_OUT);
+    expect(job.stripeTransferId).toBe('tr_1');
+  });
+
+  it('uses the cleaner\'s current rate and rounds to the penny', async () => {
+    const job = await run({ refundPence: 6667, payoutPence: 3333, rate: 0.2 });
+    expect(job.commissionPence).toBe(667); // 666.6
+    expect(job.cleanerPayoutPence).toBe(2666);
+    expect(job.commissionPence + job.cleanerPayoutPence).toBe(3333);
+  });
+
+  it('never moves more than the cleaner\'s share, and the refund plus the platform and cleaner shares add up to the price', async () => {
+    const job = await run({ refundPence: 2500, payoutPence: 7500, rate: 0.15 });
+    const refunded = stripeService.createRefund.mock.calls[0][0].amountPence;
+    const paid = stripeService.createTransfer.mock.calls[0][0].amountPence;
+    expect(refunded + job.commissionPence + paid).toBe(job.pricePence);
+  });
+
+  it('sends no transfer when the cleaner\'s whole share is nil', async () => {
+    const job = await run({ refundPence: 10000, payoutPence: 0 });
+    expect(stripeService.createTransfer).not.toHaveBeenCalled();
+    expect(job.commissionPence).toBe(0);
+    expect(job.cleanerPayoutPence).toBe(0);
+    expect(job.stripeTransferId).toBeUndefined();
+  });
+});
+
 describe('cancelBooked — customer cancels before paying', () => {
   it('cancels the PaymentIntent at Stripe before cancelling the job', async () => {
     const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_1' });

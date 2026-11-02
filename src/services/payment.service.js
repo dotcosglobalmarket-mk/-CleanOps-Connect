@@ -407,6 +407,13 @@ async function resolveDisputePartial(jobId, { refundPence, payoutPence }) {
     throw badRequest('Cleaner has not completed Stripe payouts onboarding');
   }
 
+  // The platform still takes its commission, on the part of the price the cleaner is
+  // paid for (the refunded part was not earned): at the cleaner's current rate, taken
+  // from their share, never added on top.
+  const rate = cleaner.commissionTierRate;
+  const commissionPence = Math.round(payoutPence * rate);
+  const transferPence = payoutPence - commissionPence;
+
   transition(job, EVENTS.RESOLVE_PARTIAL);
   await job.save();
 
@@ -415,15 +422,20 @@ async function resolveDisputePartial(jobId, { refundPence, payoutPence }) {
     amountPence: refundPence,
     idempotencyKey: refundIdempotencyKey(job),
   });
-  const transfer = await stripeService.createTransfer({
-    amountPence: payoutPence,
-    destinationAccountId: cleaner.stripeConnectedAccountId,
-    idempotencyKey: transferIdempotencyKey(job),
-    metadata: { jobId: job._id.toString() },
-  });
+  if (transferPence > 0) {
+    const transfer = await stripeService.createTransfer({
+      amountPence: transferPence,
+      destinationAccountId: cleaner.stripeConnectedAccountId,
+      idempotencyKey: transferIdempotencyKey(job),
+      metadata: { jobId: job._id.toString() },
+    });
+    job.stripeTransferId = transfer.id;
+  }
 
-  job.stripeTransferId = transfer.id;
-  job.cleanerPayoutPence = payoutPence;
+  job.commissionRate = rate;
+  job.commissionPence = commissionPence;
+  job.cleanerPayoutPence = transferPence;
+  job.commissionSettledAt = new Date();
   transition(job, EVENTS.PARTIAL_RESOLUTION_DONE);
   await job.save();
   await jobPhotos.scheduleExpiry(job._id);
