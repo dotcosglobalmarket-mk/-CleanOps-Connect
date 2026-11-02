@@ -35,13 +35,25 @@ async function runAutoConfirmSweep(now = new Date()) {
   }
 }
 
+// Sends the cleaner's share for jobs whose hold (PAYOUT_HOLD_DAYS) has ended.
+async function runReleaseSweep(now = new Date()) {
+  try {
+    const released = await paymentService.releaseDuePayouts(now);
+    return released.length;
+  } catch (err) {
+    logger.error(`[payout-release-worker] ${err.message}`);
+    return 0;
+  }
+}
+
 function startPaymentWorkers(intervalMs = 5 * 60 * 1000) {
   const interval = setInterval(() => {
     runTransferRetrySweep().catch((err) => logger.error(`[transfer-retry-worker] ${err.message}`));
     runAutoConfirmSweep().catch((err) => logger.error(`[auto-confirm-worker] ${err.message}`));
+    runReleaseSweep().catch((err) => logger.error(`[payout-release-worker] ${err.message}`));
   }, intervalMs);
 
   return interval;
 }
 
-module.exports = { runTransferRetrySweep, runAutoConfirmSweep, startPaymentWorkers };
+module.exports = { runTransferRetrySweep, runAutoConfirmSweep, runReleaseSweep, startPaymentWorkers };

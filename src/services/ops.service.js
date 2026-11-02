@@ -378,6 +378,19 @@ async function manualRetryTransfer(jobId, reason, req) {
   return job;
 }
 
+async function releasePayoutNow(jobId, reason, req) {
+  const job = await paymentService.releasePayoutNow(jobId);
+  await auditService.record({
+    req,
+    action: 'payout.release_early',
+    targetType: 'job',
+    targetId: job._id,
+    after: { paymentStatus: job.paymentStatus },
+    reason,
+  });
+  return job;
+}
+
 module.exports = {
   opsRefundLimitPence,
   getSummary,
@@ -394,4 +407,5 @@ module.exports = {
   resetCleanerPayoutSetup,
   getCleanerDetail,
   manualRetryTransfer,
+  releasePayoutNow,
 };

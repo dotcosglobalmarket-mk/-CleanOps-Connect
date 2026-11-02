@@ -147,6 +147,10 @@ const jobSchema = new mongoose.Schema(
     nextPayoutRetryAt: {
       type: Date,
     },
+    // When the cleaner's share is released after the customer confirms (PAYOUT_HOLD_DAYS).
+    payoutReleaseAt: {
+      type: Date,
+    },
     disputeReason: {
       type: String,
     },

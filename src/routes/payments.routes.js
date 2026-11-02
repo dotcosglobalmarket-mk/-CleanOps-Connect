@@ -105,5 +105,14 @@ router.post(
   validateBody(manualRetrySchema),
   PaymentController.manualRetry
 );
+router.post(
+  '/ops/jobs/:id/release-payout',
+  requireAuth,
+  requireActiveStaff,
+  requirePermission('payments.retry'),
+  validateParams(jobIdParamSchema),
+  validateBody(manualRetrySchema),
+  PaymentController.releasePayout
+);
 
 module.exports = router;

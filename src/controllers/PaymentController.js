@@ -125,6 +125,10 @@ const resolvePartial = wrap(async (req) => ({
 
 const resolvePayout = wrap(async (req) => ({ body: await paymentService.resolveDisputePayout(req.params.id) }));
 
+const releasePayout = wrap(async (req) => ({
+  body: await opsService.releasePayoutNow(req.params.id, req.body.reason || 'Payout released early', req),
+}));
+
 const manualRetry = wrap(async (req) => ({
   body: await opsService.manualRetryTransfer(req.params.id, req.body.reason || 'Manual payout retry', req),
 }));
@@ -151,5 +155,6 @@ module.exports = {
   resolvePartial,
   resolvePayout,
   manualRetry,
+  releasePayout,
   opsQueue,
 };

@@ -61,13 +61,18 @@ async function confirmOffSession({ paymentIntentId, paymentMethodId, idempotency
 // key must be reused across retry attempts (see payment.service.js) —
 // Stripe treats a repeated key as "same request", which is exactly what a
 // retry of the same transfer needs.
-async function createTransfer({ amountPence, destinationAccountId, idempotencyKey, metadata }) {
+// sourceTransaction ties the transfer to the customer's charge. Stripe then lets it through even
+// while the charge's money is still "pending", and the cleaner's share becomes available on the
+// same day the charge clears. Without it, a transfer needs available balance and fails with
+// balance_insufficient for the first few days after a card payment.
+async function createTransfer({ amountPence, destinationAccountId, idempotencyKey, metadata, sourceTransaction }) {
   return getClient().transfers.create(
     {
       amount: amountPence,
       currency: 'gbp',
       destination: destinationAccountId,
       metadata,
+      ...(sourceTransaction ? { source_transaction: sourceTransaction } : {}),
     },
     { idempotencyKey }
   );
