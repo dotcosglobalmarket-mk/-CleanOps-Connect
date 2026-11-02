@@ -34,6 +34,32 @@ const userSchema = new mongoose.Schema(
     // two-step login reset, staff deactivation). Sessions carry the number they
     // were issued under; see session.service.js.
     tokenVersion: { type: Number, default: 0 },
+    // Customer's saved card (see customer-card.service.js). Only Stripe ids and
+    // the non-sensitive summary Stripe returns are kept here, never card numbers.
+    stripeCustomerId: {
+      type: String,
+    },
+    savedCard: {
+      paymentMethodId: { type: String },
+      brand: { type: String },
+      last4: { type: String },
+      expMonth: { type: Number },
+      expYear: { type: Number },
+      // When they agreed, and to which wording (see CARD_CONSENT_VERSION).
+      consentAt: { type: Date },
+      consentVersion: { type: String },
+    },
+    // Every time a card was saved, re-agreed to or removed, with the wording in force.
+    // Kept when a card is removed, as evidence of what was agreed (see the privacy notice).
+    cardConsentLog: [
+      {
+        event: { type: String, enum: ['saved', 'agreed', 'removed'] },
+        at: { type: Date },
+        version: { type: String },
+        brand: { type: String },
+        last4: { type: String },
+      },
+    ],
     // Two-step login (see two-factor.service.js). The authenticator secret is
     // stored encrypted and recovery codes only as hashes.
     twoFactor: {

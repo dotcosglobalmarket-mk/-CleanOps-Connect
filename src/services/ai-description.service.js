@@ -7,6 +7,7 @@ const MAX_OUTPUT_CHARS = 1500;
 const FREQUENCY_LABELS = {
   one_off: 'one-off',
   weekly: 'weekly',
+  fortnightly: 'fortnightly',
   monthly: 'monthly',
   contract: 'ongoing contract',
 };

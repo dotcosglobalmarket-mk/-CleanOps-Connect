@@ -5,6 +5,7 @@ const { moderationQuerySchema, setReviewVisibilitySchema } = require('../validat
 const { requireAuth, requireActiveStaff, requirePermission } = require('../middleware/auth');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
 const { listCleanersQuerySchema, listJobsQuerySchema } = require('../validation/admin.validation');
+const { listSeriesQuerySchema } = require('../validation/series.validation');
 const {
   idParamSchema,
   resolveDisputeSchema,
@@ -54,6 +55,8 @@ router.patch(
   validateBody(opsCleanerStatusSchema),
   OpsController.updateCleanerStatus
 );
+
+router.get('/series', requirePermission('jobs.read'), validateQuery(listSeriesQuerySchema), OpsController.listSeries);
 
 router.get('/jobs', requirePermission('jobs.read'), validateQuery(listJobsQuerySchema), OpsController.listJobs);
 router.get('/jobs/:id', requirePermission('jobs.read'), validateParams(idParamSchema), OpsController.getJob);

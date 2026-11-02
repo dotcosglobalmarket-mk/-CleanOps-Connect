@@ -6,6 +6,8 @@ const coverageService = require('./coverage.service');
 const aiScoringService = require('./ai-scoring.service');
 const insuranceService = require('./insurance.service');
 const paymentService = require('./payment.service');
+const subscriptionService = require('./subscription.service');
+const seriesService = require('./series.service');
 const notifications = require('./notification.service');
 const { maskContactDetails } = require('./contact-filter.service');
 
@@ -81,7 +83,7 @@ async function getJobForUser(jobId, requestingUser) {
   if (requestingUser.role === 'admin') return job;
 
   if (requestingUser.role === 'customer' && job.customer && job.customer.toString() === requestingUser.id) {
-    return stripInternalFields(job);
+    return withCancellationPolicy(stripInternalFields(job));
   }
 
   if (requestingUser.role === 'cleaner') {
@@ -96,6 +98,11 @@ async function getJobForUser(jobId, requestingUser) {
   throw forbidden('You do not have access to this job');
 }
 
+// What the customer is told on the cancel screen: only meaningful once the job is paid.
+function withCancellationPolicy(plain) {
+  return { ...plain, cancellationPolicy: plain.paymentStatus === 'PAID_HELD' ? paymentService.cancellationPolicy(plain) : null };
+}
+
 function stripInternalFields(job) {
   const plain = toPlain(job);
   INTERNAL_JOB_FIELDS.forEach((field) => delete plain[field]);
@@ -104,12 +111,13 @@ function stripInternalFields(job) {
 
 // Customer's own jobs, newest first, without payment internals.
 async function listJobsForCustomer(customerId) {
-  const jobs = await Job.find({ customer: customerId })
+  // Visits the series has made ahead (not yet charged) stay out of this list.
+  const jobs = await Job.find({ customer: customerId, visitState: { $nin: ['scheduled', 'skipped'] } })
     .populate('serviceType', 'name')
     .populate('cleaner', 'name ratingAverage ratingCount')
     .sort({ createdAt: -1 })
     .limit(200);
-  return jobs.map(stripInternalFields);
+  return jobs.map((job) => withCancellationPolicy(stripInternalFields(job)));
 }
 
 // Offers on the customer's job with each cleaner's public details only.
@@ -299,8 +307,14 @@ async function acceptOffer(jobId, offerId, requestingUser, pricePence) {
   if (job.procurement === 'tender') {
     throw badRequest('This job is open for quotes: send your quote instead');
   }
+  // An offer can sit for days. Booking a visit for a time that has gone would start a
+  // series (or a one-off) in the past, so the customer is asked to post it again.
+  if (job.preferredStartAt && job.preferredStartAt.getTime() <= Date.now()) {
+    throw badRequest("This job's preferred date and time has already passed. Ask the customer to post it again with a new date.");
+  }
 
   const { offer, cleaner } = await requireOwnOffer(jobId, offerId, requestingUser.id);
+  await subscriptionService.requireActiveSubscription(cleaner._id);
 
   const { booked } = await bookFromOffer({
     job,
@@ -310,6 +324,8 @@ async function acceptOffer(jobId, offerId, requestingUser, pricePence) {
     fromStatus: 'sent',
     otherStatuses: 'sent',
   });
+  // A recurring job becomes a series with this booking as its first visit.
+  await seriesService.startFromBookedJob(booked);
   notifications.jobBooked(booked);
 
   return booked;
@@ -331,6 +347,7 @@ async function submitQuote(jobId, offerId, requestingUser, { pricePence, message
   if (!offer || offer.job.toString() !== jobId) throw notFound('Offer not found');
   const cleaner = await requireOwningCleanerProfile(requestingUser.id);
   if (offer.cleaner.toString() !== cleaner._id.toString()) throw forbidden('This tender invitation was not sent to you');
+  await subscriptionService.requireActiveSubscription(cleaner._id);
 
   const masked = message ? maskContactDetails(message).text : undefined;
   const updated = await JobOffer.findOneAndUpdate(

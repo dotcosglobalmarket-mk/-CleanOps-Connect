@@ -27,6 +27,7 @@
       <button type="button" class="dash-nav-item is-active" data-panel="overview">Overview</button>
       <button type="button" class="dash-nav-item" data-panel="offers">Job Offers</button>
       <button type="button" class="dash-nav-item" data-panel="jobs">My Jobs</button>
+      <button type="button" class="dash-nav-item" data-panel="regular" id="nav-regular" hidden>Regular Jobs</button>
       <button type="button" class="dash-nav-item" data-panel="messages">Messages <span id="messages-unread" class="unread-badge" hidden></span></button>
       <button type="button" class="dash-nav-item" data-panel="earnings">Earnings &amp; Payouts</button>
       <button type="button" class="dash-nav-item" data-panel="profile">My Profile</button>
@@ -115,6 +116,21 @@
 
       <!-- Earnings & Payouts -->
       <!-- Messages -->
+      <section id="panel-regular" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Regular Jobs</h2>
+          <button id="regular-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Weekly, fortnightly and monthly bookings with the same customer at your price per visit. Each visit is paid for
+          48 hours before it and held until the customer confirms it. If you cannot attend a visit, say so here: the
+          customer is refunded in full, and a second cancelled visit pauses the series. Ending a series needs 14 days' notice.
+        </p>
+        <div id="regular-alert" class="alert alert-error" hidden></div>
+        <div id="regular-success" class="alert alert-success" hidden></div>
+        <div id="regular-list"></div>
+      </section>
+
       <section id="panel-messages" class="dash-panel">
         <div class="section-heading">
           <h2 class="panel-title">Messages</h2>
@@ -144,6 +160,7 @@
           <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
             <button id="payouts-setup-button" type="button" hidden>Set up payouts with Stripe</button>
             <button id="payouts-dashboard-button" type="button" class="secondary" hidden>Open my Stripe dashboard</button>
+            <button id="payouts-retry-button" type="button" class="secondary" hidden>Try again</button>
           </div>
           <p class="field-help">
             Stripe checks your identity and bank details for us. We never see your bank account number.
@@ -382,9 +399,28 @@
             A small monthly platform fee covers costs like SMS notifications and payment processing. Cleaners set
             their own job prices — this fee is separate from and never affects your commission rate.
           </p>
-          <div id="subscription-alert" class="alert alert-error" hidden></div>
-          <div id="subscription-success" class="alert alert-success" hidden></div>
+          <!-- The result shows here (top of the section) and again under the card form, next to the buttons. -->
+          <div id="subscription-alert-top" class="alert alert-error" hidden></div>
+          <div id="subscription-success-top" class="alert alert-success" hidden></div>
           <p id="subscription-status-text" class="field-help"></p>
+
+          <div id="subscription-cancel" class="subscription-cancel" style="margin-bottom:1rem" hidden>
+            <div id="subscription-cancel-alert" class="alert alert-error" hidden></div>
+            <div id="subscription-cancel-success" class="alert alert-success" hidden></div>
+            <p id="subscription-cancel-text" class="field-help"></p>
+            <div id="subscription-cancel-form" hidden>
+              <div class="form-row">
+                <label for="subscription-cancel-reason">Why are you leaving? (optional)</label>
+                <textarea id="subscription-cancel-reason" rows="2" maxlength="500"></textarea>
+              </div>
+              <div class="cta-row">
+                <button id="subscription-cancel-send" type="button">Send cancellation request</button>
+                <button id="subscription-cancel-back" type="button" class="secondary">Keep my plan</button>
+              </div>
+            </div>
+            <button id="subscription-cancel-open" type="button" class="secondary" hidden>Request cancellation</button>
+            <button id="subscription-cancel-withdraw" type="button" class="secondary" hidden>Withdraw my request</button>
+          </div>
 
           <div class="form-row">
             <label for="plan">Plan</label>
@@ -400,9 +436,13 @@
             <div id="subscription-payment-element"></div>
           </div>
 
+          <!-- Right under the card form and above the buttons, so the result shows where it was asked for. -->
+          <div id="subscription-alert" class="alert alert-error" hidden></div>
+          <div id="subscription-success" class="alert alert-success" hidden></div>
+
           <div style="display: flex; gap: 0.75rem;">
             <button id="activate-subscription-button" type="button">Save card &amp; activate subscription</button>
-            <button id="add-insurance-button" type="button" class="secondary">Add insurance add-on</button>
+            <button id="add-insurance-button" type="button" class="secondary" disabled title="Not available: we point cleaners to insurance providers to arrange their own cover">Add insurance add-on</button>
           </div>
         </div>
       </section>

@@ -1,8 +1,10 @@
 jest.mock('../../src/models/Job', () => ({ find: jest.fn() }));
+jest.mock('../../src/models/Series', () => ({ countDocuments: jest.fn() }));
 jest.mock('../../src/models/Subscription', () => ({ find: jest.fn() }));
 jest.mock('../../src/models/SubscriptionPayment', () => ({ find: jest.fn() }));
 
 const Job = require('../../src/models/Job');
+const Series = require('../../src/models/Series');
 const Subscription = require('../../src/models/Subscription');
 const SubscriptionPayment = require('../../src/models/SubscriptionPayment');
 const { getRevenue, REVENUE_STATES } = require('../../src/services/revenue.service');
@@ -23,6 +25,32 @@ beforeEach(() => {
   Job.find.mockReturnValue(query([]));
   Subscription.find.mockReturnValue(query([]));
   SubscriptionPayment.find.mockReturnValue(query([]));
+  Series.countDocuments.mockResolvedValue(0);
+});
+
+describe('getRevenue: regular (recurring) visits', () => {
+  it('shows how much of the commission came from visits of regular bookings', async () => {
+    Job.find.mockReturnValue(
+      query([
+        { commissionPence: 400, confirmedAt: daysAgo(1) },
+        { commissionPence: 390, confirmedAt: daysAgo(2), series: 'series1' },
+        { commissionPence: 390, confirmedAt: daysAgo(9), series: 'series1' },
+      ])
+    );
+    Series.countDocuments.mockResolvedValue(3);
+    const r = await getRevenue({ range: '30d' }, NOW);
+
+    expect(r.totals.commissionPence).toBe(1180); // visits are in the total like any job
+    expect(r.totals.recurringCommissionPence).toBe(780);
+    expect(r.totals.recurringVisitsCount).toBe(2);
+    expect(r.totals.activeSeriesCount).toBe(3);
+    expect(Series.countDocuments).toHaveBeenCalledWith({ status: 'active' });
+  });
+
+  it('is zero when there are none', async () => {
+    const r = await getRevenue({ range: '30d' }, NOW);
+    expect(r.totals).toMatchObject({ recurringCommissionPence: 0, recurringVisitsCount: 0, activeSeriesCount: 0 });
+  });
 });
 
 describe('getRevenue', () => {

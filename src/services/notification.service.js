@@ -306,6 +306,174 @@ module.exports = {
     });
   }),
 
+  subscriptionCancellationRequested: safely('subscriptionCancellationRequested', async (cleanerProfileId) => {
+    await emailService.send({
+      to: await cleanerEmail(cleanerProfileId),
+      subject: 'We have your CleanOps cancellation request',
+      paragraphs: [
+        'We have received your request to cancel your CleanOps subscription.',
+        'Your plan stays active, and billing continues as normal, until we confirm it. We will email you when it is done.',
+      ],
+      action: cleanerLink('View my subscription', 'coverage'),
+    });
+  }),
+
+  subscriptionCancelled: safely('subscriptionCancelled', async (cleanerProfileId, { when, endsAt }) => {
+    const date = endsAt ? new Date(endsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    await emailService.send({
+      to: await cleanerEmail(cleanerProfileId),
+      subject: when === 'now' ? 'Your CleanOps subscription has ended' : 'Your CleanOps subscription is set to end',
+      paragraphs:
+        when === 'now'
+          ? ['Your CleanOps subscription has been cancelled and no further payments will be taken.']
+          : [
+              `Your CleanOps subscription is set to end on ${date}. You keep your plan until then, and no further payments will be taken.`,
+            ],
+      action: cleanerLink('View my subscription', 'coverage'),
+    });
+  }),
+
+  // --- Recurring visits (series): charging, skipping, pausing ---
+
+  visitPaymentFailed: safely('visitPaymentFailed', async (job, { retryAt }) => {
+    await emailService.send({
+      to: await customerEmail(job),
+      subject: 'We could not take payment for your next visit',
+      paragraphs: [
+        `We tried your saved card for your next visit (${pounds(job.pricePence)}) and it did not go through.`,
+        retryAt
+          ? `We will try once more on ${retryAt.toLocaleString('en-GB', { dateStyle: 'full', timeStyle: 'short', timeZone: 'Europe/London' })}. If it still fails, that visit will be skipped. You can replace your card under Payment card.`
+          : 'That visit has been skipped. You can replace your card under Payment card.',
+      ],
+      action: { label: 'Update my card', url: frontendUrl('customer.html') },
+    });
+  }),
+
+  visitSkipped: safely('visitSkipped', async (job, { reason }) => {
+    const when = job.preferredStartAt
+      ? job.preferredStartAt.toLocaleString('en-GB', { dateStyle: 'full', timeStyle: 'short', timeZone: 'Europe/London' })
+      : 'a visit';
+    if (reason === 'customer') {
+      await emailService.send({
+        to: await cleanerEmail(job.cleaner),
+        subject: 'A customer has skipped a visit',
+        paragraphs: [`The customer has skipped the visit on ${when}, so you do not need to attend. The rest of the series carries on.`],
+        action: cleanerLink('Open my jobs', 'jobs'),
+      });
+      return;
+    }
+    const why = reason === 'cleaner' ? 'your cleaner has had to cancel it' : 'we could not take payment for it';
+    await emailService.send({
+      to: await customerEmail(job),
+      subject: 'A visit has been skipped',
+      paragraphs: [`Your visit on ${when} will not go ahead because ${why}. You have not been charged for it.`],
+      action: { label: 'View my account', url: frontendUrl('customer.html') },
+    });
+  }),
+
+  seriesPaused: safely('seriesPaused', async (series, { reason }) => {
+    const why =
+      reason === 'payment'
+        ? 'two visits in a row could not be paid for'
+        : 'your cleaner has now cancelled more than one visit';
+    await emailService.send({
+      to: await customerEmail(series),
+      subject: 'Your regular cleaning has been paused',
+      paragraphs: [
+        `We have paused your regular cleaning because ${why}. No more visits will be made or charged until you decide.`,
+        reason === 'payment'
+          ? 'Check your saved card under Payment card, then resume the series.'
+          : 'You can resume with the same cleaner, or cancel the series and we can help you find another.',
+      ],
+      action: { label: 'View my account', url: frontendUrl('customer.html') },
+    });
+  }),
+
+  seriesCancelledByCustomer: safely('seriesCancelledByCustomer', async (series) => {
+    await emailService.send({
+      to: await cleanerEmail(series.cleaner),
+      subject: 'A customer has ended a regular booking',
+      paragraphs: ['The customer has ended this regular booking. Upcoming visits that had not been charged are cancelled. Any visit already paid for stays booked.'],
+      action: cleanerLink('Open my jobs', 'jobs'),
+    });
+  }),
+
+  seriesEndNotice: safely('seriesEndNotice', async (series, { endsOn }) => {
+    await emailService.send({
+      to: await customerEmail(series),
+      subject: 'Your cleaner will stop your regular visits',
+      paragraphs: [
+        `Your cleaner has given 14 days' notice, so your regular cleaning will end on ${endsOn.toLocaleDateString('en-GB', { dateStyle: 'full', timeZone: 'Europe/London' })}. Visits up to then go ahead as normal.`,
+        'You can post a new job at any time to find another cleaner.',
+      ],
+      action: { label: 'View my account', url: frontendUrl('customer.html') },
+    });
+  }),
+
+  seriesStarted: safely('seriesStarted', async (series, { who }) => {
+    const every = { weekly: 'every week', fortnightly: 'every two weeks', monthly: 'every month' }[series.frequency] || 'regularly';
+    const ends = series.endsOn.toLocaleDateString('en-GB', { dateStyle: 'long', timeZone: 'Europe/London' });
+    if (who === 'cleaner') {
+      await emailService.send({
+        to: await cleanerEmail(series.cleaner),
+        subject: 'Your regular booking is under way',
+        paragraphs: [
+          `Your regular booking has started: ${every}, at ${pounds(series.pricePence)} a visit, until ${ends}. Each visit is paid for 48 hours before it, and held until the customer confirms it.`,
+          'You can see every upcoming visit under Regular Jobs.',
+        ],
+        action: cleanerLink('See my regular jobs', 'regular'),
+      });
+      return;
+    }
+    await emailService.send({
+      to: await customerEmail(series),
+      subject: 'Your regular cleaning is set up',
+      paragraphs: [
+        `Your cleaning will happen ${every} at ${pounds(series.pricePence)} a visit, until ${ends}.`,
+        'Each visit is charged to your saved card 48 hours before it. You can skip a visit for free until then, or pause or cancel the series, from Regular cleaning in your account.',
+      ],
+      action: { label: 'See my regular cleaning', url: frontendUrl('customer.html?tab=series') },
+    });
+  }),
+
+  seriesRenewalReminder: safely('seriesRenewalReminder', async (series) => {
+    const ends = series.endsOn.toLocaleDateString('en-GB', { dateStyle: 'full', timeZone: 'Europe/London' });
+    await emailService.send({
+      to: await customerEmail(series),
+      subject: 'Your regular cleaning ends soon',
+      paragraphs: [
+        `Your regular cleaning ends on ${ends}. It does not renew by itself, and you will not be charged after that date.`,
+        'If you would like to carry on, post a new job and choose how often you want it.',
+      ],
+      action: { label: 'See my regular cleaning', url: frontendUrl('customer.html?tab=series') },
+    });
+  }),
+
+  seriesPausedByCustomer: safely('seriesPausedByCustomer', async (series, { resumed }) => {
+    await emailService.send({
+      to: await cleanerEmail(series.cleaner),
+      subject: resumed ? 'A regular booking has resumed' : 'A regular booking has been paused',
+      paragraphs: [
+        resumed
+          ? 'The customer has resumed this regular booking. New visits will appear again.'
+          : 'The customer has paused this regular booking. Visits that have not been charged will not go ahead until they resume it.',
+      ],
+      action: cleanerLink('See my regular jobs', 'regular'),
+    });
+  }),
+
+  subscriptionCancellationDeclined: safely('subscriptionCancellationDeclined', async (cleanerProfileId) => {
+    await emailService.send({
+      to: await cleanerEmail(cleanerProfileId),
+      subject: 'Your CleanOps subscription is unchanged',
+      paragraphs: [
+        'We have not cancelled your CleanOps subscription, so your plan and billing carry on as normal.',
+        'If you still want to leave, or have a question, please reply to this email.',
+      ],
+      action: cleanerLink('View my subscription', 'coverage'),
+    });
+  }),
+
   complianceDocumentReviewed: safely('complianceDocumentReviewed', async (cleanerProfileId, doc) => {
     const label = { dbs: 'DBS certificate', coshh: 'COSHH certificate', insurance: 'insurance certificate' }[doc.type] || 'document';
     const approved = doc.status === 'approved';

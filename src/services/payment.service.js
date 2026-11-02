@@ -9,6 +9,33 @@ const logger = require('../utils/logger');
 const MAX_TRANSFER_ATTEMPTS = 3;
 const RETRY_BACKOFF_MINUTES = [5, 30, 120]; // 5min -> 30min -> 2hr
 const AUTO_CONFIRM_WINDOW_HOURS = 48;
+const DEFAULT_PAYOUT_HOLD_DAYS = 3;
+const MAX_PAYOUT_HOLD_DAYS = 7;
+
+// How long the cleaner's share is held after the customer confirms: card money takes a few days
+// to clear, and the hold leaves time to put a problem right before it leaves the platform.
+// PAYOUT_HOLD_DAYS sets it (0 to 7, default 3).
+function payoutHoldDays() {
+  const raw = process.env.PAYOUT_HOLD_DAYS;
+  if (raw === undefined || raw === '') return DEFAULT_PAYOUT_HOLD_DAYS;
+  const days = Number(raw);
+  if (!Number.isFinite(days) || days < 0) return DEFAULT_PAYOUT_HOLD_DAYS;
+  return Math.min(days, MAX_PAYOUT_HOLD_DAYS);
+}
+
+// The charge behind the job's payment, so the transfer can be tied to it (see stripe.service).
+// If Stripe cannot say, the transfer is still tried without it.
+async function sourceChargeFor(job) {
+  if (!job.stripePaymentIntentId) return undefined;
+  try {
+    const intent = await stripeService.retrievePaymentIntent(job.stripePaymentIntentId);
+    const charge = intent && intent.latest_charge;
+    return typeof charge === 'string' ? charge : charge && charge.id;
+  } catch (err) {
+    logger.error(`[payment] Could not read the charge for job ${job._id}: ${err.message}`);
+    return undefined;
+  }
+}
 
 // Reason codes a customer must pick from when raising a dispute — "reason
 // code required, not free text only" per spec. Free-text detail can still
@@ -22,12 +49,34 @@ const DISPUTE_REASON_CODES = [
   'other',
 ];
 
-// Cancellation policy — the spec referenced "check cancellation policy
-// window" without specifying the exact hours/percentage; these numbers are
-// the confirmed business rule (full refund within 24hr of booking, 50% back
-// on a later cancellation), not a placeholder.
+// Cancellation policy — the confirmed business rule, not a placeholder: a full
+// refund up to 24 hours before the job starts, 50% back after that (see
+// cancellationPolicy below for jobs with no start time).
 const CUSTOMER_FULL_REFUND_WINDOW_HOURS = 24;
 const CUSTOMER_LATE_CANCELLATION_REFUND_RATE = 0.5;
+
+// When a customer can still cancel a paid job for a full refund.
+//  - A job with a start time: full refund until 24 hours before it starts, then 50%.
+//  - A job with no start time (older jobs, tenders): 24 hours from booking, as before.
+//  - A later visit of a regular booking is charged 48 hours ahead, so once paid it is
+//    always a late cancellation (skipping it before it is charged is free: see
+//    series-rules.service.js).
+// Returned for the screen too, so the customer is told the same thing the server will do.
+function cancellationPolicy(job, now = new Date()) {
+  if (job.series && job.visitNumber > 1) {
+    return { basis: 'visit', fullRefund: false, fullRefundUntil: null };
+  }
+  const window = CUSTOMER_FULL_REFUND_WINDOW_HOURS * 3600 * 1000;
+  if (job.preferredStartAt) {
+    const fullRefundUntil = new Date(new Date(job.preferredStartAt).getTime() - window);
+    return { basis: 'start', fullRefund: now.getTime() <= fullRefundUntil.getTime(), fullRefundUntil };
+  }
+  // Jobs booked before bookedAt existed fall back to createdAt.
+  const bookedAt = job.bookedAt || job.createdAt;
+  if (!bookedAt) return { basis: 'booking', fullRefund: false, fullRefundUntil: null };
+  const fullRefundUntil = new Date(new Date(bookedAt).getTime() + window);
+  return { basis: 'booking', fullRefund: now.getTime() <= fullRefundUntil.getTime(), fullRefundUntil };
+}
 
 function notFound(message) {
   const error = new Error(message);
@@ -108,7 +157,12 @@ async function cancelBooked(jobId) {
     try {
       await stripeService.cancelPaymentIntent(job.stripePaymentIntentId);
     } catch (err) {
-      throw badRequest('Your payment is already being processed, so this booking cannot be cancelled without a refund. Please refresh and try again.');
+      // Only a payment that has genuinely moved on blocks the cancel. An intent
+      // Stripe no longer knows (made under another mode) was never paid: cancel.
+      if (err.code === 'payment_intent_unexpected_state') {
+        throw badRequest('Your payment is already being processed, so this booking cannot be cancelled without a refund. Please refresh and try again.');
+      }
+      if (!stripeService.isMissingResource(err)) throw err;
     }
   }
 
@@ -117,6 +171,24 @@ async function cancelBooked(jobId) {
   await job.save();
   notifications.jobCancelled(job, { by: 'customer' });
   return job;
+}
+
+// The customer is about to pay a BOOKED (unpaid) job. Returns its PaymentIntent,
+// making a fresh one if the stored one no longer exists for the Stripe key now in
+// use (e.g. booked in test mode, site now live). Nothing was paid on the old one.
+async function getOrRenewPaymentIntent(job) {
+  try {
+    return await stripeService.retrievePaymentIntent(job.stripePaymentIntentId);
+  } catch (err) {
+    if (!stripeService.isMissingResource(err)) throw err;
+  }
+  const renewed = await stripeService.createPaymentIntent({
+    amountPence: job.pricePence,
+    metadata: { jobId: job._id.toString() },
+  });
+  job.stripePaymentIntentId = renewed.id;
+  await job.save();
+  return renewed;
 }
 
 // --- payment_intent.succeeded webhook ---
@@ -170,11 +242,7 @@ async function cancelByCustomer(jobId) {
     throw badRequest('Job can only be cancelled by the customer before it has started');
   }
 
-  // The refund window runs from when the job was booked, not when it was
-  // posted. Jobs booked before bookedAt existed fall back to createdAt.
-  const bookedAt = job.bookedAt || job.createdAt;
-  const hoursSinceBooking = (Date.now() - bookedAt.getTime()) / (1000 * 60 * 60);
-  const isWithinFullRefundWindow = hoursSinceBooking <= CUSTOMER_FULL_REFUND_WINDOW_HOURS;
+  const isWithinFullRefundWindow = cancellationPolicy(job).fullRefund;
 
   transition(job, EVENTS.CANCEL_BY_CUSTOMER);
   job.status = 'cancelled';
@@ -242,9 +310,14 @@ async function enterPayoutPending(job) {
   job.commissionPence = commissionPence;
   job.cleanerPayoutPence = cleanerPayoutPence;
 
+  const holdDays = payoutHoldDays();
+  job.payoutReleaseAt = new Date(Date.now() + holdDays * 24 * 60 * 60 * 1000);
+
   transition(job, EVENTS.CALCULATE_SPLIT);
   await job.save();
 
+  // During the hold the job waits in PAYOUT_PENDING; releaseDuePayouts() sends it afterwards.
+  if (holdDays > 0) return job;
   return attemptTransfer(job, cleaner);
 }
 
@@ -383,6 +456,7 @@ async function attemptTransfer(job, cleaner) {
       destinationAccountId: cleaner.stripeConnectedAccountId,
       idempotencyKey: transferIdempotencyKey(job),
       metadata: { jobId: job._id.toString() },
+      sourceTransaction: await sourceChargeFor(job),
     });
     job.stripeTransferId = transfer.id;
     await job.save();
@@ -450,10 +524,46 @@ async function manualRetryTransfer(jobId) {
     destinationAccountId: cleaner.stripeConnectedAccountId,
     idempotencyKey: transferIdempotencyKey(job),
     metadata: { jobId: job._id.toString() },
+    sourceTransaction: await sourceChargeFor(job),
   });
   job.stripeTransferId = transfer.id;
   await job.save();
   return job;
+}
+
+// Sends the cleaner's share once its hold has ended. Only jobs still waiting (no transfer yet)
+// are picked up; the transfer uses the same idempotency key on any retry.
+async function releaseDuePayouts(now = new Date()) {
+  const due = await Job.find({
+    paymentStatus: STATES.PAYOUT_PENDING,
+    stripeTransferId: { $in: [null, ''] },
+    payoutReleaseAt: { $lte: now },
+  });
+  const released = [];
+  for (const job of due) {
+    try {
+      const cleaner = await CleanerProfile.findById(job.cleaner);
+      if (!cleaner) continue;
+      await attemptTransfer(job, cleaner);
+      released.push(job._id);
+    } catch (err) {
+      logger.error(`[payment] Releasing payout for job ${job._id}: ${err.message}`);
+    }
+  }
+  return released;
+}
+
+// Ops: end the hold early for a job that is waiting.
+async function releasePayoutNow(jobId) {
+  const job = await requireJob(jobId);
+  if (job.paymentStatus !== STATES.PAYOUT_PENDING || job.stripeTransferId) {
+    throw badRequest('This job is not waiting for its payout to be released');
+  }
+  const cleaner = await CleanerProfile.findById(job.cleaner);
+  if (!cleaner) throw notFound('Cleaner not found');
+  job.payoutReleaseAt = new Date();
+  await job.save();
+  return attemptTransfer(job, cleaner);
 }
 
 // --- Webhooks that don't go through the job payment state machine ---
@@ -532,6 +642,8 @@ module.exports = {
   MAX_TRANSFER_ATTEMPTS,
   RETRY_BACKOFF_MINUTES,
   bookJob,
+  cancellationPolicy,
+  getOrRenewPaymentIntent,
   cancelBooked,
   handlePaymentSucceeded,
   cancelByCleaner,
@@ -547,6 +659,9 @@ module.exports = {
   attemptTransfer,
   retryTransfer,
   manualRetryTransfer,
+  releaseDuePayouts,
+  releasePayoutNow,
+  payoutHoldDays,
   handleTransferPaid,
   handleTransferFailedWebhook,
   handlePayoutFailed,

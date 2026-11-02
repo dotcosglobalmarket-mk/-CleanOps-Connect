@@ -98,6 +98,62 @@ describe('errorHandler', () => {
     errorHandler(unavailable, {}, down, jest.fn());
     expect(down.json).toHaveBeenCalledWith({ message: 'Suggestions are unavailable right now' });
   });
+
+  describe('payment provider errors', () => {
+    const leaky =
+      "The provided key 'rk_live_********************AbCdEf' does not have access to account 'acct_1AbCdEfGhIjKlMnO' (or that account does not exist).";
+
+    it('never sends a Stripe error message to the browser', () => {
+      const res = mockRes();
+      const err = new Error(leaky);
+      err.type = 'StripePermissionError';
+
+      errorHandler(err, {}, res, jest.fn());
+
+      expect(res.status).toHaveBeenCalledWith(502);
+      const { message } = res.json.mock.calls[0][0];
+      expect(message).toMatch(/payment provider/);
+      expect(message).not.toMatch(/rk_live|acct_|AbCdEf/);
+    });
+
+    it('still writes the full Stripe error to the server log', () => {
+      const res = mockRes();
+      const err = new Error(leaky);
+      err.type = 'StripeInvalidRequestError';
+
+      errorHandler(err, {}, res, jest.fn());
+
+      expect(consoleErrorSpy.mock.calls.flat().join(' ')).toContain('acct_1AbCdEfGhIjKlMnO');
+    });
+
+    it('keeps the message of a declined card, which is written for the customer', () => {
+      const res = mockRes();
+      const err = new Error('Your card was declined.');
+      err.type = 'StripeCardError';
+      err.status = 402;
+
+      errorHandler(err, {}, res, jest.fn());
+
+      expect(res.status).toHaveBeenCalledWith(402);
+      expect(res.json).toHaveBeenCalledWith({ message: 'Your card was declined.' });
+    });
+
+    it('hides keys, webhook secrets and account ids if one reaches a message that is shown', () => {
+      const res = mockRes();
+      const err = new Error('failed with sk_live_abc123 and whsec_XyZ789 for acct_1ABC');
+      err.status = 400;
+
+      errorHandler(err, {}, res, jest.fn());
+
+      expect(res.json).toHaveBeenCalledWith({ message: 'failed with [hidden] and [hidden] for [hidden]' });
+    });
+
+    it('does not show an ordinary 500 at all, secrets or not', () => {
+      const res = mockRes();
+      errorHandler(new Error('failed with sk_live_abc123'), {}, res, jest.fn());
+      expect(JSON.stringify(res.json.mock.calls[0][0])).not.toMatch(/sk_live|failed with/);
+    });
+  });
 });
 
 describe('notFoundHandler', () => {

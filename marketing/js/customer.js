@@ -6,11 +6,11 @@ import { mountJobPhotos, uploadJobPhotos } from './job-photos.js';
 import { avatarHtml, hydrateAvatars } from './avatar.js';
 import { fetchGuide, renderGuide } from './price-guide.js';
 import { mountChat, fetchUnread, setupConversations } from './chat.js';
-import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate } from './dashboard-ui.js';
+import { mountSeries } from './series-ui.js';
+import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate, formatVisit, formatWhen } from './dashboard-ui.js';
 
 requireRole('customer');
 
-const FULL_REFUND_WINDOW_HOURS = 24;
 const CONFIRM_WINDOW_HOURS = 48;
 
 // What the customer sees for each payment state: [short label, badge kind, explanation].
@@ -107,6 +107,21 @@ try {
   // Storage unavailable: they just type it again.
 }
 
+// Earliest choosable visit: now, in the browser's local time, as datetime-local expects.
+const preferredStartInput = document.getElementById('preferredStart');
+const soonest = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+preferredStartInput.min = soonest.toISOString().slice(0, 16);
+
+// Shows the customer the end time their estimated hours give, as they type.
+function updateEndPreview() {
+  const preview = document.getElementById('preferred-end-preview');
+  const start = preferredStartInput.value;
+  const hours = Number(document.getElementById('estimatedHours').value);
+  preview.textContent = start && hours > 0 ? `Ends about ${formatWhen(new Date(start).toISOString(), hours).split(' to about ')[1]}.` : '';
+}
+preferredStartInput.addEventListener('input', updateEndPreview);
+document.getElementById('estimatedHours').addEventListener('input', updateEndPreview);
+
 document.getElementById('create-job-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   hideAlert('create-alert');
@@ -127,6 +142,13 @@ document.getElementById('create-job-form').addEventListener('submit', async (eve
     if (requirements) payload.tender.requirements = requirements;
   }
   if (estimatedHours) payload.estimatedHours = Number(estimatedHours);
+  const preferredStart = document.getElementById('preferredStart').value;
+  if (preferredStart) {
+    payload.preferredStartAt = new Date(preferredStart).toISOString();
+  } else if (!payload.tender) {
+    showAlert('create-alert', 'Choose a preferred date and time.');
+    return;
+  }
 
   const button = event.target.querySelector('button[type="submit"]');
   button.disabled = true;
@@ -238,7 +260,7 @@ async function loadJobs() {
     container.innerHTML = renderTable({
       fit: true,
       phoneOnly: true,
-      columns: ['Job', 'Posted', 'Cleaner', 'Price', 'Status', 'Actions'],
+      columns: ['Job', 'When', 'Posted', 'Cleaner', 'Price', 'Status', 'Actions'],
       emptyMessage: "You haven't posted any jobs yet. Use Post a job to get started.",
       rows: jobs.map((job) => {
         const [label, kind] = statusInfo(job);
@@ -249,6 +271,7 @@ async function loadJobs() {
         return `
           <tr>
             <td>${escapeHtml(job.serviceType?.name || 'Cleaning')} · ${escapeHtml(job.postcode)}</td>
+            <td>${escapeHtml(formatWhen(job.preferredStartAt, job.estimatedHours))}</td>
             <td>${formatDate(job.createdAt)}</td>
             <td>${escapeHtml(job.cleaner?.name || '—')}</td>
             <td>${formatPence(job.pricePence)}</td>
@@ -291,6 +314,7 @@ async function openJob(jobId, { focusReview = false, focusPayment = false } = {}
   document.getElementById('job-status-text').innerHTML = `${statusBadge(label, statusInfo(job)[1])} ${escapeHtml(explanation)}`;
   document.getElementById('job-facts').innerHTML = [
     ['Cleaner', listed.cleaner?.name ? `${listed.cleaner.name}${listed.cleaner.ratingCount ? ` (★ ${Number(listed.cleaner.ratingAverage).toFixed(1)} from ${listed.cleaner.ratingCount})` : ''}` : '—'],
+    ['Date and time', formatWhen(job.preferredStartAt, job.estimatedHours)],
     ['Price', formatPence(job.pricePence)],
     ['Budget', `£${job.budgetMin}–£${job.budgetMax}`],
     ['Booked', formatDate(job.bookedAt)],
@@ -312,6 +336,9 @@ async function openJob(jobId, { focusReview = false, focusPayment = false } = {}
   show('job-detail', true);
 
   if (!status) await renderOffers(job);
+  const paymentWhen = document.getElementById('payment-when');
+  paymentWhen.hidden = !job.preferredStartAt;
+  paymentWhen.textContent = job.preferredStartAt ? `The job is on ${formatWhen(job.preferredStartAt, job.estimatedHours)}.` : '';
   if (status === 'BOOKED') await mountPayment(job);
   if (status === 'AWAITING_CONFIRMATION') renderConfirmDeadline(job);
   renderCancelPolicy(job);
@@ -593,15 +620,24 @@ document.getElementById('dispute-form').addEventListener('submit', async (event)
 });
 
 // --- Cancel ---
+// The server works out the refund rule (see cancellationPolicy in payment.service.js) and sends it
+// with the job, so this says exactly what will happen. The rule counts from the job's start time.
 function renderCancelPolicy(job) {
   const text = document.getElementById('cancel-policy');
   if (job.paymentStatus === 'PAID_HELD') {
-    const bookedAt = new Date(job.bookedAt || job.createdAt);
-    const fullRefundUntil = new Date(bookedAt.getTime() + FULL_REFUND_WINDOW_HOURS * 3600 * 1000);
-    text.textContent =
-      Date.now() <= fullRefundUntil.getTime()
-        ? `Cancel before ${fullRefundUntil.toLocaleString('en-GB')} for a full refund. After that, you get 50% back.`
+    const policy = job.cancellationPolicy;
+    const until = policy && policy.fullRefundUntil ? formatVisit(policy.fullRefundUntil) : '';
+    if (policy && policy.basis === 'start') {
+      text.textContent = policy.fullRefund
+        ? `The job starts ${formatVisit(job.preferredStartAt)}. Cancel before ${until} (24 hours before it starts) for a full refund. After that you get 50% back.`
+        : `The job starts ${formatVisit(job.preferredStartAt)}, which is less than 24 hours away (or has passed), so cancelling now refunds 50% of the price.`;
+    } else if (policy && policy.basis === 'booking') {
+      text.textContent = policy.fullRefund
+        ? `Cancel before ${until} for a full refund. After that, you get 50% back.`
         : 'You booked more than 24 hours ago, so cancelling now refunds 50% of the price.';
+    } else {
+      text.textContent = 'This is a visit of a regular booking that has already been charged, so cancelling it refunds 50% of the price.';
+    }
   } else {
     text.textContent = "You haven't paid yet, so you can cancel at no cost.";
   }
@@ -688,16 +724,221 @@ const conversations = setupConversations({
   emptyText: 'No conversations yet. Chat opens when a cleaner accepts your job.',
 });
 
+// --- Saved card (Stripe Payment Element; card details go straight to Stripe) ---
+let cardStripe;
+let cardElements;
+
+function cardMessage(id, text) {
+  const el = document.getElementById(id);
+  el.textContent = text || '';
+  el.hidden = !text;
+}
+
+function closeCardForm() {
+  document.getElementById('card-form').hidden = true;
+  document.getElementById('card-consent').checked = false;
+  document.getElementById('card-element').innerHTML = '';
+  cardElements = undefined;
+}
+
+// The wording and its version come from the server, so what is shown is exactly what is recorded.
+let cardConsentVersion = null;
+
+const FREQUENCY_WORDS = { weekly: 'Weekly', fortnightly: 'Fortnightly', monthly: 'Monthly' };
+
+// Lists the regular bookings the customer is agreeing to, so the price and schedule are in front of them.
+async function renderCardSeriesSummary() {
+  const box = document.getElementById('card-series-summary');
+  try {
+    const data = await apiRequest('/series/mine', { auth: true });
+    const live = (data.series || []).filter((s) => ['awaiting_card', 'active', 'paused'].includes(s.status));
+    box.hidden = !live.length;
+    box.innerHTML = live.length
+      ? `<strong>This card will be used for:</strong><ul>${live
+          .map(
+            (s) =>
+              `<li>${escapeHtml(FREQUENCY_WORDS[s.frequency] || s.frequency)} ${escapeHtml(s.serviceType?.name || 'cleaning')} with ${escapeHtml(s.with || 'your cleaner')}: ${escapeHtml(formatPence(s.pricePence))} per visit, charged 48 hours before each visit, until ${escapeHtml(new Date(s.endsOn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }))}.</li>`
+          )
+          .join('')}</ul>`
+      : '';
+  } catch (err) {
+    box.hidden = true;
+  }
+}
+
+async function loadCard() {
+  cardMessage('card-alert', '');
+  try {
+    const card = await apiRequest('/customers/me/card', { auth: true });
+    cardConsentVersion = card.consent.version;
+    document.querySelectorAll('.card-consent-text').forEach((el) => {
+      el.textContent = card.consent.text;
+    });
+    document.getElementById('card-agree').hidden = !(card.saved && card.recurringConsent === false && seriesFeatureOn);
+    document.getElementById('card-agree-consent').checked = false;
+    await renderCardSeriesSummary();
+    const summary = document.getElementById('card-summary');
+    summary.textContent = card.saved
+      ? `${card.brand.toUpperCase()} ending ${card.last4}, expires ${String(card.expMonth).padStart(2, '0')}/${card.expYear}.`
+      : 'No card saved.';
+    document.getElementById('card-remove').hidden = !card.saved;
+    document.getElementById('card-add').textContent = card.saved ? 'Replace card' : 'Add a card';
+    document.getElementById('card-add').hidden = false;
+    closeCardForm();
+  } catch (err) {
+    cardMessage('card-alert', err.message);
+  }
+}
+
+document.getElementById('card-add').addEventListener('click', async (event) => {
+  cardMessage('card-alert', '');
+  cardMessage('card-success', '');
+  if (!STRIPE_PUBLISHABLE_KEY) {
+    cardMessage('card-alert', 'Card payments are not set up on this site yet. Please contact us.');
+    return;
+  }
+  event.target.disabled = true;
+  try {
+    const [{ clientSecret }, StripeJs] = await Promise.all([
+      apiRequest('/customers/me/card/setup-intent', { method: 'POST', auth: true }),
+      loadStripeJs(),
+    ]);
+    cardStripe = cardStripe || StripeJs(STRIPE_PUBLISHABLE_KEY);
+    cardElements = cardStripe.elements({ clientSecret });
+    const container = document.getElementById('card-element');
+    container.innerHTML = '';
+    cardElements.create('payment').mount(container);
+    document.getElementById('card-form').hidden = false;
+    event.target.hidden = true;
+  } catch (err) {
+    cardMessage('card-alert', err.message);
+  } finally {
+    event.target.disabled = false;
+  }
+});
+
+document.getElementById('card-cancel').addEventListener('click', loadCard);
+
+document.getElementById('card-save').addEventListener('click', async (event) => {
+  cardMessage('card-alert', '');
+  if (!document.getElementById('card-consent').checked) {
+    cardMessage('card-alert', 'Please tick the box to agree before saving your card.');
+    return;
+  }
+  event.target.disabled = true;
+  try {
+    const { error, setupIntent } = await cardStripe.confirmSetup({
+      elements: cardElements,
+      confirmParams: { return_url: window.location.href },
+      redirect: 'if_required',
+    });
+    if (error) throw new Error(error.message);
+    await apiRequest('/customers/me/card', {
+      method: 'POST',
+      body: { paymentMethodId: setupIntent.payment_method, consent: true, consentVersion: cardConsentVersion },
+      auth: true,
+    });
+    await loadCard();
+    cardMessage('card-success', 'Card saved.');
+  } catch (err) {
+    cardMessage('card-alert', err.message);
+  } finally {
+    event.target.disabled = false;
+  }
+});
+
+document.getElementById('card-agree-btn').addEventListener('click', async (event) => {
+  cardMessage('card-alert', '');
+  if (!document.getElementById('card-agree-consent').checked) {
+    cardMessage('card-alert', 'Please tick the box to agree.');
+    return;
+  }
+  event.target.disabled = true;
+  try {
+    await apiRequest('/customers/me/card/consent', {
+      method: 'POST',
+      body: { consent: true, consentVersion: cardConsentVersion },
+      auth: true,
+    });
+    await loadCard();
+    cardMessage('card-success', 'Thank you. Your card can now be used for regular visits.');
+  } catch (err) {
+    cardMessage('card-alert', err.message);
+  } finally {
+    event.target.disabled = false;
+  }
+});
+
+document.getElementById('card-remove').addEventListener('click', async (event) => {
+  if (!window.confirm('Remove your saved card?')) return;
+  cardMessage('card-alert', '');
+  event.target.disabled = true;
+  try {
+    await apiRequest('/customers/me/card', { method: 'DELETE', auth: true });
+    await loadCard();
+    cardMessage('card-success', 'Card removed.');
+  } catch (err) {
+    cardMessage('card-alert', err.message);
+  } finally {
+    event.target.disabled = false;
+  }
+});
+
+// --- Regular cleaning (series) ---
+async function loadSeries() {
+  hideAlert('series-alert');
+  const data = await mountSeries(document.getElementById('series-list'), {
+    role: 'customer',
+    alertId: 'series-alert',
+    successId: 'series-success',
+    onSaveCard: () => showView('card'),
+  });
+  return data;
+}
+
+// The tab only shows once recurring bookings are on, or the customer already has one.
+let seriesFeatureOn = false;
+async function revealSeriesTab() {
+  try {
+    const data = await apiRequest('/series/mine', { auth: true });
+    seriesFeatureOn = Boolean(data.enabled || (data.series || []).length);
+    document.getElementById('tab-series').hidden = !seriesFeatureOn;
+  } catch (err) {
+    // Leave it hidden: the rest of the page works without it.
+  }
+}
+
 async function showView(name, { openJobId } = {}) {
   const messages = name === 'messages';
+  const cardView = name === 'card';
+  const seriesView = name === 'series';
   document.querySelectorAll('.tab-button').forEach((tab) => {
     const active = tab.dataset.view === name;
     tab.classList.toggle('is-active', active);
     tab.setAttribute('aria-selected', String(active));
   });
-  show('view-jobs', !messages);
+  show('view-jobs', name === 'jobs');
   show('view-messages', messages);
-  document.getElementById('show-post-job').hidden = messages;
+  show('view-card', cardView);
+  show('view-series', seriesView);
+  document.getElementById('show-post-job').hidden = name !== 'jobs';
+
+  if (cardView) {
+    cardMessage('card-success', '');
+    await loadCard();
+    return;
+  }
+  if (seriesView) {
+    if (activeChat) activeChat.destroy();
+    activeChat = null;
+    conversations.close();
+    try {
+      await loadSeries();
+    } catch (err) {
+      showAlert('series-alert', err.message);
+    }
+    return;
+  }
 
   if (messages) {
     // Only one live chat at a time: drop the one inside the job detail.
@@ -724,6 +965,11 @@ loadServiceTypes();
   await loadJobs();
   const params = new URLSearchParams(window.location.search);
   const jobId = params.get('job');
+  await revealSeriesTab();
+  if (params.get('tab') === 'series') {
+    await showView('series');
+    return;
+  }
   if (params.get('tab') === 'messages') {
     await showView('messages', { openJobId: jobId });
     return;

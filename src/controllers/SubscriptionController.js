@@ -39,9 +39,29 @@ async function mySubscription(req, res, next) {
   }
 }
 
+async function requestCancellation(req, res, next) {
+  try {
+    const subscription = await subscriptionService.requestCancellation(req.user.id, req.body.reason);
+    res.status(201).json(subscription);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function withdrawCancellation(req, res, next) {
+  try {
+    const subscription = await subscriptionService.withdrawCancellation(req.user.id);
+    res.status(200).json(subscription);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createSetupIntent,
   activate,
   addInsurance,
   mySubscription,
+  requestCancellation,
+  withdrawCancellation,
 };

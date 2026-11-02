@@ -8,12 +8,16 @@ const {
   impersonateCleanerSchema,
   updateCleanerVerificationSchema,
   updateCleanerDeactivationSchema,
+  resetPayoutSetupSchema,
   listJobsQuerySchema,
   jobIdParamSchema,
   revenueQuerySchema,
   listApprovalsQuerySchema,
   approvalDecisionSchema,
   listAuditQuerySchema,
+  listSubscriptionsQuerySchema,
+  cancelSubscriptionSchema,
+  declineCancellationSchema,
   listStaffQuerySchema,
   createStaffSchema,
   updateStaffSchema,
@@ -72,6 +76,12 @@ router.patch(
   validateBody(updateCleanerDeactivationSchema),
   AdminController.updateCleanerDeactivation
 );
+router.post(
+  '/cleaners/:id/reset-payouts',
+  validateParams(cleanerIdParamSchema),
+  validateBody(resetPayoutSetupSchema),
+  AdminController.resetCleanerPayouts
+);
 
 router.get('/jobs', validateQuery(listJobsQuerySchema), AdminController.listJobs);
 router.get('/jobs/:id', validateParams(jobIdParamSchema), AdminController.getJob);
@@ -87,6 +97,20 @@ router.post(
 );
 
 router.get('/audit', validateQuery(listAuditQuerySchema), AdminController.listAudit);
+
+router.get('/subscriptions', validateQuery(listSubscriptionsQuerySchema), AdminController.listSubscriptions);
+router.post(
+  '/subscriptions/:id/cancel',
+  validateParams(idParamSchema),
+  validateBody(cancelSubscriptionSchema),
+  AdminController.cancelSubscription
+);
+router.post(
+  '/subscriptions/:id/decline-cancellation',
+  validateParams(idParamSchema),
+  validateBody(declineCancellationSchema),
+  AdminController.declineSubscriptionCancellation
+);
 
 // Staff (operator/admin) accounts. These cannot be self-registered.
 router.get('/users', validateQuery(listStaffQuerySchema), AdminController.listStaff);

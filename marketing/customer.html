@@ -31,10 +31,54 @@
     <div class="tab-bar" role="tablist" aria-label="Sections">
       <button type="button" id="tab-jobs" class="tab-button is-active" role="tab" aria-selected="true" aria-controls="view-jobs" data-view="jobs">My jobs</button>
       <button type="button" id="tab-messages" class="tab-button" role="tab" aria-selected="false" aria-controls="view-messages" data-view="messages">Messages <span id="messages-unread" class="unread-badge" hidden></span></button>
+      <button type="button" id="tab-card" class="tab-button" role="tab" aria-selected="false" aria-controls="view-card" data-view="card">Payment card</button>
+      <button type="button" id="tab-series" class="tab-button" role="tab" aria-selected="false" aria-controls="view-series" data-view="series" hidden>Regular cleaning</button>
     </div>
 
     <div id="page-alert" class="alert alert-error" hidden></div>
     <div id="page-success" class="alert alert-success" hidden></div>
+
+    <div id="view-series" role="tabpanel" aria-labelledby="tab-series" hidden>
+      <p class="field-help">
+        Weekly, fortnightly or monthly cleaning with the same cleaner at the same price per visit. Each visit is charged to
+        your saved card 48 hours before it. Skip a visit for free until then; once it is charged, skipping gets half back.
+      </p>
+      <div id="series-alert" class="alert alert-error" hidden></div>
+      <div id="series-success" class="alert alert-success" hidden></div>
+      <div id="series-list"></div>
+    </div>
+
+    <div id="view-card" role="tabpanel" aria-labelledby="tab-card" hidden>
+      <div class="card">
+        <h2>Saved card</h2>
+        <p class="field-help">Save a card with our payment provider, Stripe, so you do not have to type it each time. Your card number never reaches CleanOps Connect.</p>
+        <div id="card-alert" class="alert alert-error" hidden></div>
+        <div id="card-success" class="alert alert-success" hidden></div>
+        <p id="card-summary"></p>
+        <div id="card-series-summary" class="recurring-notice" hidden></div>
+
+        <div id="card-agree" hidden>
+          <p class="field-help">This card was saved before regular cleaning was available. To use it for regular visits, please read and agree to the wording below.</p>
+          <div class="form-row">
+            <label><input id="card-agree-consent" type="checkbox" /> <span class="card-consent-text"></span></label>
+            <span class="field-help"><a href="terms.html#regular-bookings">Read the terms for regular bookings</a></span>
+          </div>
+          <button type="button" id="card-agree-btn">I agree</button>
+        </div>
+
+        <div id="card-form" hidden>
+          <div id="card-element"></div>
+          <div class="form-row">
+            <label><input id="card-consent" type="checkbox" /> <span class="card-consent-text"></span></label>
+            <span class="field-help"><a href="terms.html#regular-bookings">Read the terms for regular bookings</a></span>
+          </div>
+          <button type="button" id="card-save">Save card</button>
+          <button type="button" id="card-cancel" class="secondary">Cancel</button>
+        </div>
+        <button type="button" id="card-add">Add a card</button>
+        <button type="button" id="card-remove" class="secondary" hidden>Remove card</button>
+      </div>
+    </div>
 
     <div id="view-messages" role="tabpanel" aria-labelledby="tab-messages" hidden>
       <p class="field-help">
@@ -110,10 +154,17 @@
             <select id="frequency">
               <option value="one_off">One-off</option>
               <option value="weekly">Weekly</option>
+              <option value="fortnightly">Fortnightly</option>
               <option value="monthly">Monthly</option>
               <option value="contract">Contract</option>
             </select>
           </div>
+        </div>
+
+        <div class="form-row">
+          <label for="preferredStart">Preferred date and time</label>
+          <input id="preferredStart" type="datetime-local" />
+          <span class="field-help">UK time. Your cleaner sees this with the offer. If it does not suit them, you can agree a change in chat. The end time is worked out from your estimated hours. <strong id="preferred-end-preview"></strong></span>
         </div>
 
         <div class="form-row">
@@ -204,6 +255,7 @@
 
       <section id="payment-section" hidden>
         <h3>Pay to confirm your booking</h3>
+        <p id="payment-when" class="field-help" hidden></p>
         <p class="field-help">
           Your payment is held securely by Stripe and only released to the cleaner after you confirm the job is done
           (or 48 hours after they finish, if you don't report a problem).

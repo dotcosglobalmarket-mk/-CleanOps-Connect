@@ -4,11 +4,15 @@ const Job = require('../models/Job');
 const User = require('../models/User');
 const stripeService = require('./stripe.service');
 const paymentService = require('./payment.service');
+const subscriptionService = require('./subscription.service');
+const seriesService = require('./series.service');
 const { haversineDistanceKm } = require('./coverage.service');
 const { STATES } = require('./payment-state-machine');
 const { outwardCode } = require('./cleaner.service');
+const logger = require('../utils/logger');
 
 const LIST_LIMIT = 200;
+const PAYOUT_STATUS_TIMEOUT_MS = 8000;
 
 function httpError(status, message) {
   const error = new Error(message);
@@ -30,6 +34,16 @@ function frontendUrl() {
 
 // --- Stripe Connect payout onboarding ---
 
+// A payout account saved during testing is not valid for the live Stripe key. Forget it so the
+// cleaner can set up payouts again; nothing is lost because Stripe no longer knows the account.
+async function forgetStaleAccount(cleaner, err) {
+  logger.error(`[cleaner-portal] Forgetting unusable Stripe account ${cleaner.stripeConnectedAccountId}: ${err.message}`);
+  await CleanerProfile.findOneAndUpdate(
+    { _id: cleaner._id, stripeConnectedAccountId: cleaner.stripeConnectedAccountId },
+    { $unset: { stripeConnectedAccountId: 1 }, $set: { payoutsEnabled: false } }
+  );
+}
+
 async function startPayoutOnboarding(userId) {
   const cleaner = await requireProfile(userId);
 
@@ -50,11 +64,20 @@ async function startPayoutOnboarding(userId) {
   }
 
   const base = frontendUrl();
-  const link = await stripeService.createAccountOnboardingLink({
-    accountId,
-    refreshUrl: `${base}/cleaner.html?payouts=refresh`,
-    returnUrl: `${base}/cleaner.html?payouts=return`,
-  });
+  const linkFor = (id) =>
+    stripeService.createAccountOnboardingLink({
+      accountId: id,
+      refreshUrl: `${base}/cleaner.html?payouts=refresh`,
+      returnUrl: `${base}/cleaner.html?payouts=return`,
+    });
+  let link;
+  try {
+    link = await linkFor(accountId);
+  } catch (err) {
+    if (!stripeService.isStaleConnectedAccount(err)) throw err;
+    await forgetStaleAccount(cleaner, err);
+    return startPayoutOnboarding(userId);
+  }
   return { url: link.url };
 }
 
@@ -67,7 +90,27 @@ async function getPayoutStatus(userId) {
     return { connected: false, detailsSubmitted: false, payoutsEnabled: false };
   }
 
-  const account = await stripeService.retrieveAccount(cleaner.stripeConnectedAccountId);
+  // This runs every time the Payouts panel opens, and the panel must not break because Stripe is
+  // slow. Wait a few seconds (well inside the host's gateway limit); if Stripe cannot be reached,
+  // show what we last knew, from the account.updated webhook, and say so.
+  let account;
+  try {
+    account = await stripeService.retrieveAccount(cleaner.stripeConnectedAccountId, { timeout: PAYOUT_STATUS_TIMEOUT_MS });
+  } catch (err) {
+    if (stripeService.isStaleConnectedAccount(err)) {
+      await forgetStaleAccount(cleaner, err);
+      return { connected: false, detailsSubmitted: false, payoutsEnabled: false };
+    }
+    if (!stripeService.isTemporaryFailure(err)) throw err;
+    logger.error(`[cleaner-portal] Payout status: Stripe not reachable, showing last known state: ${err.message}`);
+    return {
+      connected: true,
+      detailsSubmitted: Boolean(cleaner.payoutsEnabled),
+      payoutsEnabled: Boolean(cleaner.payoutsEnabled),
+      requirementsDue: [],
+      lastKnown: true,
+    };
+  }
   const payoutsEnabled = Boolean(account.payouts_enabled);
   if (payoutsEnabled !== Boolean(cleaner.payoutsEnabled)) {
     await paymentService.handleAccountUpdated(cleaner.stripeConnectedAccountId, payoutsEnabled);
@@ -83,7 +126,14 @@ async function getPayoutStatus(userId) {
 async function createPayoutDashboardLink(userId) {
   const cleaner = await requireProfile(userId);
   if (!cleaner.stripeConnectedAccountId) throw httpError(400, 'Set up payouts first');
-  const link = await stripeService.createExpressDashboardLink(cleaner.stripeConnectedAccountId);
+  let link;
+  try {
+    link = await stripeService.createExpressDashboardLink(cleaner.stripeConnectedAccountId);
+  } catch (err) {
+    if (!stripeService.isStaleConnectedAccount(err)) throw err;
+    await forgetStaleAccount(cleaner, err);
+    throw httpError(400, 'Your earlier payout set-up is no longer valid. Please set up payouts again.');
+  }
   return { url: link.url };
 }
 
@@ -112,6 +162,9 @@ function offerView(offer, cleaner) {
       description: job.description,
       estimatedHours: job.estimatedHours,
       frequency: job.frequency,
+      preferredStartAt: job.preferredStartAt,
+      // Present only for a recurring booking: accepting commits the cleaner to every visit.
+      recurring: seriesService.describeForOffer(job),
       budgetMin: job.budgetMin,
       budgetMax: job.budgetMax,
       booked: Boolean(job.cleaner),
@@ -128,12 +181,13 @@ function offerView(offer, cleaner) {
 
 async function listMyOffers(userId, { status } = {}) {
   const cleaner = await requireProfile(userId);
+  await subscriptionService.requireActiveSubscription(cleaner._id);
   const filter = { cleaner: cleaner._id };
   if (status) filter.status = status;
   const offers = await JobOffer.find(filter)
     .populate({
       path: 'job',
-      select: 'serviceType category postcode lat lng description estimatedHours frequency budgetMin budgetMax cleaner procurement tender',
+      select: 'serviceType category postcode lat lng description estimatedHours frequency preferredStartAt budgetMin budgetMax cleaner procurement tender',
       populate: { path: 'serviceType', select: 'name' },
     })
     .sort({ createdAt: -1 })
@@ -144,12 +198,12 @@ async function listMyOffers(userId, { status } = {}) {
 // --- Booked jobs ---
 
 const MY_JOB_FIELDS =
-  'serviceType category postcode description estimatedHours frequency status paymentStatus pricePence ' +
-  'commissionPence cleanerPayoutPence bookedAt awaitingConfirmationAt disputeReason customer createdAt updatedAt';
+  'serviceType category postcode description estimatedHours frequency preferredStartAt status paymentStatus pricePence ' +
+  'commissionPence cleanerPayoutPence payoutReleaseAt bookedAt awaitingConfirmationAt disputeReason customer createdAt updatedAt';
 
 async function listMyJobs(userId) {
   const cleaner = await requireProfile(userId);
-  return Job.find({ cleaner: cleaner._id })
+  return Job.find({ cleaner: cleaner._id, visitState: { $nin: ['scheduled', 'skipped'] } })
     .select(MY_JOB_FIELDS)
     .populate('serviceType', 'name')
     .populate('customer', 'name')

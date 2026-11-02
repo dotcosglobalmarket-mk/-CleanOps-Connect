@@ -10,6 +10,8 @@ import {
   paymentStatusBadge,
   formatPence,
   formatDate,
+  formatVisit,
+  formatWhen,
   shortId,
   setupTabs,
 } from './dashboard-ui.js';
@@ -19,7 +21,128 @@ requireRole('admin');
 setupTabs((panel) => {
   if (panel === 'revenue') loadRevenue();
   if (panel === 'documents') loadDocuments();
+  if (panel === 'subscriptions') loadSubscriptions();
 });
+
+// --- Subscriptions ---
+const SUBSCRIPTION_PLANS = { starter: 'Starter', pro: 'Pro', industrial_pro: 'Industrial Pro' };
+
+async function refreshSubscriptionsBadge() {
+  try {
+    const waiting = await apiRequest('/admin/subscriptions?status=requested', { auth: true });
+    const badge = document.getElementById('subscriptions-pending');
+    badge.textContent = waiting.length;
+    badge.hidden = waiting.length === 0;
+  } catch (err) {
+    // The badge is a convenience; the panel shows any real error.
+  }
+}
+
+function subscriptionState(sub) {
+  if (!sub.isActive) return statusBadge('Ended', 'bad');
+  if (sub.cancelAtPeriodEnd) return statusBadge('Ending', 'warn');
+  return statusBadge(sub.stripeStatus === 'past_due' ? 'Past due' : 'Active', sub.stripeStatus === 'past_due' ? 'warn' : 'good');
+}
+
+function subscriptionRequest(sub) {
+  if (!sub.cancellationRequestedAt || sub.cancelAtPeriodEnd || !sub.isActive) return '—';
+  const reason = sub.cancellationReason ? `<div class="field-help">${escapeHtml(sub.cancellationReason)}</div>` : '';
+  return `<div class="sub-request">${statusBadge('Requested', 'warn')} ${formatDate(sub.cancellationRequestedAt)}${reason}</div>`;
+}
+
+function subscriptionActions(sub) {
+  if (!sub.isActive) return '';
+  const buttons = [];
+  if (!sub.cancelAtPeriodEnd) {
+    buttons.push('<button type="button" class="secondary sub-cancel-btn" data-when="period_end">Cancel at renewal</button>');
+  }
+  buttons.push('<button type="button" class="secondary sub-cancel-btn" data-when="now">Cancel now</button>');
+  if (sub.cancellationRequestedAt && !sub.cancelAtPeriodEnd) {
+    buttons.push('<button type="button" class="secondary sub-decline-btn">Decline request</button>');
+  }
+  return buttons.join('');
+}
+
+async function loadSubscriptions() {
+  hideAlert('subscriptions-alert');
+  const container = document.getElementById('subscriptions-table');
+  container.innerHTML = '<div class="table-empty">Loading…</div>';
+  const status = document.getElementById('subscriptions-filter-status').value;
+  try {
+    const subs = await apiRequest(`/admin/subscriptions?status=${encodeURIComponent(status)}`, { auth: true });
+    container.innerHTML = renderTable({
+      fit: true,
+      columns: ['Cleaner', 'Email', 'Plan', 'Status', 'Renews', 'Cancellation request', ''],
+      emptyMessage: status === 'requested' ? 'No cancellation requests waiting.' : 'No subscriptions match this filter.',
+      rows: subs.map((sub) => `
+        <tr data-id="${escapeHtml(sub._id)}" data-requested-reason="${escapeHtml(sub.cancellationReason || '')}">
+          <td>${escapeHtml(sub.cleaner?.name || '—')}</td>
+          <td><span class="wrap-anywhere">${escapeHtml(sub.cleaner?.user?.email || '—')}</span></td>
+          <td>${escapeHtml(SUBSCRIPTION_PLANS[sub.plan] || sub.plan)} · ${formatPence(sub.pricePence)}/mo</td>
+          <td>${subscriptionState(sub)}</td>
+          <td>${sub.renewsAt ? new Date(sub.renewsAt).toLocaleDateString('en-GB') : '—'}</td>
+          <td>${subscriptionRequest(sub)}</td>
+          <td class="table-actions">${subscriptionActions(sub)}</td>
+        </tr>
+      `),
+    });
+
+    container.querySelectorAll('tr[data-id]').forEach((row) => {
+      const id = row.dataset.id;
+      const name = row.children[0].textContent;
+      row.querySelectorAll('.sub-cancel-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const now = btn.dataset.when === 'now';
+          if (now && !window.confirm(`Cancel ${name}'s subscription now? Billing stops immediately and no refund is issued.`)) return;
+          decideSubscription(btn, `/admin/subscriptions/${id}/cancel`, {
+            prompt: now ? 'Reason for cancelling now (recorded in the audit log):' : 'Reason for cancelling at renewal (recorded in the audit log):',
+            suggestion: row.dataset.requestedReason,
+            body: { when: btn.dataset.when },
+            done: now ? 'Subscription cancelled.' : 'Subscription will end at its next renewal.',
+          });
+        });
+      });
+      const decline = row.querySelector('.sub-decline-btn');
+      if (decline) {
+        decline.addEventListener('click', () =>
+          decideSubscription(decline, `/admin/subscriptions/${id}/decline-cancellation`, {
+            prompt: 'Reason for declining this request (recorded in the audit log):',
+            body: {},
+            done: 'Request declined; the subscription carries on.',
+          })
+        );
+      }
+    });
+  } catch (err) {
+    container.innerHTML = '';
+    showAlert('subscriptions-alert', err.message);
+  }
+}
+
+async function decideSubscription(button, path, { prompt, suggestion = '', body, done }) {
+  hideAlert('subscriptions-alert');
+  document.getElementById('subscriptions-success').hidden = true;
+  const reason = window.prompt(prompt, suggestion);
+  if (!reason || reason.trim().length < 3) return;
+  button.disabled = true;
+  try {
+    await apiRequest(path, { method: 'POST', body: { ...body, reason: reason.trim() }, auth: true });
+    const success = document.getElementById('subscriptions-success');
+    success.textContent = done;
+    success.hidden = false;
+    await Promise.all([loadSubscriptions(), refreshSubscriptionsBadge()]);
+  } catch (err) {
+    showAlert('subscriptions-alert', err.message);
+    button.disabled = false;
+  }
+}
+
+document.getElementById('subscriptions-refresh').addEventListener('click', () => {
+  loadSubscriptions();
+  refreshSubscriptionsBadge();
+});
+document.getElementById('subscriptions-filter-apply').addEventListener('click', loadSubscriptions);
+refreshSubscriptionsBadge();
 
 // --- Document review ---
 const DOC_LABELS = { dbs: 'DBS certificate', coshh: 'COSHH certificate', insurance: 'Insurance certificate' };
@@ -208,7 +331,14 @@ function renderRevenue(data) {
   const t = data.totals;
   document.getElementById('revenue-tiles').innerHTML = [
     revenueTile('Total platform revenue', formatPence(t.totalPence), changeNote(t.totalPence, t.previousTotalPence), t.totalPence >= t.previousTotalPence && t.previousTotalPence ? 'good' : '', 'green', '💷'),
-    revenueTile('Commission on jobs', formatPence(t.commissionPence), `from ${t.jobsCount} confirmed job${t.jobsCount === 1 ? '' : 's'}`, '', 'teal', '🧾'),
+    revenueTile(
+      'Commission on jobs',
+      formatPence(t.commissionPence),
+      `from ${t.jobsCount} confirmed job${t.jobsCount === 1 ? '' : 's'}${t.recurringVisitsCount ? `, ${formatPence(t.recurringCommissionPence)} of it from ${t.recurringVisitsCount} regular visit${t.recurringVisitsCount === 1 ? '' : 's'}` : ''}${t.activeSeriesCount ? ` · ${t.activeSeriesCount} regular booking${t.activeSeriesCount === 1 ? '' : 's'} running` : ''}`,
+      '',
+      'teal',
+      '🧾'
+    ),
     revenueTile('Subscription income', formatPence(t.subscriptionBilledPence), `${formatPence(t.mrrPence)} a month from ${t.activeSubscribers} active cleaner${t.activeSubscribers === 1 ? '' : 's'}`, '', 'purple', '🔁'),
     revenueTile('Failed payments', String(t.failedCount), `${formatPence(t.atRiskPence)} a month at risk`, t.failedCount ? 'bad' : '', t.failedCount ? 'red' : 'blue', '⚠️'),
   ].join('');
@@ -347,20 +477,41 @@ async function loadPaymentsQueue() {
       emptyMessage: 'Nothing in the ops queue — no stuck payouts right now.',
       rows: jobs.map((job) => {
         const canRetry = job.paymentStatus === 'MANUAL_REVIEW_HOLD';
+        const held = job.paymentStatus === 'PAYOUT_PENDING' && !job.stripeTransferId && job.payoutReleaseAt;
         return `
           <tr>
             <td><code>${escapeHtml((job._id || '').slice(-8))}</code></td>
-            <td>${paymentStatusBadge(job.paymentStatus)}</td>
+            <td>${paymentStatusBadge(job.paymentStatus)}${held ? `<div class="field-help">Held until ${escapeHtml(new Date(job.payoutReleaseAt).toLocaleString())}</div>` : ''}</td>
             <td>${escapeHtml(job.customer?.name || job.customer || '—')}</td>
             <td>${escapeHtml(job.cleaner?.name || job.cleaner || '—')}</td>
             <td>${job.payoutAttemptCount ?? 0}</td>
             <td>${job.updatedAt ? new Date(job.updatedAt).toLocaleString() : '—'}</td>
             <td class="table-actions">
               ${canRetry ? `<button type="button" class="secondary manual-retry-btn" data-id="${job._id}">Retry transfer</button>` : ''}
+              ${held ? `<button type="button" class="secondary release-payout-btn" data-id="${job._id}">Release payout now</button>` : ''}
             </td>
           </tr>
         `;
       }),
+    });
+
+    container.querySelectorAll('.release-payout-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const reason = window.prompt('Why release this payout before the hold ends?');
+        if (!reason || reason.trim().length < 3) return;
+        btn.disabled = true;
+        try {
+          await apiRequest(`/payments/ops/jobs/${btn.dataset.id}/release-payout`, {
+            method: 'POST',
+            body: { reason: reason.trim() },
+            auth: true,
+          });
+          await loadPaymentsQueue();
+        } catch (err) {
+          showAlert('payments-alert', err.message);
+          btn.disabled = false;
+        }
+      });
     });
 
     container.querySelectorAll('.manual-retry-btn').forEach((btn) => {
@@ -427,6 +578,7 @@ async function loadCleaners() {
           <td class="table-actions">
             <button type="button" class="save-verification-btn">Save</button>
             <button type="button" class="secondary view-as-cleaner-btn">View as cleaner</button>
+            ${c.stripeConnectedAccountId ? '<button type="button" class="secondary reset-payouts-btn">Reset payout set-up</button>' : ''}
           </td>
         </tr>
       `),
@@ -463,6 +615,27 @@ async function loadCleaners() {
         } catch (err) {
           showAlert('cleaners-alert', err.message);
         } finally {
+          btn.disabled = false;
+        }
+      });
+
+      row.querySelector('.reset-payouts-btn')?.addEventListener('click', async (event) => {
+        const btn = event.target;
+        const reason = window.prompt(
+          'Reset this cleaner’s payout set-up? They will have to set up payouts again. Reason (e.g. account created in test mode):'
+        );
+        if (!reason || reason.trim().length < 3) return;
+        btn.disabled = true;
+        hideAlert('cleaners-alert');
+        document.getElementById('cleaners-success').hidden = true;
+        try {
+          await apiRequest(`/admin/cleaners/${id}/reset-payouts`, { method: 'POST', body: { reason: reason.trim() }, auth: true });
+          await loadCleaners();
+          const successEl = document.getElementById('cleaners-success');
+          successEl.textContent = 'Payout set-up reset. The cleaner can set it up again from Earnings & Payouts.';
+          successEl.hidden = false;
+        } catch (err) {
+          showAlert('cleaners-alert', err.message);
           btn.disabled = false;
         }
       });
@@ -533,6 +706,7 @@ function renderJobDetail(job) {
       ['Postcode', escapeHtml((job.postcode || '—').toUpperCase())],
       ['Description', escapeHtml(job.description || '—')],
       ['Estimated hours', escapeHtml(job.estimatedHours ?? '—')],
+      ['Date and time', escapeHtml(formatWhen(job.preferredStartAt, job.estimatedHours))],
       ['Frequency', escapeHtml(FREQUENCY_LABELS[job.frequency] || job.frequency || '—')],
       ['Customer budget', budget],
     ]],

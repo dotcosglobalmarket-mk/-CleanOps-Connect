@@ -304,11 +304,66 @@ describe('cancelBooked — customer cancels before paying', () => {
   it('keeps the job when Stripe refuses because the payment already went through', async () => {
     const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_1' });
     Job.findById.mockResolvedValue(job);
-    stripeService.cancelPaymentIntent.mockRejectedValue(new Error('PaymentIntent has succeeded'));
+    stripeService.cancelPaymentIntent.mockRejectedValue(
+      Object.assign(new Error('PaymentIntent has succeeded'), { code: 'payment_intent_unexpected_state' })
+    );
 
     await expect(paymentService.cancelBooked('job1')).rejects.toMatchObject({ status: 400 });
     expect(job.paymentStatus).toBe(STATES.BOOKED);
     expect(job.save).not.toHaveBeenCalled();
+  });
+
+  it('cancels when Stripe has no such payment intent (made under another key), since nothing was paid on it', async () => {
+    const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_from_test_mode' });
+    Job.findById.mockResolvedValue(job);
+    stripeService.isMissingResource.mockImplementation((e) => e && e.code === 'resource_missing');
+    stripeService.cancelPaymentIntent.mockRejectedValue(Object.assign(new Error('No such payment_intent'), { code: 'resource_missing' }));
+
+    await paymentService.cancelBooked('job1');
+
+    expect(job.paymentStatus).toBe(STATES.CANCELLED);
+    expect(job.status).toBe('cancelled');
+  });
+
+  it('does not pretend a payment is processing when Stripe fails for another reason', async () => {
+    const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_1' });
+    Job.findById.mockResolvedValue(job);
+    stripeService.isMissingResource.mockImplementation((e) => e && e.code === 'resource_missing');
+    stripeService.cancelPaymentIntent.mockRejectedValue(new Error('connection to Stripe failed'));
+
+    await expect(paymentService.cancelBooked('job1')).rejects.toThrow('connection to Stripe failed');
+    expect(job.paymentStatus).toBe(STATES.BOOKED);
+  });
+});
+
+describe('paying for a booked job', () => {
+  beforeEach(() => stripeService.isMissingResource.mockImplementation((e) => e && e.code === 'resource_missing'));
+
+  it('uses the stored payment intent when Stripe knows it', async () => {
+    const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_1', pricePence: 2600 });
+    stripeService.retrievePaymentIntent.mockResolvedValue({ id: 'pi_1', client_secret: 's' });
+    expect(await paymentService.getOrRenewPaymentIntent(job)).toMatchObject({ id: 'pi_1' });
+    expect(stripeService.createPaymentIntent).not.toHaveBeenCalled();
+  });
+
+  it('makes a fresh intent for the same price when the stored one does not exist for this key', async () => {
+    const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_from_test_mode', pricePence: 2600 });
+    stripeService.retrievePaymentIntent.mockRejectedValue(Object.assign(new Error('No such payment_intent'), { code: 'resource_missing' }));
+    stripeService.createPaymentIntent.mockResolvedValue({ id: 'pi_live', client_secret: 's2' });
+
+    const intent = await paymentService.getOrRenewPaymentIntent(job);
+
+    expect(stripeService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amountPence: 2600 }));
+    expect(job.stripePaymentIntentId).toBe('pi_live');
+    expect(job.save).toHaveBeenCalled();
+    expect(intent.id).toBe('pi_live');
+  });
+
+  it('does not hide other Stripe failures by creating a second charge', async () => {
+    const job = makeJob({ paymentStatus: STATES.BOOKED, stripePaymentIntentId: 'pi_1', pricePence: 2600 });
+    stripeService.retrievePaymentIntent.mockRejectedValue(new Error('timeout'));
+    await expect(paymentService.getOrRenewPaymentIntent(job)).rejects.toThrow('timeout');
+    expect(stripeService.createPaymentIntent).not.toHaveBeenCalled();
   });
 });
 
@@ -348,5 +403,108 @@ describe('timestamps recorded for the service record', () => {
     await paymentService.autoConfirmExpiredJobs(new Date());
 
     expect(jobPhotos.scheduleExpiry.mock.calls.map((c) => c[0])).toEqual(['jobA', 'jobB']);
+  });
+});
+
+describe('cancelling a later visit of a recurring series', () => {
+  it('is always a late cancellation once paid: half back, even within 24 hours of the charge', async () => {
+    const job = makeJob({
+      paymentStatus: STATES.PAID_HELD,
+      stripePaymentIntentId: 'pi_1',
+      pricePence: 2600,
+      series: 's1',
+      visitNumber: 3,
+      bookedAt: new Date(Date.now() - 60 * 60 * 1000), // charged an hour ago
+    });
+    Job.findById.mockResolvedValue(job);
+    await paymentService.cancelByCustomer('job1');
+    expect(stripeService.createRefund).toHaveBeenCalledWith(expect.objectContaining({ amountPence: 1300 }));
+    expect(job.paymentStatus).toBe(STATES.PARTIALLY_REFUNDED);
+  });
+
+  it('the first visit keeps the ordinary 24-hour full-refund window', async () => {
+    const job = makeJob({
+      paymentStatus: STATES.PAID_HELD,
+      stripePaymentIntentId: 'pi_1',
+      pricePence: 2600,
+      series: 's1',
+      visitNumber: 1,
+      bookedAt: new Date(Date.now() - 60 * 60 * 1000),
+    });
+    Job.findById.mockResolvedValue(job);
+    await paymentService.cancelByCustomer('job1');
+    expect(stripeService.createRefund).toHaveBeenCalledWith(expect.not.objectContaining({ amountPence: expect.anything() }));
+    expect(job.paymentStatus).toBe(STATES.REFUNDED);
+  });
+});
+
+describe('the refund rule counts from the job’s start time', () => {
+  const HOUR = 3600 * 1000;
+  const inHours = (h) => new Date(Date.now() + h * HOUR);
+
+  const paid = (overrides) =>
+    makeJob({ paymentStatus: STATES.PAID_HELD, stripePaymentIntentId: 'pi_1', pricePence: 5000, ...overrides });
+
+  describe('cancellationPolicy', () => {
+    it('is full until 24 hours before the start, whenever the job was booked', () => {
+      const start = inHours(72);
+      const policy = paymentService.cancellationPolicy({ preferredStartAt: start, bookedAt: inHours(-200) });
+      expect(policy).toMatchObject({ basis: 'start', fullRefund: true });
+      expect(policy.fullRefundUntil).toEqual(new Date(start.getTime() - 24 * HOUR));
+    });
+
+    it('is 50% once inside 24 hours of the start, even straight after booking', () => {
+      const policy = paymentService.cancellationPolicy({ preferredStartAt: inHours(10), bookedAt: inHours(-0.1) });
+      expect(policy).toMatchObject({ basis: 'start', fullRefund: false });
+    });
+
+    it('is exactly on the line at 24 hours before: still full', () => {
+      const now = new Date('2026-03-01T10:00:00Z');
+      const start = new Date(now.getTime() + 24 * HOUR);
+      expect(paymentService.cancellationPolicy({ preferredStartAt: start }, now).fullRefund).toBe(true);
+      expect(paymentService.cancellationPolicy({ preferredStartAt: new Date(start.getTime() - 1) }, now).fullRefund).toBe(false);
+    });
+
+    it('is 50% after the start time has passed', () => {
+      expect(paymentService.cancellationPolicy({ preferredStartAt: inHours(-2) }).fullRefund).toBe(false);
+    });
+
+    it('falls back to 24 hours from booking for a job with no start time', () => {
+      expect(paymentService.cancellationPolicy({ bookedAt: inHours(-3) })).toMatchObject({ basis: 'booking', fullRefund: true });
+      expect(paymentService.cancellationPolicy({ bookedAt: inHours(-30) })).toMatchObject({ basis: 'booking', fullRefund: false });
+      expect(paymentService.cancellationPolicy({ createdAt: inHours(-3) }).fullRefund).toBe(true);
+    });
+
+    it('is always a late cancellation for a later visit of a regular booking', () => {
+      expect(paymentService.cancellationPolicy({ series: 's1', visitNumber: 3, preferredStartAt: inHours(500) })).toMatchObject({
+        basis: 'visit',
+        fullRefund: false,
+      });
+    });
+  });
+
+  describe('cancelByCustomer', () => {
+    it('refunds in full when the job starts in more than 24 hours, even if it was booked weeks ago', async () => {
+      const job = paid({ preferredStartAt: inHours(48), bookedAt: inHours(-24 * 20) });
+      Job.findById.mockResolvedValue(job);
+      await paymentService.cancelByCustomer('job1');
+      expect(stripeService.createRefund).toHaveBeenCalledWith(expect.not.objectContaining({ amountPence: expect.anything() }));
+      expect(job.paymentStatus).toBe(STATES.REFUNDED);
+    });
+
+    it('refunds half when the job starts in less than 24 hours, even if it was booked a minute ago', async () => {
+      const job = paid({ preferredStartAt: inHours(12), bookedAt: inHours(-0.02) });
+      Job.findById.mockResolvedValue(job);
+      await paymentService.cancelByCustomer('job1');
+      expect(stripeService.createRefund).toHaveBeenCalledWith(expect.objectContaining({ amountPence: 2500 }));
+      expect(job.paymentStatus).toBe(STATES.PARTIALLY_REFUNDED);
+    });
+
+    it('keeps the booking-time rule for a job with no start time', async () => {
+      const job = paid({ preferredStartAt: undefined, bookedAt: inHours(-30) });
+      Job.findById.mockResolvedValue(job);
+      await paymentService.cancelByCustomer('job1');
+      expect(stripeService.createRefund).toHaveBeenCalledWith(expect.objectContaining({ amountPence: 2500 }));
+    });
   });
 });

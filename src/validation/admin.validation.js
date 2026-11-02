@@ -33,6 +33,8 @@ const updateCleanerDeactivationSchema = z.object({
   reason: reason.optional(),
 });
 
+const resetPayoutSetupSchema = z.object({ reason });
+
 const listApprovalsQuerySchema = z.object({
   status: z.enum(['pending', 'approved', 'rejected']).optional(),
 });
@@ -47,6 +49,19 @@ const listAuditQuerySchema = z.object({
   action: z.string().max(100).optional(),
   from: z.string().datetime({ offset: true }).optional(),
   to: z.string().datetime({ offset: true }).optional(),
+});
+
+const listSubscriptionsQuerySchema = z.object({
+  status: z.enum(['active', 'requested', 'ending', 'ended']).optional(),
+});
+
+const cancelSubscriptionSchema = z.object({
+  when: z.enum(['period_end', 'now']),
+  reason,
+});
+
+const declineCancellationSchema = z.object({
+  reason,
 });
 
 const listStaffQuerySchema = z.object({
@@ -86,12 +101,16 @@ module.exports = {
   impersonateCleanerSchema,
   updateCleanerVerificationSchema,
   updateCleanerDeactivationSchema,
+  resetPayoutSetupSchema,
   listJobsQuerySchema,
   jobIdParamSchema,
   revenueQuerySchema,
   listApprovalsQuerySchema,
   approvalDecisionSchema,
   listAuditQuerySchema,
+  listSubscriptionsQuerySchema,
+  cancelSubscriptionSchema,
+  declineCancellationSchema,
   listStaffQuerySchema,
   createStaffSchema,
   updateStaffSchema,

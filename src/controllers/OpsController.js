@@ -55,7 +55,18 @@ const addJobNote = wrap(async (req) => ({
   body: await opsService.addJobNote(req.params.id, req.body.body, req),
 }));
 
+const seriesViewService = require('../services/series-view.service');
+
+async function listSeries(req, res, next) {
+  try {
+    res.status(200).json(await seriesViewService.listForStaff(req.query));
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
+  listSeries,
   summary,
   listDisputes,
   getDispute,

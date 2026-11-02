@@ -87,6 +87,36 @@ export function formatDate(value) {
   return value ? new Date(value).toLocaleString('en-GB') : '—';
 }
 
+// A visit date and time, always in UK time whatever the viewer's device says.
+export function formatVisit(value) {
+  if (!value) return '—';
+  return new Date(value).toLocaleString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/London',
+  });
+}
+
+// "Tue, 3 Nov 2026, 10:00 to about 13:00": the start, and an end worked out from the hours the
+// customer estimated. Times are UK time. With no hours it is just the start.
+export function formatWhen(value, hours) {
+  if (!value) return '—';
+  const start = new Date(value);
+  const hrs = Number(hours);
+  if (!hrs || hrs <= 0) return formatVisit(start);
+  const end = new Date(start.getTime() + hrs * 3600 * 1000);
+  const day = (d) => d.toLocaleDateString('en-GB', { timeZone: 'Europe/London' });
+  const endText =
+    day(start) === day(end)
+      ? end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' })
+      : formatVisit(end);
+  return `${formatVisit(start)} to about ${endText}`;
+}
+
 export function shortId(id) {
   return escapeHtml(String(id || '').slice(-8));
 }
@@ -166,7 +196,11 @@ export function setupTabs(onShow) {
     tab.addEventListener('keydown', (event) => {
       if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
       event.preventDefault();
-      const next = tabs[(index + (event.key === 'ArrowDown' ? 1 : tabs.length - 1)) % tabs.length];
+      // Skip menu items that are not shown (e.g. Regular Jobs while it is off).
+      const step = event.key === 'ArrowDown' ? 1 : tabs.length - 1;
+      let at = (index + step) % tabs.length;
+      while (tabs[at].hidden && at !== index) at = (at + step) % tabs.length;
+      const next = tabs[at];
       next.focus();
       select(next);
     });

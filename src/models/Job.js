@@ -35,8 +35,26 @@ const jobSchema = new mongoose.Schema(
     },
     frequency: {
       type: String,
-      enum: ['one_off', 'weekly', 'monthly', 'contract'],
+      enum: ['one_off', 'weekly', 'fortnightly', 'monthly', 'contract'],
       default: 'one_off',
+    },
+    // Set on every visit of a recurring series (visit 1 is the job the customer
+    // posted). The pair is unique, so a visit can never be created twice.
+    series: { type: mongoose.Schema.Types.ObjectId, ref: 'Series' },
+    visitNumber: { type: Number },
+    // 'scheduled' = made ahead by the series and not yet charged; it stays out of
+    // the ordinary job lists until then.
+    visitState: { type: String, enum: ['scheduled', 'skipped'] },
+    // Automatic charging of a scheduled visit (see visit-charging.service.js).
+    chargeAttempts: { type: Number, default: 0 },
+    nextChargeAttemptAt: { type: Date },
+    // Why a visit did not happen: skipped by the customer, the cleaner, a card that
+    // could not be charged, or because it was never reached (e.g. series paused).
+    skipReason: { type: String, enum: ['customer', 'cleaner', 'payment', 'missed', 'series_ended'] },
+    // When the customer would like the visit (UK time on screen, stored as an
+    // instant). Optional: tenders and older jobs have none.
+    preferredStartAt: {
+      type: Date,
     },
     budgetMin: {
       type: Number,
@@ -129,6 +147,10 @@ const jobSchema = new mongoose.Schema(
     nextPayoutRetryAt: {
       type: Date,
     },
+    // When the cleaner's share is released after the customer confirms (PAYOUT_HOLD_DAYS).
+    payoutReleaseAt: {
+      type: Date,
+    },
     disputeReason: {
       type: String,
     },
@@ -163,5 +185,13 @@ const jobSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// One job per visit of a series: the guarantee that running the visit generator
+// twice (or two servers at once) cannot make the same visit twice.
+jobSchema.index({ series: 1, visitNumber: 1 }, { unique: true, partialFilterExpression: { series: { $exists: true } } });
+
+// The charge sweep (every 15 minutes) only ever looks at scheduled visits by date: a small
+// partial index keeps that cheap however many jobs there are.
+jobSchema.index({ visitState: 1, preferredStartAt: 1 }, { partialFilterExpression: { visitState: 'scheduled' } });
 
 module.exports = mongoose.model('Job', jobSchema);

@@ -29,6 +29,7 @@
       <button type="button" class="dash-nav-item" data-panel="payments">Payments Ops Queue</button>
       <button type="button" class="dash-nav-item" data-panel="cleaners">Cleaner Verification</button>
       <button type="button" class="dash-nav-item" data-panel="documents">Document Review <span id="documents-pending" class="unread-badge" hidden></span></button>
+      <button type="button" class="dash-nav-item" data-panel="subscriptions">Subscriptions <span id="subscriptions-pending" class="unread-badge" hidden></span></button>
       <button type="button" class="dash-nav-item" data-panel="jobs">Jobs</button>
       <button type="button" class="dash-nav-item" data-panel="service-types">Service Types</button>
       <button type="button" class="dash-nav-item" data-panel="approvals">Refund Approvals</button>
@@ -228,6 +229,35 @@
         <div id="document-review" class="job-detail" hidden></div>
       </section>
 
+      <!-- Subscriptions -->
+      <section id="panel-subscriptions" class="dash-panel">
+        <div class="section-heading">
+          <h2 class="panel-title">Subscriptions</h2>
+          <button id="subscriptions-refresh" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="field-help">
+          Cleaners ask to cancel from their dashboard and the request waits here. <strong>Cancel at renewal</strong>
+          lets them keep the plan they have paid for until it renews, then stops billing. <strong>Cancel now</strong>
+          stops billing straight away. Neither issues a refund. Every decision needs a reason and is written to the
+          audit log; the cleaner is emailed.
+        </p>
+        <div id="subscriptions-alert" class="alert alert-error" hidden></div>
+        <div id="subscriptions-success" class="alert alert-success" hidden></div>
+        <div class="filter-bar">
+          <div class="form-row">
+            <label for="subscriptions-filter-status">Show</label>
+            <select id="subscriptions-filter-status">
+              <option value="requested">Cancellation requested</option>
+              <option value="active" selected>All active</option>
+              <option value="ending">Ending at renewal</option>
+              <option value="ended">Ended</option>
+            </select>
+          </div>
+          <button id="subscriptions-filter-apply" type="button">Apply</button>
+        </div>
+        <div id="subscriptions-table" class="table-wrap"></div>
+      </section>
+
       <!-- Jobs -->
       <section id="panel-jobs" class="dash-panel">
         <div class="section-heading">
@@ -337,6 +367,9 @@
               <option value="cleaner.status.update">Cleaner status</option>
               <option value="cleaner.impersonation.start">Cleaner impersonation</option>
               <option value="payout.manual_retry">Payout retry</option>
+              <option value="subscription.cancel_at_period_end">Subscription set to end</option>
+              <option value="subscription.cancel_now">Subscription cancelled now</option>
+              <option value="subscription.cancellation_declined">Cancellation declined</option>
               <option value="job.note">Job note</option>
               <option value="user.create">Staff created</option>
               <option value="user.deactivate">Staff deactivated</option>

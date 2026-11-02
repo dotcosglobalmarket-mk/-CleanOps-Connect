@@ -17,6 +17,15 @@ const tenderSchema = z.object({
   requirements: z.string().trim().max(3000).optional(),
 });
 
+// A visit date must be in the future and no more than a year away.
+const MAX_VISIT_DAYS_AHEAD = 366;
+const preferredStartSchema = z.coerce
+  .date()
+  .refine((d) => d.getTime() > Date.now(), { message: 'The preferred date and time must be in the future' })
+  .refine((d) => d.getTime() <= Date.now() + MAX_VISIT_DAYS_AHEAD * 24 * 3600 * 1000, {
+    message: 'The preferred date and time must be within the next year',
+  });
+
 const createJobSchema = z
   .object({
     serviceType: objectId(),
@@ -24,7 +33,8 @@ const createJobSchema = z
     postcode: z.string().min(1),
     description: z.string().optional(),
     estimatedHours: z.number().positive().optional(),
-    frequency: z.enum(['one_off', 'weekly', 'monthly', 'contract']).optional(),
+    frequency: z.enum(['one_off', 'weekly', 'fortnightly', 'monthly', 'contract']).optional(),
+    preferredStartAt: preferredStartSchema.optional(),
     budgetMin: z.number().nonnegative(),
     budgetMax: z.number().nonnegative(),
     tender: tenderSchema.optional(),
@@ -41,7 +51,7 @@ const createJobSchema = z
 const describeJobSchema = z.object({
   category: z.enum(['domestic', 'industrial']),
   serviceType: objectId().optional(),
-  frequency: z.enum(['one_off', 'weekly', 'monthly', 'contract']).optional(),
+  frequency: z.enum(['one_off', 'weekly', 'fortnightly', 'monthly', 'contract']).optional(),
   estimatedHours: z.number().positive().max(1000).optional(),
   draft: z.string().trim().max(2000).optional(),
 });

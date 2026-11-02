@@ -5,6 +5,7 @@ const jobService = require('../services/job.service');
 const revenueService = require('../services/revenue.service');
 const staffService = require('../services/staff.service');
 const impersonationService = require('../services/impersonation.service');
+const subscriptionService = require('../services/subscription.service');
 
 // The admin dashboard's verification and status forms predate the audit
 // log and do not ask for a reason, so a default one is recorded.
@@ -29,6 +30,15 @@ async function revenue(req, res, next) {
 async function listCleaners(req, res, next) {
   try {
     res.status(200).json(await adminService.listCleaners(req.query));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function resetCleanerPayouts(req, res, next) {
+  try {
+    await opsService.resetCleanerPayoutSetup(req.params.id, req.body.reason, req);
+    res.status(200).json({ reset: true });
   } catch (err) {
     next(err);
   }
@@ -167,6 +177,30 @@ async function updateStaff(req, res, next) {
   }
 }
 
+async function listSubscriptions(req, res, next) {
+  try {
+    res.status(200).json(await subscriptionService.listForAdmin(req.query));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function cancelSubscription(req, res, next) {
+  try {
+    res.status(200).json(await subscriptionService.cancelAsAdmin(req.params.id, req.body, req));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function declineSubscriptionCancellation(req, res, next) {
+  try {
+    res.status(200).json(await subscriptionService.declineCancellation(req.params.id, req.body.reason, req));
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   summary,
   listApprovals,
@@ -181,8 +215,12 @@ module.exports = {
   impersonateCleaner,
   updateCleanerVerification,
   updateCleanerDeactivation,
+  resetCleanerPayouts,
   listJobs,
   getJob,
   revenue,
   allocateJob,
+  listSubscriptions,
+  cancelSubscription,
+  declineSubscriptionCancellation,
 };

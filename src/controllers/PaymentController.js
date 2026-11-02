@@ -93,7 +93,7 @@ const paymentIntent = wrap(async (req) => {
     err.status = 400;
     throw err;
   }
-  const intent = await stripeService.retrievePaymentIntent(job.stripePaymentIntentId);
+  const intent = await paymentService.getOrRenewPaymentIntent(job);
   return { body: { clientSecret: intent.client_secret, amountPence: job.pricePence, status: intent.status } };
 });
 
@@ -125,13 +125,21 @@ const resolvePartial = wrap(async (req) => ({
 
 const resolvePayout = wrap(async (req) => ({ body: await paymentService.resolveDisputePayout(req.params.id) }));
 
+const releasePayout = wrap(async (req) => ({
+  body: await opsService.releasePayoutNow(req.params.id, req.body.reason || 'Payout released early', req),
+}));
+
 const manualRetry = wrap(async (req) => ({
   body: await opsService.manualRetryTransfer(req.params.id, req.body.reason || 'Manual payout retry', req),
 }));
 
 const opsQueue = wrap(async () => {
+  // Stuck payouts, plus confirmed jobs whose share is still in its hold (ops can release those early).
   const jobs = await Job.find({
-    paymentStatus: { $in: ['MANUAL_REVIEW_HOLD', 'PAYOUT_BLOCKED'] },
+    $or: [
+      { paymentStatus: { $in: ['MANUAL_REVIEW_HOLD', 'PAYOUT_BLOCKED'] } },
+      { paymentStatus: 'PAYOUT_PENDING', stripeTransferId: { $in: [null, ''] }, payoutReleaseAt: { $gt: new Date() } },
+    ],
   })
     .populate('customer', 'name email')
     .populate('cleaner', 'name')
@@ -151,5 +159,6 @@ module.exports = {
   resolvePartial,
   resolvePayout,
   manualRetry,
+  releasePayout,
   opsQueue,
 };

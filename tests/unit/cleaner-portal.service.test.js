@@ -1,3 +1,4 @@
+jest.mock('../../src/services/subscription.service', () => ({ requireActiveSubscription: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../../src/models/CleanerProfile', () => ({ findOne: jest.fn(), findOneAndUpdate: jest.fn(), findById: jest.fn() }));
 jest.mock('../../src/models/JobOffer', () => ({ find: jest.fn() }));
 jest.mock('../../src/models/Job', () => ({ find: jest.fn() }));
@@ -80,6 +81,62 @@ describe('payout onboarding (Stripe Connect Express)', () => {
 
     expect(status).toMatchObject({ connected: true, detailsSubmitted: true, payoutsEnabled: true });
     expect(paymentService.handleAccountUpdated).toHaveBeenCalledWith('acct_1', true);
+  });
+
+  it('shows the last known state when Stripe is slow or unreachable', async () => {
+    CleanerProfile.findOne.mockResolvedValue(profile({ stripeConnectedAccountId: 'acct_1', payoutsEnabled: true }));
+    stripeService.retrieveAccount.mockRejectedValue(new Error('timeout'));
+    stripeService.isTemporaryFailure.mockReturnValue(true);
+
+    await expect(portal.getPayoutStatus('user1')).resolves.toMatchObject({
+      connected: true,
+      payoutsEnabled: true,
+      lastKnown: true,
+    });
+    expect(paymentService.handleAccountUpdated).not.toHaveBeenCalled();
+  });
+
+  it('forgets a payout account that the live key cannot see so the cleaner can set up again', async () => {
+    CleanerProfile.findOne.mockResolvedValue(profile({ stripeConnectedAccountId: 'acct_test_old', payoutsEnabled: true }));
+    CleanerProfile.findOneAndUpdate.mockResolvedValue({});
+    stripeService.retrieveAccount.mockRejectedValue(new Error('No such account'));
+    stripeService.isStaleConnectedAccount.mockReturnValue(true);
+
+    await expect(portal.getPayoutStatus('user1')).resolves.toEqual({
+      connected: false,
+      detailsSubmitted: false,
+      payoutsEnabled: false,
+    });
+    expect(CleanerProfile.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'profile1', stripeConnectedAccountId: 'acct_test_old' },
+      { $unset: { stripeConnectedAccountId: 1 }, $set: { payoutsEnabled: false } }
+    );
+  });
+
+  it('starts onboarding on a fresh account when the saved one is unusable', async () => {
+    CleanerProfile.findOne
+      .mockResolvedValueOnce(profile({ stripeConnectedAccountId: 'acct_test_old' }))
+      .mockResolvedValueOnce(profile());
+    User.findById.mockResolvedValue({ email: 'c@example.com' });
+    stripeService.isStaleConnectedAccount.mockReturnValue(true);
+    stripeService.createAccountOnboardingLink
+      .mockRejectedValueOnce(new Error('No such account'))
+      .mockResolvedValueOnce({ url: 'https://connect.stripe.com/new' });
+    stripeService.createExpressAccount.mockResolvedValue({ id: 'acct_live_new' });
+    CleanerProfile.findOneAndUpdate
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ stripeConnectedAccountId: 'acct_live_new' });
+
+    await expect(portal.startPayoutOnboarding('user1')).resolves.toEqual({ url: 'https://connect.stripe.com/new' });
+    expect(stripeService.createExpressAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it('still raises other Stripe errors', async () => {
+    CleanerProfile.findOne.mockResolvedValue(profile({ stripeConnectedAccountId: 'acct_1' }));
+    stripeService.retrieveAccount.mockRejectedValue(new Error('bad'));
+    stripeService.isTemporaryFailure.mockReturnValue(false);
+    stripeService.isStaleConnectedAccount.mockReturnValue(false);
+    await expect(portal.getPayoutStatus('user1')).rejects.toThrow('bad');
   });
 
   it('reports not connected before onboarding starts', async () => {
@@ -168,5 +225,68 @@ describe('earnings', () => {
     const earnings = await portal.getEarnings('user1');
 
     expect(earnings).toMatchObject({ paidOutPence: 8500, onTheWayPence: 4250, inEscrowPence: 1700, payoutsEnabled: true });
+  });
+});
+
+describe('offers need a paid-up subscription', () => {
+  it('lists nothing and says why when the platform fee is not being paid', async () => {
+    const subscriptionService = require('../../src/services/subscription.service');
+    CleanerProfile.findOne.mockResolvedValue(profile());
+    subscriptionService.requireActiveSubscription.mockRejectedValueOnce(Object.assign(new Error('pay'), { status: 402 }));
+    await expect(portal.listMyOffers('user1')).rejects.toMatchObject({ status: 402 });
+    expect(JobOffer.find).not.toHaveBeenCalled();
+  });
+});
+
+describe('recurring bookings in the cleaner’s views', () => {
+  const offerFor = (jobOverrides) =>
+    chainable([
+      {
+        _id: 'offerR',
+        status: 'sent',
+        job: {
+          _id: 'jobR',
+          postcode: 'LS12 1AB',
+          lat: 53.79,
+          lng: -1.59,
+          category: 'domestic',
+          frequency: 'weekly',
+          preferredStartAt: new Date('2026-02-03T10:00:00Z'),
+          budgetMin: 20,
+          budgetMax: 30,
+          serviceType: { name: 'Regular clean' },
+          ...jobOverrides,
+        },
+      },
+    ]);
+
+  afterEach(() => {
+    delete process.env.RECURRING_JOBS_ENABLED;
+  });
+
+  it('tells the cleaner the frequency, end date and number of visits before they accept', async () => {
+    process.env.RECURRING_JOBS_ENABLED = 'true';
+    CleanerProfile.findOne.mockResolvedValue(profile());
+    JobOffer.find.mockReturnValue(offerFor({}));
+    const [offer] = await portal.listMyOffers('user1');
+    expect(offer.job.recurring).toMatchObject({ frequency: 'weekly', visits: 26 });
+    expect(offer.job.recurring.endsOn).toBeInstanceOf(Date);
+  });
+
+  it('says nothing about a series while recurring bookings are off, or for a one-off', async () => {
+    CleanerProfile.findOne.mockResolvedValue(profile());
+    JobOffer.find.mockReturnValue(offerFor({}));
+    expect((await portal.listMyOffers('user1'))[0].job.recurring).toBeUndefined();
+
+    process.env.RECURRING_JOBS_ENABLED = 'true';
+    JobOffer.find.mockReturnValue(offerFor({ frequency: 'one_off' }));
+    expect((await portal.listMyOffers('user1'))[0].job.recurring).toBeUndefined();
+  });
+
+  it('keeps visits made ahead out of My Jobs until they are charged', async () => {
+    CleanerProfile.findOne.mockResolvedValue(profile());
+    Job.find.mockReturnValue(chainable([]));
+    await portal.listMyJobs('user1');
+    expect(Job.find).toHaveBeenCalledWith({ cleaner: 'profile1', visitState: { $nin: ['scheduled', 'skipped'] } });
   });
 });

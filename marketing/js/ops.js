@@ -31,7 +31,9 @@ const DISPUTE_REASONS = {
 
 let refundLimitPence = null;
 
-setupTabs();
+setupTabs((panel) => {
+  if (panel === 'series') loadSeries();
+});
 
 // --- Today ---
 async function loadToday() {
@@ -319,6 +321,9 @@ async function loadVerification() {
 document.getElementById('verification-refresh').addEventListener('click', loadVerification);
 
 // --- Payments Queue ---
+// A confirmed job whose cleaner share is still in its hold (PAYOUT_HOLD_DAYS), not yet sent to Stripe.
+const isHeld = (job) => job.paymentStatus === 'PAYOUT_PENDING' && !job.stripeTransferId && job.payoutReleaseAt;
+
 async function loadPayments() {
   hideAlert('payments-alert');
   const container = document.getElementById('payments-table');
@@ -328,11 +333,11 @@ async function loadPayments() {
     container.innerHTML = renderTable({
       fit: true,
       columns: ['Job', 'Status', 'Customer', 'Cleaner', 'Attempts', 'Updated', ''],
-      emptyMessage: 'No stuck payouts right now.',
+      emptyMessage: 'No stuck or held payouts right now.',
       rows: jobs.map((job) => `
         <tr>
           <td><code>${shortId(job._id)}</code></td>
-          <td>${paymentStatusBadge(job.paymentStatus)}</td>
+          <td>${paymentStatusBadge(job.paymentStatus)}${isHeld(job) ? `<div class="field-help">Held until ${escapeHtml(formatDate(job.payoutReleaseAt))}</div>` : ''}</td>
           <td>${escapeHtml(job.customer?.name || '—')}</td>
           <td>${escapeHtml(job.cleaner?.name || '—')}</td>
           <td>${job.payoutAttemptCount ?? 0}</td>
@@ -340,6 +345,9 @@ async function loadPayments() {
           <td class="table-actions">
             ${job.paymentStatus === 'MANUAL_REVIEW_HOLD'
               ? `<button type="button" class="secondary retry-btn" data-id="${escapeHtml(job._id)}">Retry payout</button>`
+              : ''}
+            ${isHeld(job)
+              ? `<button type="button" class="secondary release-btn" data-id="${escapeHtml(job._id)}">Release payout now</button>`
               : ''}
           </td>
         </tr>
@@ -352,6 +360,24 @@ async function loadPayments() {
         btn.disabled = true;
         try {
           await apiRequest(`/payments/ops/jobs/${btn.dataset.id}/manual-retry`, {
+            method: 'POST',
+            body: { reason: reason.trim() },
+            auth: true,
+          });
+          await Promise.all([loadPayments(), loadToday()]);
+        } catch (err) {
+          showAlert('payments-alert', err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+    container.querySelectorAll('.release-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const reason = window.prompt('Why release this payout before the hold ends?');
+        if (!reason || reason.trim().length < 3) return;
+        btn.disabled = true;
+        try {
+          await apiRequest(`/payments/ops/jobs/${btn.dataset.id}/release-payout`, {
             method: 'POST',
             body: { reason: reason.trim() },
             auth: true,
@@ -415,6 +441,55 @@ async function loadJobs() {
     showAlert('jobs-alert', err.message);
   }
 }
+
+// --- Regular bookings ---
+const SERIES_STATUS = {
+  awaiting_card: ['Waiting to start', 'warn'],
+  active: ['Running', 'good'],
+  paused: ['Paused', 'bad'],
+  cancelled: ['Cancelled', 'bad'],
+  ended: ['Ended', 'warn'],
+};
+const PAUSED_BY = { customer: 'by the customer', payment: 'failed cards', cleaner_cancellations: 'cleaner cancellations' };
+
+async function loadSeries() {
+  hideAlert('series-alert');
+  const container = document.getElementById('series-table');
+  container.innerHTML = '<div class="table-empty">Loading…</div>';
+  const status = document.getElementById('series-filter-status').value;
+  try {
+    const rows = await apiRequest(`/ops/series${status ? `?status=${status}` : ''}`, { auth: true });
+    container.classList.add('fit');
+    container.innerHTML = renderTable({
+      fit: true,
+      columns: ['Customer', 'Cleaner', 'Plan', 'Status', 'Visits made', 'Next visit', 'Problems'],
+      emptyMessage: 'No regular bookings yet.',
+      rows: rows.map((s) => {
+        const [label, kind] = SERIES_STATUS[s.status] || [s.status, 'warn'];
+        const problems = [
+          s.paymentFailureStreak ? `${s.paymentFailureStreak} skipped for payment` : '',
+          s.cleanerCancellations ? `${s.cleanerCancellations} cancelled by cleaner` : '',
+        ].filter(Boolean);
+        return `
+        <tr>
+          <td>${escapeHtml(s.customer?.name || '—')}<div class="field-help wrap-anywhere">${escapeHtml(s.customer?.email || '')}</div></td>
+          <td>${escapeHtml(s.cleaner || '—')}</td>
+          <td>${escapeHtml(s.frequency)} · ${formatPence(s.pricePence)}<div class="field-help">until ${escapeHtml(new Date(s.endsOn).toLocaleDateString('en-GB'))}</div></td>
+          <td>${statusBadge(label, kind)}${s.status === 'paused' && s.pausedBy ? `<div class="field-help">${escapeHtml(PAUSED_BY[s.pausedBy] || s.pausedBy)}</div>` : ''}</td>
+          <td>${escapeHtml(s.visitsCreated)}</td>
+          <td>${s.nextVisitAt ? formatDate(s.nextVisitAt) : '—'}</td>
+          <td>${problems.length ? escapeHtml(problems.join(', ')) : '—'}</td>
+        </tr>`;
+      }),
+    });
+  } catch (err) {
+    container.innerHTML = '';
+    showAlert('series-alert', err.message);
+  }
+}
+
+document.getElementById('series-refresh').addEventListener('click', loadSeries);
+document.getElementById('series-filter-apply').addEventListener('click', loadSeries);
 
 async function openJob(jobId) {
   hideAlert('jobs-alert');

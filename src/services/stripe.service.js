@@ -22,30 +22,57 @@ function getClient() {
     if (!process.env.STRIPE_SECRET_KEY) {
       throw new Error('STRIPE_SECRET_KEY is not set in the environment');
     }
-    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, { httpAgent: stripeHttpAgent });
+    // A hung connection to Stripe should fail in seconds with a clear message, not
+    // hold the request open until the host's gateway gives up with a bare 504.
+    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      httpAgent: stripeHttpAgent,
+      timeout: 20000,
+      maxNetworkRetries: 1,
+    });
   }
   return stripeClient;
 }
 
-async function createPaymentIntent({ amountPence, currency = 'gbp', metadata }) {
-  return getClient().paymentIntents.create({
-    amount: amountPence,
-    currency,
-    metadata,
-  });
+async function createPaymentIntent({ amountPence, currency = 'gbp', metadata, customerId, paymentMethodId, idempotencyKey }) {
+  return getClient().paymentIntents.create(
+    {
+      amount: amountPence,
+      currency,
+      metadata,
+      // A saved card, for a visit charged without the customer present.
+      ...(customerId ? { customer: customerId } : {}),
+      ...(paymentMethodId ? { payment_method: paymentMethodId } : {}),
+    },
+    idempotencyKey ? { idempotencyKey } : undefined
+  );
+}
+
+// Takes the money for a PaymentIntent made above, using the saved card, with the
+// customer not present. A decline throws a StripeCardError.
+async function confirmOffSession({ paymentIntentId, paymentMethodId, idempotencyKey }) {
+  return getClient().paymentIntents.confirm(
+    paymentIntentId,
+    { payment_method: paymentMethodId, off_session: true },
+    idempotencyKey ? { idempotencyKey } : undefined
+  );
 }
 
 // Connect Express payout to the cleaner's connected account. Idempotency
 // key must be reused across retry attempts (see payment.service.js) —
 // Stripe treats a repeated key as "same request", which is exactly what a
 // retry of the same transfer needs.
-async function createTransfer({ amountPence, destinationAccountId, idempotencyKey, metadata }) {
+// sourceTransaction ties the transfer to the customer's charge. Stripe then lets it through even
+// while the charge's money is still "pending", and the cleaner's share becomes available on the
+// same day the charge clears. Without it, a transfer needs available balance and fails with
+// balance_insufficient for the first few days after a card payment.
+async function createTransfer({ amountPence, destinationAccountId, idempotencyKey, metadata, sourceTransaction }) {
   return getClient().transfers.create(
     {
       amount: amountPence,
       currency: 'gbp',
       destination: destinationAccountId,
       metadata,
+      ...(sourceTransaction ? { source_transaction: sourceTransaction } : {}),
     },
     { idempotencyKey }
   );
@@ -95,8 +122,14 @@ async function createAccountOnboardingLink({ accountId, refreshUrl, returnUrl })
   });
 }
 
-async function retrieveAccount(accountId) {
-  return getClient().accounts.retrieve(accountId);
+async function retrieveAccount(accountId, { timeout } = {}) {
+  return getClient().accounts.retrieve(accountId, {}, timeout ? { timeout } : undefined);
+}
+
+// Errors that mean "Stripe could not be reached right now" (a timeout, a dropped connection, a
+// Stripe-side fault or rate limiting), as opposed to an answer such as "no such account".
+function isTemporaryFailure(err) {
+  return Boolean(err) && ['StripeConnectionError', 'StripeAPIError', 'StripeRateLimitError'].includes(err.type);
 }
 
 // Single-use link into the cleaner's Stripe Express dashboard (payouts,
@@ -109,18 +142,46 @@ async function createExpressDashboardLink(accountId) {
 // Uses a plain Customer on the platform's own account — distinct from the
 // Connect Express account above, which funds are paid OUT to.
 
+// Stripe says "No such customer / payment_intent / subscription" when an id we
+// stored does not exist for the key in use, e.g. it was created with a test-mode
+// key and the site now runs on the live one. Callers replace such ids.
+function isMissingResource(err) {
+  return Boolean(err) && (err.code === 'resource_missing' || err.statusCode === 404);
+}
+
+// A connected account saved while testing does not exist for the live key. Stripe answers that
+// with "no such account" (404) or a permission error saying the key has no access to the account.
+function isStaleConnectedAccount(err) {
+  if (!err) return false;
+  if (isMissingResource(err) || err.code === 'account_invalid' || err.type === 'StripePermissionError') return true;
+  return /no such account|does not have access to account|application access may have been revoked/i.test(err.message || '');
+}
+
+async function retrieveCustomer(customerId) {
+  return getClient().customers.retrieve(customerId);
+}
+
 async function createCustomer({ email, metadata }) {
   return getClient().customers.create({ email, metadata });
 }
 
-async function createSetupIntent({ customerId, metadata }) {
+async function createSetupIntent({ customerId, metadata, paymentMethodTypes }) {
   // usage: 'off_session' — this payment method is charged automatically
   // every month, not while the cleaner is present to re-authenticate.
-  return getClient().setupIntents.create({ customer: customerId, usage: 'off_session', metadata });
+  return getClient().setupIntents.create({
+    customer: customerId,
+    usage: 'off_session',
+    metadata,
+    ...(paymentMethodTypes ? { payment_method_types: paymentMethodTypes } : {}),
+  });
 }
 
 async function retrievePaymentMethod(paymentMethodId) {
   return getClient().paymentMethods.retrieve(paymentMethodId);
+}
+
+async function detachPaymentMethod(paymentMethodId) {
+  return getClient().paymentMethods.detach(paymentMethodId);
 }
 
 async function setDefaultPaymentMethod({ customerId, paymentMethodId }) {
@@ -177,6 +238,12 @@ async function cancelSubscription(subscriptionId) {
   return getClient().subscriptions.cancel(subscriptionId);
 }
 
+// Keeps the subscription running (and the cleaner's access) until the period
+// they have already paid for ends, then stops it with no further charge.
+async function cancelSubscriptionAtPeriodEnd(subscriptionId) {
+  return getClient().subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+}
+
 // Verifies the Stripe signature BEFORE the caller trusts event.id for dedup
 // or acts on the payload at all.
 //
@@ -205,6 +272,7 @@ function constructWebhookEvent(payload, signatureHeader) {
 module.exports = {
   getClient,
   createPaymentIntent,
+  confirmOffSession,
   createTransfer,
   createRefund,
   retrievePaymentIntent,
@@ -213,11 +281,17 @@ module.exports = {
   createAccountOnboardingLink,
   retrieveAccount,
   createExpressDashboardLink,
+  isMissingResource,
+  isTemporaryFailure,
+  isStaleConnectedAccount,
+  retrieveCustomer,
   createCustomer,
   createSetupIntent,
   retrievePaymentMethod,
+  detachPaymentMethod,
   setDefaultPaymentMethod,
   createSubscription,
   cancelSubscription,
+  cancelSubscriptionAtPeriodEnd,
   constructWebhookEvent,
 };

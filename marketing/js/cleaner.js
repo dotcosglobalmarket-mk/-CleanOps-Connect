@@ -1,6 +1,7 @@
 import { apiRequest, apiUpload, requireRole } from './api.js';
 import { escapeHtml, splitSuggestion } from './dom.js';
 import { setupTabs, formatPence } from './dashboard-ui.js';
+import { mountSeries } from './series-ui.js';
 import { STRIPE_PUBLISHABLE_KEY } from './config.js';
 import { avatarHtml, hydrateAvatars, prepareAvatar } from './avatar.js';
 
@@ -81,6 +82,38 @@ async function ensureSubscriptionPaymentElement() {
   subElements.create('payment').mount(container);
 }
 
+function longDate(value) {
+  return new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// A cleaner asks to leave and CleanOps confirms by email, so this screen only
+// ever shows the request's state: nothing to do, waiting, or ending on a date.
+function renderSubscriptionCancel(subscription) {
+  const box = document.getElementById('subscription-cancel');
+  const text = document.getElementById('subscription-cancel-text');
+  const open = document.getElementById('subscription-cancel-open');
+  const withdraw = document.getElementById('subscription-cancel-withdraw');
+  const form = document.getElementById('subscription-cancel-form');
+
+  form.hidden = true;
+  open.hidden = true;
+  withdraw.hidden = true;
+  box.hidden = !subscription;
+  if (!subscription) return;
+
+  if (subscription.cancelAtPeriodEnd) {
+    text.textContent = subscription.renewsAt
+      ? `Your plan ends on ${longDate(subscription.renewsAt)}. You keep it until then and no further payments will be taken.`
+      : 'Your plan is set to end at the close of this billing period. No further payments will be taken.';
+  } else if (subscription.cancellationRequestedAt) {
+    text.textContent = `You asked to cancel on ${longDate(subscription.cancellationRequestedAt)}. Your plan and billing carry on until we confirm it by email.`;
+    withdraw.hidden = false;
+  } else {
+    text.textContent = 'To stop your plan, send a cancellation request. We will confirm by email, and you keep your plan until it ends.';
+    open.hidden = false;
+  }
+}
+
 async function loadMySubscription() {
   const statusEl = document.getElementById('subscription-status-text');
   try {
@@ -88,16 +121,89 @@ async function loadMySubscription() {
     statusEl.textContent = subscription
       ? `Current plan: ${PLAN_LABELS[subscription.plan] || subscription.plan} — ${formatPence(subscription.pricePence)}/month.`
       : 'No active subscription.';
+    renderSubscriptionCancel(subscription);
   } catch (err) {
     statusEl.textContent = '';
+    renderSubscriptionCancel(null);
   }
 }
 
+document.getElementById('subscription-cancel-open').addEventListener('click', () => {
+  document.getElementById('subscription-cancel-open').hidden = true;
+  document.getElementById('subscription-cancel-form').hidden = false;
+  document.getElementById('subscription-cancel-reason').focus();
+});
+
+document.getElementById('subscription-cancel-back').addEventListener('click', () => {
+  document.getElementById('subscription-cancel-form').hidden = true;
+  document.getElementById('subscription-cancel-open').hidden = false;
+});
+
+document.getElementById('subscription-cancel-send').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  hideAlert('subscription-cancel-alert');
+  document.getElementById('subscription-cancel-success').hidden = true;
+  button.disabled = true;
+  try {
+    const reason = document.getElementById('subscription-cancel-reason').value.trim();
+    await apiRequest('/subscriptions/me/cancellation-request', { method: 'POST', body: reason ? { reason } : {}, auth: true });
+    document.getElementById('subscription-cancel-reason').value = '';
+    const success = document.getElementById('subscription-cancel-success');
+    success.textContent = 'Request sent. We will email you once it is confirmed.';
+    success.hidden = false;
+    await loadMySubscription();
+  } catch (err) {
+    showAlert('subscription-cancel-alert', err.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.getElementById('subscription-cancel-withdraw').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  hideAlert('subscription-cancel-alert');
+  document.getElementById('subscription-cancel-success').hidden = true;
+  button.disabled = true;
+  try {
+    await apiRequest('/subscriptions/me/cancellation-request', { method: 'DELETE', auth: true });
+    await loadMySubscription();
+  } catch (err) {
+    showAlert('subscription-cancel-alert', err.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
 // --- Tab switching (a ?tab= link, e.g. from an email, opens that tab) ---
+async function loadRegularJobs() {
+  document.getElementById('regular-alert').hidden = true;
+  try {
+    return await mountSeries(document.getElementById('regular-list'), {
+      role: 'cleaner',
+      alertId: 'regular-alert',
+      successId: 'regular-success',
+    });
+  } catch (err) {
+    const alert = document.getElementById('regular-alert');
+    alert.textContent = err.message;
+    alert.hidden = false;
+    return null;
+  }
+}
+
 const selectPanel = setupTabs((panel) => {
   if (panel === 'coverage') ensureSubscriptionPaymentElement().catch(() => {});
   if (panel === 'compliance') loadComplianceDocuments();
+  if (panel === 'regular') loadRegularJobs();
 });
+document.getElementById('regular-refresh').addEventListener('click', loadRegularJobs);
+
+// Regular Jobs shows in the menu once recurring bookings are on, or the cleaner already has one.
+apiRequest('/series/mine', { auth: true })
+  .then((data) => {
+    document.getElementById('nav-regular').hidden = !(data.enabled || (data.series || []).length);
+  })
+  .catch(() => {});
 const requestedTab = new URLSearchParams(window.location.search).get('tab');
 if (requestedTab) selectPanel(requestedTab);
 
@@ -437,16 +543,39 @@ document.getElementById('coverage-form').addEventListener('submit', async (event
   }
 });
 
+// The result of activating a plan or adding insurance shows twice: at the top of the section, and
+// under the card form next to the buttons that were pressed.
+function clearSubscriptionMessages() {
+  ['subscription-alert', 'subscription-alert-top'].forEach((id) => hideAlert(id));
+  ['subscription-success', 'subscription-success-top'].forEach((id) => {
+    document.getElementById(id).hidden = true;
+  });
+}
+
+function showSubscriptionAlert(message) {
+  showAlert('subscription-alert', message);
+  showAlert('subscription-alert-top', message);
+  document.getElementById('subscription-alert').scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function showSubscriptionSuccess(message) {
+  ['subscription-success', 'subscription-success-top'].forEach((id) => {
+    const el = document.getElementById(id);
+    el.textContent = message;
+    el.hidden = false;
+  });
+  document.getElementById('subscription-success').scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
 document.getElementById('activate-subscription-button').addEventListener('click', async (event) => {
-  hideAlert('subscription-alert');
-  document.getElementById('subscription-success').hidden = true;
+  clearSubscriptionMessages();
 
   if (!cleanerId) {
-    showAlert('subscription-alert', 'Register your profile first.');
+    showSubscriptionAlert('Register your profile first.');
     return;
   }
   if (!STRIPE_PUBLISHABLE_KEY) {
-    showAlert('subscription-alert', 'Card payments are not set up on this site yet. Please contact us.');
+    showSubscriptionAlert('Card payments are not set up on this site yet. Please contact us.');
     return;
   }
 
@@ -458,7 +587,7 @@ document.getElementById('activate-subscription-button').addEventListener('click'
       redirect: 'if_required',
     });
     if (error) {
-      showAlert('subscription-alert', error.message);
+      showSubscriptionAlert(error.message);
       return;
     }
 
@@ -475,33 +604,30 @@ document.getElementById('activate-subscription-button').addEventListener('click'
       auth: true,
     });
 
-    const successEl = document.getElementById('subscription-success');
-    successEl.textContent = 'Subscription activated.';
-    successEl.hidden = false;
+    // Refresh the plan first: it adds the cancellation box above, which moves the page, and the
+    // result should be scrolled into view after that has settled.
     await loadMySubscription();
+    showSubscriptionSuccess('Subscription activated.');
   } catch (err) {
-    showAlert('subscription-alert', err.message);
+    showSubscriptionAlert(err.message);
   } finally {
     event.target.disabled = false;
   }
 });
 
 document.getElementById('add-insurance-button').addEventListener('click', async () => {
-  hideAlert('subscription-alert');
-  document.getElementById('subscription-success').hidden = true;
+  clearSubscriptionMessages();
 
   if (!cleanerId) {
-    showAlert('subscription-alert', 'Register your profile first.');
+    showSubscriptionAlert('Register your profile first.');
     return;
   }
 
   try {
     await apiRequest('/subscriptions/insurance', { method: 'POST', body: { cleanerId }, auth: true });
-    const successEl = document.getElementById('subscription-success');
-    successEl.textContent = 'Insurance add-on activated.';
-    successEl.hidden = false;
+    showSubscriptionSuccess('Insurance add-on activated.');
   } catch (err) {
-    showAlert('subscription-alert', err.message);
+    showSubscriptionAlert(err.message);
   }
 });
 
