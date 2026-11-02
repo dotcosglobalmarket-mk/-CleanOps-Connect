@@ -4,7 +4,7 @@ const createApp = require('./app');
 const connectDB = require('./config/db');
 const logger = require('./utils/logger');
 const { seedDefaultServiceTypes } = require('./services/service-type-seed.service');
-const { ensureSuperAdmin } = require('./services/admin-bootstrap.service');
+const { ensureSuperAdmin, resetAdminTwoFactorIfRequested } = require('./services/admin-bootstrap.service');
 const complianceDocumentService = require('./services/compliance-document.service');
 const retentionService = require('./services/retention.service');
 const { startPaymentWorkers } = require('./workers/transfer-retry.worker');
@@ -40,6 +40,7 @@ async function start() {
   await connectDB();
   await seedDefaultServiceTypes();
   await ensureSuperAdmin().catch((err) => logger.error(`Super admin setup failed: ${err.message}`));
+  await resetAdminTwoFactorIfRequested().catch((err) => logger.error(`Two-step login reset failed: ${err.message}`));
 
   const app = createApp();
 

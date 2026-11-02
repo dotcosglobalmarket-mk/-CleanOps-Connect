@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const notificationService = require('./notification.service');
 const twoFactorService = require('./two-factor.service');
-const { signToken, toPublicUser } = require('./session.service');
+const { signToken, toPublicUser, revokeSessions } = require('./session.service');
 
 const SALT_ROUNDS = 10;
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
@@ -93,6 +93,8 @@ async function resetPassword(token, newPassword) {
   user.passwordHash = await hashPassword(newPassword);
   user.resetPasswordTokenHash = undefined;
   user.resetPasswordExpiresAt = undefined;
+  // Anyone signed in with the old password is signed out.
+  revokeSessions(user);
   await user.save();
 
   // A reset link must not be a way round two-step login.

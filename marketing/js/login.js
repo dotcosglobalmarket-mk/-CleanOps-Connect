@@ -3,6 +3,13 @@ import { continueAfterPassword } from './two-factor-ui.js';
 
 const form = document.getElementById('login-form');
 
+// Sent here because the server ended their session (see api.js).
+if (new URLSearchParams(window.location.search).has('ended')) {
+  const notice = document.getElementById('alert');
+  notice.textContent = 'Your session has ended. Please log in again.';
+  notice.hidden = false;
+}
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
 

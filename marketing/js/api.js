@@ -59,6 +59,14 @@ export function exitImpersonation() {
   return true;
 }
 
+// The server has ended this session (it expired, the password was reset, the
+// account was deactivated). Send the person to log in rather than leaving a
+// page that only shows errors.
+function sessionEnded() {
+  clearSession();
+  window.location.href = 'login.html?ended=1';
+}
+
 export function requireRole(role) {
   if (getToken() && getRole() === role) return;
   window.location.href = 'login.html';
@@ -86,6 +94,8 @@ export async function apiRequest(path, { method = 'GET', body, auth = false } = 
   }
 
   const data = await response.json().catch(() => ({}));
+
+  if (response.status === 401 && auth) sessionEnded();
 
   if (!response.ok) {
     const message =
@@ -118,6 +128,7 @@ export async function apiUpload(path, file, query = {}) {
     throw new Error(`Could not reach the API at ${API_BASE_URL}.`);
   }
   const data = await response.json().catch(() => ({}));
+  if (response.status === 401) sessionEnded();
   if (!response.ok) throw new Error(data.message || `Upload failed with status ${response.status}`);
   return data;
 }
@@ -130,6 +141,7 @@ export async function apiFetchBlob(path) {
   const response = await fetch(`${API_BASE_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
+    if (response.status === 401) sessionEnded();
     throw new Error(data.message || `Request failed with status ${response.status}`);
   }
   return response.blob();

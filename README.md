@@ -375,8 +375,9 @@ Admin accounts need a six-digit code from an authenticator app as well as the pa
 
 - The first time an admin signs in after this is switched on, they are taken through set-up: enter the key in an authenticator app, type the first code, and save the ten one-time recovery codes (shown once).
 - A correct password alone never gives an admin a session, including through "Forgot password".
-- Five wrong codes lock that account for 15 minutes; a code cannot be used twice. Authenticator secrets are stored encrypted (key: `TWO_FACTOR_ENCRYPTION_KEY`, or derived from `JWT_SECRET` if unset) and recovery codes only as hashes.
-- Lost phone and recovery codes: another admin uses **Staff Accounts → Reset two-step** (audited). If *no* admin can get in, set `ADMIN_2FA_REQUIRED=false` on the API, redeploy, sign in with the password, then remove it. Anyone who already has two-step login on is still asked for a code.
+- Five wrong codes lock that account for 15 minutes (counted in one atomic database step, so a burst of simultaneous guesses cannot get past the limit); a code or recovery code cannot be used twice, even by two requests at the same moment. Authenticator secrets are stored encrypted (key: `TWO_FACTOR_ENCRYPTION_KEY`, or derived from `JWT_SECRET` if unset) and recovery codes only as hashes.
+- Lost phone and recovery codes: another admin uses **Staff Accounts → Reset two-step** (audited). If *no* admin can get in, set `ADMIN_2FA_RESET_EMAIL` to that admin's email on the API and redeploy: at start-up their two-step login is cleared and their sessions end, so after their password they set it up again. It is logged, and it never lets anyone in without a password. **Remove the setting afterwards**, or it clears it again at every restart. (`ADMIN_2FA_REQUIRED=false` only stops admins who have not set it up yet from being made to; anyone who has it on is still asked for a code.)
+- Sessions last 7 days but end sooner when they should: a password reset, a two-step login reset or deactivating a staff account ends every session already issued (each session carries the account's `tokenVersion`; sessions issued before this existed simply run out).
 - It is required for admins only. Operators, customers and cleaners sign in with a password, as before.
 
 ## Roadmap

@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const User = require('../models/User');
 const authService = require('./auth.service');
+const twoFactorService = require('./two-factor.service');
 const logger = require('../utils/logger');
 
 // Creates the first (super) admin account at start-up from SUPER_ADMIN_EMAIL
@@ -24,6 +25,28 @@ const emailSchema = z.string().email();
 function maskEmail(email) {
   const [local = '', domain = ''] = String(email).split('@');
   return `${local.slice(0, 1)}${'*'.repeat(Math.max(local.length - 1, 1))}@${domain}`;
+}
+
+// Break glass for an admin locked out of their own account (lost phone and
+// recovery codes, no other admin to reset them). While ADMIN_2FA_RESET_EMAIL
+// names an admin, that admin's two-step login is cleared at start-up and they
+// set it up again after their password. It never lets anyone in without a
+// password, and it is logged every time: remove the setting afterwards.
+async function resetAdminTwoFactorIfRequested() {
+  const email = (process.env.ADMIN_2FA_RESET_EMAIL || '').trim().toLowerCase();
+  if (!email) return { status: 'not_requested' };
+
+  const user = await User.findOne({ email, role: 'admin' });
+  if (!user) {
+    logger.error(`[security] ADMIN_2FA_RESET_EMAIL is set, but no admin account matches ${maskEmail(email)}: nothing was reset`);
+    return { status: 'no_such_admin' };
+  }
+  await twoFactorService.reset(user);
+  logger.info(
+    `[security] ADMIN_2FA_RESET_EMAIL is set: two-step login was reset for ${maskEmail(email)} and their sessions ended. ` +
+      'Remove that setting now, or it is cleared again at every restart.'
+  );
+  return { status: 'reset' };
 }
 
 async function ensureSuperAdmin() {
@@ -89,4 +112,4 @@ async function ensureSuperAdmin() {
   return { status: 'created' };
 }
 
-module.exports = { ensureSuperAdmin, MIN_PASSWORD_LENGTH };
+module.exports = { ensureSuperAdmin, resetAdminTwoFactorIfRequested, MIN_PASSWORD_LENGTH };

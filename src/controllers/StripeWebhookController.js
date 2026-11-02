@@ -85,6 +85,13 @@ async function handle(req, res, next) {
     await dispatch(event);
     return res.status(200).json({ received: true });
   } catch (err) {
+    // The work did not finish, so forget that this event was handled. Otherwise
+    // Stripe's retry would be answered "duplicate" and the event lost for good.
+    try {
+      await ProcessedWebhookEvent.deleteOne({ eventId: event.id });
+    } catch (cleanupErr) {
+      console.error(`Could not clear webhook event ${event.id} for retry: ${cleanupErr.message}`);
+    }
     return next(err);
   }
 }

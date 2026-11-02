@@ -30,6 +30,10 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
     },
+    // Raised to end every session already issued to this user (password reset,
+    // two-step login reset, staff deactivation). Sessions carry the number they
+    // were issued under; see session.service.js.
+    tokenVersion: { type: Number, default: 0 },
     // Two-step login (see two-factor.service.js). The authenticator secret is
     // stored encrypted and recovery codes only as hashes.
     twoFactor: {
@@ -40,6 +44,8 @@ const userSchema = new mongoose.Schema(
       lastUsedStep: { type: Number },
       failedAttempts: { type: Number, default: 0 },
       lockedUntil: { type: Date },
+      // When the last code attempt was let through; the wrong-code count starts again 15 minutes after it.
+      lastAttemptAt: { type: Date },
       enabledAt: { type: Date },
     },
     // Single-use password reset token — only the SHA-256 hash is stored,

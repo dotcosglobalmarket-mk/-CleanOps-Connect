@@ -4,7 +4,7 @@ const CleanerPortalController = require('../controllers/CleanerPortalController'
 const ReviewController = require('../controllers/ReviewController');
 const CleanerPhotoController = require('../controllers/CleanerPhotoController');
 const { STAFF_ROLES } = require('../config/permissions');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole, requireActiveIfStaff } = require('../middleware/auth');
 const { aiWritingLimiter } = require('../middleware/ai-rate-limit');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
 const {
@@ -70,6 +70,7 @@ router.get(
   '/:id/photo',
   requireAuth,
   requireRole('customer', 'cleaner', ...STAFF_ROLES),
+  requireActiveIfStaff,
   validateParams(cleanerIdParamSchema),
   CleanerPhotoController.get
 );

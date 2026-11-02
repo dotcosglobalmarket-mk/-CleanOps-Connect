@@ -1,6 +1,6 @@
 const express = require('express');
 const JobPhotoController = require('../controllers/JobPhotoController');
-const { requireAuth, requireRole, requireActiveStaff } = require('../middleware/auth');
+const { requireAuth, requireRole, requireActiveIfStaff } = require('../middleware/auth');
 const { validateParams, validateQuery } = require('../middleware/validate');
 const { photoParamSchema, jobParamSchema, uploadQuerySchema } = require('../validation/job-photo.validation');
 const { STAFF_ROLES } = require('../config/permissions');
@@ -11,7 +11,7 @@ const router = express.Router({ mergeParams: true });
 
 router.use(requireAuth, requireRole('customer', 'cleaner', ...STAFF_ROLES));
 // Staff tokens last for days, so re-check the account is still active.
-router.use((req, res, next) => (STAFF_ROLES.includes(req.user.role) ? requireActiveStaff(req, res, next) : next()));
+router.use(requireActiveIfStaff);
 
 router.get('/', validateParams(jobParamSchema), JobPhotoController.list);
 
