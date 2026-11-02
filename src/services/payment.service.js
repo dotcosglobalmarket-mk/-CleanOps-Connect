@@ -309,6 +309,7 @@ async function enterPayoutPending(job) {
   job.commissionRate = rate;
   job.commissionPence = commissionPence;
   job.cleanerPayoutPence = cleanerPayoutPence;
+  job.commissionSettledAt = new Date();
 
   const holdDays = payoutHoldDays();
   job.payoutReleaseAt = new Date(Date.now() + holdDays * 24 * 60 * 60 * 1000);

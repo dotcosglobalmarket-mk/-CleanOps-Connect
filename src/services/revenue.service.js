@@ -9,9 +9,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKS_SHOWN = 8;
 const RECENT_PAYMENTS_LIMIT = 20;
 
-// A job's commission counts as platform revenue once the customer has
-// confirmed it, whatever has happened to the payout since. Refunds, disputes
-// and partial resolutions are left out: their commission is not settled.
+// A job's commission counts as platform revenue once it has been worked out:
+// when the customer confirms the job (or it confirms itself), or when a dispute
+// is resolved in the cleaner's favour. Whatever has happened to the payout since
+// does not matter. Refunds, open disputes and split resolutions are left out:
+// no commission is settled on them.
 const REVENUE_STATES = [
   STATES.CONFIRMED,
   STATES.PAYOUT_PENDING,
@@ -33,6 +35,9 @@ function rangeBounds(range, now) {
   return { start: new Date(now.getTime() - days * DAY_MS), previousStart: new Date(now.getTime() - 2 * days * DAY_MS) };
 }
 
+// Jobs settled before commissionSettledAt existed have only their confirmation date.
+const settledAt = (job) => job.commissionSettledAt || job.confirmedAt;
+
 const sum = (rows, key) => rows.reduce((total, row) => total + (row[key] || 0), 0);
 const inWindow = (date, from, to) => date >= from && (!to || date < to);
 
@@ -42,8 +47,14 @@ async function getRevenue({ range = '30d' } = {}, now = new Date()) {
   const earliest = new Date(Math.min(previousStart.getTime(), weeksStart.getTime()));
 
   const [jobs, payments, activeSubscriptions, atRiskSubscriptions, recent, activeSeries] = await Promise.all([
-    Job.find({ paymentStatus: { $in: REVENUE_STATES }, confirmedAt: { $gte: earliest } })
-      .select('commissionPence confirmedAt series')
+    Job.find({
+      paymentStatus: { $in: REVENUE_STATES },
+      $or: [
+        { commissionSettledAt: { $gte: earliest } },
+        { commissionSettledAt: { $exists: false }, confirmedAt: { $gte: earliest } },
+      ],
+    })
+      .select('commissionPence confirmedAt commissionSettledAt series')
       .lean(),
     SubscriptionPayment.find({ status: 'paid', occurredAt: { $gte: earliest } })
       .select('amountPence occurredAt')
@@ -60,8 +71,8 @@ async function getRevenue({ range = '30d' } = {}, now = new Date()) {
     Series.countDocuments({ status: 'active' }),
   ]);
 
-  const commissionNow = jobs.filter((j) => inWindow(j.confirmedAt, start));
-  const commissionBefore = jobs.filter((j) => inWindow(j.confirmedAt, previousStart, start));
+  const commissionNow = jobs.filter((j) => inWindow(settledAt(j), start));
+  const commissionBefore = jobs.filter((j) => inWindow(settledAt(j), previousStart, start));
   const billedNow = payments.filter((p) => inWindow(p.occurredAt, start));
   const billedBefore = payments.filter((p) => inWindow(p.occurredAt, previousStart, start));
 
@@ -75,7 +86,7 @@ async function getRevenue({ range = '30d' } = {}, now = new Date()) {
     const to = new Date(from.getTime() + 7 * DAY_MS);
     return {
       from,
-      commissionPence: sum(jobs.filter((j) => inWindow(j.confirmedAt, from, to)), 'commissionPence'),
+      commissionPence: sum(jobs.filter((j) => inWindow(settledAt(j), from, to)), 'commissionPence'),
       subscriptionPence: sum(payments.filter((p) => inWindow(p.occurredAt, from, to)), 'amountPence'),
     };
   });

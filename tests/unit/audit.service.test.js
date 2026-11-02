@@ -47,3 +47,31 @@ describe('AuditLog model is append-only', () => {
     await expect(RealAuditLog.deleteMany({}).exec()).rejects.toThrow('Audit log entries cannot be changed or deleted');
   });
 });
+
+
+describe('audit entry retention', () => {
+  const DAY = 86400000;
+  const base = { req, targetType: 'job', targetId: 'j1', reason: 'because' };
+
+  it('keeps everyday staff activity for 12 months', async () => {
+    await auditService.record({ ...base, action: 'chat.view' });
+    const { expireAt } = AuditLog.create.mock.calls[0][0];
+    expect(Math.round((expireAt - Date.now()) / DAY)).toBe(365);
+  });
+
+  it('keeps refund, payout and dispute decisions for 6 years', async () => {
+    for (const action of ['dispute.resolve', 'dispute.resolution.requested', 'approval.approve', 'approval.reject', 'payout.manual_retry', 'payout.release_early']) {
+      AuditLog.create.mockClear();
+      await auditService.record({ ...base, action });
+      const { expireAt } = AuditLog.create.mock.calls[0][0];
+      expect(Math.round((expireAt - Date.now()) / DAY)).toBe(6 * 365);
+    }
+  });
+
+  it('works out the date from when an older entry was written', () => {
+    const written = new Date('2026-01-01T00:00:00Z');
+    expect(auditService.expiryFor('chat.view', written).getTime() - written.getTime()).toBe(365 * DAY);
+    expect(auditService.expiryFor('approval.approve', written).getTime() - written.getTime()).toBe(6 * 365 * DAY);
+    expect(auditService.isFinancialAction('job.note')).toBe(false);
+  });
+});

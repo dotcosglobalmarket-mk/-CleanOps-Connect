@@ -392,6 +392,23 @@ describe('timestamps recorded for the service record', () => {
     expect(auto.confirmationMethod).toBe('automatic');
   });
 
+  it('records when the commission was settled, on confirmation and when a dispute is resolved in the cleaner\'s favour', async () => {
+    CleanerProfile.findById.mockResolvedValue(makeCleaner());
+    stripeService.createTransfer.mockResolvedValue({ id: 'tr_1' });
+
+    const confirmed = makeJob({ paymentStatus: STATES.AWAITING_CONFIRMATION });
+    Job.findById.mockResolvedValue(confirmed);
+    await paymentService.confirmJob('job1');
+    expect(confirmed.commissionSettledAt).toBeInstanceOf(Date);
+
+    const disputed = makeJob({ paymentStatus: STATES.DISPUTED });
+    Job.findById.mockResolvedValue(disputed);
+    await paymentService.resolveDisputePayout('job1');
+    expect(disputed.commissionPence).toBeGreaterThan(0);
+    expect(disputed.commissionSettledAt).toBeInstanceOf(Date);
+    expect(disputed.confirmedAt).toBeUndefined();
+  });
+
   it('starts the 90-day photo deletion clock when a job is confirmed, either way', async () => {
     CleanerProfile.findById.mockResolvedValue(makeCleaner());
     stripeService.createTransfer.mockResolvedValue({ id: 'tr_1' });

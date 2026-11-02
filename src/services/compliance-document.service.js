@@ -254,6 +254,12 @@ async function expireLapsedDocuments(now = new Date()) {
   const lapsed = await CleanerDocument.find({ status: 'approved', expiresAt: { $lt: now } });
   for (const doc of lapsed) {
     doc.status = 'expired';
+    // An expired certificate is no longer the one in use, so its file goes too.
+    // The record of the check stays.
+    if (doc.file) {
+      await DocumentFile.deleteMany({ _id: doc.file });
+      doc.fileDeletedAt = now;
+    }
     await doc.save();
     const cleaner = await CleanerProfile.findById(doc.cleaner);
     if (cleaner) {

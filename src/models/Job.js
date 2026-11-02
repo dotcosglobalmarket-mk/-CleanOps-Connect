@@ -170,6 +170,11 @@ const jobSchema = new mongoose.Schema(
     confirmedAt: {
       type: Date,
     },
+    // When the platform's commission on this job was worked out: on confirmation, or when a
+    // dispute was resolved in the cleaner's favour (which has no confirmedAt). Revenue counts from here.
+    commissionSettledAt: {
+      type: Date,
+    },
     confirmationMethod: {
       type: String,
       enum: ['customer', 'automatic'],
