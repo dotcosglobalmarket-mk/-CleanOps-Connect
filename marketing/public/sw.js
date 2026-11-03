@@ -3,9 +3,9 @@
 // calls (they go to a different origin) and never caches anything personal:
 // only the static site files.
 
-const CACHE = 'cleanops-static-v2';
+const CACHE = 'cleanops-static-v1';
 const OFFLINE_URL = '/offline.html';
-const PRECACHE = [OFFLINE_URL, '/favicon.svg', '/brand/logo-full.png', '/icons/app-icon-192.png', '/icons/app-icon-512.png'];
+const PRECACHE = [OFFLINE_URL, '/favicon.svg', '/icons/app-icon-192.png', '/icons/app-icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
