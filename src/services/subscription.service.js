@@ -14,6 +14,21 @@ const PLAN_PRICES_PENCE = {
   industrial_pro: 1000,
 };
 
+// How often each plan is charged. Starter is billed every week, Pro and
+// Industrial Pro every month. A subscription records its own interval when it
+// is created (Subscription.billingInterval), so changing this later never
+// changes what an existing cleaner already agreed to.
+const PLAN_INTERVALS = {
+  starter: 'week',
+  pro: 'month',
+  industrial_pro: 'month',
+};
+
+// What a charge works out at over a month, for revenue totals (52 weeks / 12).
+function monthlyEquivalentPence(pricePence, interval) {
+  return interval === 'week' ? Math.round((pricePence * 52) / 12) : pricePence;
+}
+
 const PLAN_LABELS = {
   starter: 'CleanOps Starter',
   pro: 'CleanOps Pro',
@@ -139,6 +154,7 @@ async function activateSubscription(cleanerId, plan, paymentMethodId, requesting
     customerId: cleaner.stripeCustomerId,
     planId: plan,
     pricePence,
+    interval: PLAN_INTERVALS[plan],
     productName: PLAN_LABELS[plan],
     paymentMethodId,
     metadata: { cleanerProfileId: cleaner._id.toString(), plan },
@@ -149,6 +165,7 @@ async function activateSubscription(cleanerId, plan, paymentMethodId, requesting
     cleaner: cleanerId,
     plan,
     pricePence,
+    billingInterval: PLAN_INTERVALS[plan],
     isActive: ['active', 'trialing'].includes(stripeSubscription.status),
     stripeSubscriptionId: stripeSubscription.id,
     stripeStatus: stripeSubscription.status,
@@ -396,7 +413,7 @@ async function hasActiveSubscription(cleanerId) {
 async function requireActiveSubscription(cleanerId) {
   if (!(await hasActiveSubscription(cleanerId))) {
     const error = new Error(
-      'Your platform subscription is not active. Pay the monthly platform fee under Coverage & Subscription to see and answer job offers.'
+      'Your platform subscription is not active. Pay the platform fee under Coverage & Subscription to see and answer job offers.'
     );
     error.status = 402;
     throw error;
@@ -405,6 +422,8 @@ async function requireActiveSubscription(cleanerId) {
 
 module.exports = {
   PLAN_PRICES_PENCE,
+  PLAN_INTERVALS,
+  monthlyEquivalentPence,
   hasActiveSubscription,
   requireActiveSubscription,
   createSetupIntent,

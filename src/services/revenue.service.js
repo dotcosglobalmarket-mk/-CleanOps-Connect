@@ -3,7 +3,7 @@ const Series = require('../models/Series');
 const Subscription = require('../models/Subscription');
 const SubscriptionPayment = require('../models/SubscriptionPayment');
 const { STATES } = require('./payment-state-machine');
-const { PLAN_PRICES_PENCE } = require('./subscription.service');
+const { PLAN_PRICES_PENCE, monthlyEquivalentPence } = require('./subscription.service');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKS_SHOWN = 8;
@@ -95,7 +95,9 @@ async function getRevenue({ range = '30d' } = {}, now = new Date()) {
   activeSubscriptions.forEach((s) => {
     const row = planCounts[s.plan] || (planCounts[s.plan] = { plan: s.plan, label: PLAN_LABELS[s.plan] || s.plan, cleaners: 0, monthlyPence: 0 });
     row.cleaners += 1;
-    row.monthlyPence += typeof s.pricePence === 'number' ? s.pricePence : PLAN_PRICES_PENCE[s.plan] || 0;
+    const price = typeof s.pricePence === 'number' ? s.pricePence : PLAN_PRICES_PENCE[s.plan] || 0;
+    // A weekly plan counts as its monthly equivalent so the totals stay comparable.
+    row.monthlyPence += monthlyEquivalentPence(price, s.billingInterval || 'month');
   });
   const plans = Object.values(planCounts);
 
@@ -120,6 +122,7 @@ async function getRevenue({ range = '30d' } = {}, now = new Date()) {
       planLabel: PLAN_LABELS[s.plan] || s.plan,
       status: s.stripeStatus,
       amountPence: typeof s.pricePence === 'number' ? s.pricePence : PLAN_PRICES_PENCE[s.plan] || 0,
+      billingInterval: s.billingInterval || 'month',
       failedOn: failure ? failure.occurredAt : null,
       nextRetryAt: failure ? failure.nextRetryAt || null : null,
     };
@@ -142,7 +145,7 @@ async function getRevenue({ range = '30d' } = {}, now = new Date()) {
       mrrPence: sum(plans, 'monthlyPence'),
       activeSubscribers: activeSubscriptions.length,
       failedCount: atRisk.length,
-      atRiskPence: sum(atRisk, 'amountPence'),
+      atRiskPence: sum(atRisk.map((a) => ({ pence: monthlyEquivalentPence(a.amountPence, a.billingInterval) })), 'pence'),
     },
     weeks,
     plans,

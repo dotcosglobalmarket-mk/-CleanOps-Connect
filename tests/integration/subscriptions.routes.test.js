@@ -180,6 +180,37 @@ describe('Subscriptions routes', () => {
       );
     });
 
+    it('bills Starter every week and Pro every month, and records which', async () => {
+      CleanerProfile.findById.mockResolvedValue({
+        _id: cleanerId,
+        user: { toString: () => 'owner1' },
+        stripeCustomerId: 'cus_123',
+      });
+      stripeService.retrievePaymentMethod.mockResolvedValue({ customer: 'cus_123' });
+      stripeService.setDefaultPaymentMethod.mockResolvedValue({});
+      Subscription.findOne.mockReturnValue({ sort: jest.fn().mockResolvedValue(null) });
+      stripeService.createSubscription.mockResolvedValue({ id: 'sub_x', status: 'active' });
+      Subscription.mockImplementation(function (data) {
+        Object.assign(this, data);
+        this.save = jest.fn().mockResolvedValue(undefined);
+      });
+
+      const starter = await request(app)
+        .post('/subscriptions')
+        .set('Authorization', authHeaderFor('cleaner', 'owner1'))
+        .send(validBody({ plan: 'starter' }));
+      expect(starter.status).toBe(201);
+      expect(starter.body).toMatchObject({ pricePence: 250, billingInterval: 'week' });
+      expect(stripeService.createSubscription).toHaveBeenLastCalledWith(expect.objectContaining({ pricePence: 250, interval: 'week' }));
+
+      const pro = await request(app)
+        .post('/subscriptions')
+        .set('Authorization', authHeaderFor('cleaner', 'owner1'))
+        .send(validBody({ plan: 'pro' }));
+      expect(pro.body).toMatchObject({ pricePence: 1000, billingInterval: 'month' });
+      expect(stripeService.createSubscription).toHaveBeenLastCalledWith(expect.objectContaining({ pricePence: 1000, interval: 'month' }));
+    });
+
     it('cancels an existing active subscription before activating a new plan', async () => {
       CleanerProfile.findById.mockResolvedValue({
         _id: cleanerId,

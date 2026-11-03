@@ -243,7 +243,7 @@ async function loadOffers() {
   } catch (err) {
     container.innerHTML = '';
     if (err.status === 402) {
-      container.innerHTML = '<div class="table-empty">Job offers appear here once your monthly platform fee is paid. Go to Coverage &amp; Subscription to activate your plan.</div>';
+      container.innerHTML = '<div class="table-empty">Job offers appear here once your platform fee is paid. Go to Coverage &amp; Subscription to activate your plan.</div>';
     } else if (err.status !== 404) {
       showAlert('offers-alert', err.message);
     }

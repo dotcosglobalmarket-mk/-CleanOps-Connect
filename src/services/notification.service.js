@@ -299,7 +299,7 @@ module.exports = {
       to: await cleanerEmail(cleanerProfile._id),
       subject: 'Your CleanOps subscription payment failed',
       paragraphs: [
-        "We couldn't charge your card for this month's CleanOps subscription fee.",
+        "We couldn't charge your card for your latest CleanOps subscription fee.",
         'Please update your payment details to keep your subscription active.',
       ],
       action: cleanerLink('Update billing', 'coverage'),

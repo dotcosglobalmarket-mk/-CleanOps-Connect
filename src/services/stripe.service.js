@@ -138,7 +138,7 @@ async function createExpressDashboardLink(accountId) {
   return getClient().accounts.createLoginLink(accountId);
 }
 
-// --- Platform billing (monthly subscription fee charged TO the cleaner) ---
+// --- Platform billing (weekly or monthly subscription fee charged TO the cleaner) ---
 // Uses a plain Customer on the platform's own account — distinct from the
 // Connect Express account above, which funds are paid OUT to.
 
@@ -224,7 +224,7 @@ async function getOrCreatePlanProduct(planId, productName) {
   return product.id;
 }
 
-async function createSubscription({ customerId, planId, pricePence, productName, paymentMethodId, metadata }) {
+async function createSubscription({ customerId, planId, pricePence, interval = 'month', productName, paymentMethodId, metadata }) {
   const productId = await getOrCreatePlanProduct(planId, productName);
   return getClient().subscriptions.create({
     customer: customerId,
@@ -233,7 +233,7 @@ async function createSubscription({ customerId, planId, pricePence, productName,
         price_data: {
           currency: 'gbp',
           unit_amount: pricePence,
-          recurring: { interval: 'month' },
+          recurring: { interval },
           product: productId,
         },
       },

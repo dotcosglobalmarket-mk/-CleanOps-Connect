@@ -51,6 +51,18 @@ describe('stripe.service.createSubscription', () => {
     expect(sentParams.items[0].price_data.product_data).toBeUndefined();
   });
 
+  it('bills on the interval it is given, and monthly when none is given', async () => {
+    mockProductsRetrieve.mockResolvedValue({ id: 'cleanops-plan-starter' });
+    mockSubscriptionsCreate.mockResolvedValue({ id: 'sub_1' });
+    const base = { customerId: 'cus_1', planId: 'starter', pricePence: 250, productName: 'CleanOps Starter', paymentMethodId: 'pm_1' };
+
+    await stripeService.createSubscription({ ...base, interval: 'week' });
+    expect(mockSubscriptionsCreate.mock.calls[0][0].items[0].price_data.recurring).toEqual({ interval: 'week' });
+
+    await stripeService.createSubscription(base);
+    expect(mockSubscriptionsCreate.mock.calls[1][0].items[0].price_data.recurring).toEqual({ interval: 'month' });
+  });
+
   it("creates the plan's Product once when it doesn't exist yet (404), then reuses it on the next call", async () => {
     const notFound = Object.assign(new Error('No such product'), { statusCode: 404 });
     mockProductsRetrieve.mockRejectedValueOnce(notFound).mockResolvedValue({ id: 'cleanops-plan-pro' });
