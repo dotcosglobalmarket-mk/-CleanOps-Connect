@@ -14,6 +14,21 @@ const PLAN_PRICES_PENCE = {
   industrial_pro: 1000,
 };
 
+// How often each plan is charged. Starter is billed every week, Pro and
+// Industrial Pro every month. A subscription records its own interval when it
+// is created (Subscription.billingInterval), so changing this later never
+// changes what an existing cleaner already agreed to.
+const PLAN_INTERVALS = {
+  starter: 'week',
+  pro: 'month',
+  industrial_pro: 'month',
+};
+
+// What a charge works out at over a month, for revenue totals (52 weeks / 12).
+function monthlyEquivalentPence(pricePence, interval) {
+  return interval === 'week' ? Math.round((pricePence * 52) / 12) : pricePence;
+}
+
 const PLAN_LABELS = {
   starter: 'CleanOps Starter',
   pro: 'CleanOps Pro',
@@ -139,6 +154,7 @@ async function activateSubscription(cleanerId, plan, paymentMethodId, requesting
     customerId: cleaner.stripeCustomerId,
     planId: plan,
     pricePence,
+    interval: PLAN_INTERVALS[plan],
     productName: PLAN_LABELS[plan],
     paymentMethodId,
     metadata: { cleanerProfileId: cleaner._id.toString(), plan },
@@ -149,6 +165,7 @@ async function activateSubscription(cleanerId, plan, paymentMethodId, requesting
     cleaner: cleanerId,
     plan,
     pricePence,
+    billingInterval: PLAN_INTERVALS[plan],
     isActive: ['active', 'trialing'].includes(stripeSubscription.status),
     stripeSubscriptionId: stripeSubscription.id,
     stripeStatus: stripeSubscription.status,
@@ -280,6 +297,67 @@ async function cancelAsAdmin(subscriptionId, { when, reason }, req) {
   return subscription;
 }
 
+// Moves cleaners who are on the monthly Starter plan to the weekly one now.
+// Without `confirm` it only reports who would move (a preview). With it, each
+// subscription is changed in Stripe, recorded, audit-logged and the cleaner is
+// emailed. One failure does not stop the rest, and running it again only picks
+// up whoever is still monthly. Cleaners who are leaving (cancellation requested
+// or set to end) are left alone.
+async function moveStarterToWeekly({ confirm = false } = {}, req) {
+  const candidates = await Subscription.find({
+    plan: 'starter',
+    isActive: true,
+    stripeSubscriptionId: { $exists: true, $nin: [null, ''] },
+    cancelAtPeriodEnd: { $ne: true },
+    cancellationRequestedAt: null,
+    billingInterval: { $ne: 'week' },
+  }).populate('cleaner', 'name');
+
+  const names = candidates.map((s) => (s.cleaner && s.cleaner.name) || 'Unknown cleaner');
+  if (!confirm) return { dryRun: true, count: candidates.length, cleaners: names };
+
+  const pricePence = PLAN_PRICES_PENCE.starter;
+  const moved = [];
+  const failed = [];
+  for (const subscription of candidates) {
+    const name = (subscription.cleaner && subscription.cleaner.name) || 'Unknown cleaner';
+    try {
+      const before = { ...auditSnapshot(subscription), billingInterval: subscription.billingInterval || 'month', pricePence: subscription.pricePence };
+      const stripeSubscription = await stripeService.switchSubscriptionInterval({
+        subscriptionId: subscription.stripeSubscriptionId,
+        planId: 'starter',
+        pricePence,
+        interval: 'week',
+        productName: PLAN_LABELS.starter,
+      });
+      const periodEndUnix = currentPeriodEndUnix(stripeSubscription);
+      subscription.billingInterval = 'week';
+      subscription.pricePence = pricePence;
+      if (stripeSubscription.status) subscription.stripeStatus = stripeSubscription.status;
+      if (periodEndUnix) subscription.renewsAt = new Date(periodEndUnix * 1000);
+      await subscription.save();
+
+      await auditService.record({
+        req,
+        action: 'subscription.move_to_weekly',
+        targetType: 'cleaner',
+        targetId: subscription.cleaner && subscription.cleaner._id ? subscription.cleaner._id : subscription.cleaner,
+        before,
+        after: { ...auditSnapshot(subscription), billingInterval: 'week', pricePence },
+        reason: 'Starter plan moved from monthly to weekly billing',
+      });
+      notificationService.subscriptionMovedToWeekly(
+        subscription.cleaner && subscription.cleaner._id ? subscription.cleaner._id : subscription.cleaner,
+        { pricePence }
+      );
+      moved.push(name);
+    } catch (err) {
+      failed.push({ cleaner: name, error: err && err.message ? err.message : 'Could not change this subscription' });
+    }
+  }
+  return { dryRun: false, moved: moved.length, movedCleaners: moved, failed };
+}
+
 async function declineCancellation(subscriptionId, reason, req) {
   const subscription = await requireAdminSubscription(subscriptionId);
   if (!subscription.cancellationRequestedAt) {
@@ -396,7 +474,7 @@ async function hasActiveSubscription(cleanerId) {
 async function requireActiveSubscription(cleanerId) {
   if (!(await hasActiveSubscription(cleanerId))) {
     const error = new Error(
-      'Your platform subscription is not active. Pay the monthly platform fee under Coverage & Subscription to see and answer job offers.'
+      'Your platform subscription is not active. Pay the platform fee under Coverage & Subscription to see and answer job offers.'
     );
     error.status = 402;
     throw error;
@@ -405,6 +483,8 @@ async function requireActiveSubscription(cleanerId) {
 
 module.exports = {
   PLAN_PRICES_PENCE,
+  PLAN_INTERVALS,
+  monthlyEquivalentPence,
   hasActiveSubscription,
   requireActiveSubscription,
   createSetupIntent,
@@ -415,6 +495,7 @@ module.exports = {
   withdrawCancellation,
   listForAdmin,
   cancelAsAdmin,
+  moveStarterToWeekly,
   declineCancellation,
   handleStripeSubscriptionUpdated,
   handleInvoicePaymentFailed,

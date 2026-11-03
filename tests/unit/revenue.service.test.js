@@ -110,6 +110,22 @@ describe('getRevenue', () => {
     expect(r.weeks.slice(0, 7).every((w) => w.commissionPence === 0)).toBe(true);
   });
 
+  it('counts a weekly plan as its monthly equivalent (price x 52 / 12) and old monthly ones as they were', async () => {
+    Subscription.find.mockImplementation((filter) =>
+      filter.isActive
+        ? query([
+            { plan: 'starter', pricePence: 250, billingInterval: 'week' },
+            { plan: 'starter', pricePence: 250 },
+            { plan: 'pro', pricePence: 1000, billingInterval: 'month' },
+          ])
+        : query([])
+    );
+    const r = await getRevenue({}, NOW);
+    // 250 x 52 / 12 = 1083.33 -> 1083, plus 250 monthly, plus 1000
+    expect(r.plans.find((p) => p.plan === 'starter')).toMatchObject({ cleaners: 2, monthlyPence: 1083 + 250 });
+    expect(r.totals.mrrPence).toBe(1083 + 250 + 1000);
+  });
+
   it('adds up active subscribers by plan, using the billed price', async () => {
     Subscription.find.mockImplementation((filter) =>
       filter.isActive

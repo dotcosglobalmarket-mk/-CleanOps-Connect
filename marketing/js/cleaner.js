@@ -45,7 +45,7 @@ function hideAlert(id) {
 }
 
 // --- Subscription billing (Stripe Setup Intent; card is saved and charged
-// automatically every month, not confirmed live like a one-off job payment) ---
+// automatically every week or month, not confirmed live like a one-off job payment) ---
 let subStripe = null;
 let subElements = null;
 let subSetupClientSecret = null;
@@ -119,7 +119,7 @@ async function loadMySubscription() {
   try {
     const subscription = await apiRequest('/subscriptions/me', { auth: true });
     statusEl.textContent = subscription
-      ? `Current plan: ${PLAN_LABELS[subscription.plan] || subscription.plan} — ${formatPence(subscription.pricePence)}/month.`
+      ? `Current plan: ${PLAN_LABELS[subscription.plan] || subscription.plan} — ${formatPence(subscription.pricePence)}/${subscription.billingInterval === 'week' ? 'week' : 'month'}.`
       : 'No active subscription.';
     renderSubscriptionCancel(subscription);
   } catch (err) {

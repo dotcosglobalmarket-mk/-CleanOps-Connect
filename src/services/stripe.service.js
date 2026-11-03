@@ -138,7 +138,7 @@ async function createExpressDashboardLink(accountId) {
   return getClient().accounts.createLoginLink(accountId);
 }
 
-// --- Platform billing (monthly subscription fee charged TO the cleaner) ---
+// --- Platform billing (weekly or monthly subscription fee charged TO the cleaner) ---
 // Uses a plain Customer on the platform's own account — distinct from the
 // Connect Express account above, which funds are paid OUT to.
 
@@ -224,7 +224,7 @@ async function getOrCreatePlanProduct(planId, productName) {
   return product.id;
 }
 
-async function createSubscription({ customerId, planId, pricePence, productName, paymentMethodId, metadata }) {
+async function createSubscription({ customerId, planId, pricePence, interval = 'month', productName, paymentMethodId, metadata }) {
   const productId = await getOrCreatePlanProduct(planId, productName);
   return getClient().subscriptions.create({
     customer: customerId,
@@ -233,7 +233,7 @@ async function createSubscription({ customerId, planId, pricePence, productName,
         price_data: {
           currency: 'gbp',
           unit_amount: pricePence,
-          recurring: { interval: 'month' },
+          recurring: { interval },
           product: productId,
         },
       },
@@ -243,6 +243,31 @@ async function createSubscription({ customerId, planId, pricePence, productName,
     // rather than silently creating a subscription that's already behind.
     payment_behavior: 'error_if_incomplete',
     metadata,
+  });
+}
+
+// Moves a live subscription to a different billing interval at the same product.
+// Stripe starts the new interval today, invoices it straight away and credits
+// the unused part of the period already paid (proration). Safe to repeat: a
+// subscription that is already on the wanted price is returned untouched.
+async function switchSubscriptionInterval({ subscriptionId, planId, pricePence, interval, productName }) {
+  const client = getClient();
+  const current = await client.subscriptions.retrieve(subscriptionId);
+  const item = current.items && current.items.data && current.items.data[0];
+  if (!item) throw new Error('This subscription has no item to change');
+  const price = item.price || {};
+  if (price.recurring && price.recurring.interval === interval && price.unit_amount === pricePence) {
+    return current;
+  }
+  const productId = await getOrCreatePlanProduct(planId, productName);
+  return client.subscriptions.update(subscriptionId, {
+    items: [
+      {
+        id: item.id,
+        price_data: { currency: 'gbp', unit_amount: pricePence, recurring: { interval }, product: productId },
+      },
+    ],
+    proration_behavior: 'create_prorations',
   });
 }
 
@@ -304,6 +329,7 @@ module.exports = {
   detachPaymentMethod,
   setDefaultPaymentMethod,
   createSubscription,
+  switchSubscriptionInterval,
   cancelSubscription,
   cancelSubscriptionAtPeriodEnd,
   constructWebhookEvent,

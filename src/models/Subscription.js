@@ -16,11 +16,18 @@ const subscriptionSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    // Monthly platform fee actually billed via Stripe (see
+    // Platform fee actually billed via Stripe each period (see
     // subscription.service.js PLAN_PRICES_PENCE) — snapshotted here so a
     // later price change doesn't rewrite the history of what was charged.
     pricePence: {
       type: Number,
+    },
+    // How often that fee is charged. Subscriptions made before weekly billing
+    // existed have no value and were all monthly, hence the default.
+    billingInterval: {
+      type: String,
+      enum: ['week', 'month'],
+      default: 'month',
     },
     stripeSubscriptionId: {
       type: String,

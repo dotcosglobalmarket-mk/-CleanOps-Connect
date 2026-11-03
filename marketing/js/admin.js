@@ -79,7 +79,7 @@ async function loadSubscriptions() {
         <tr data-id="${escapeHtml(sub._id)}" data-requested-reason="${escapeHtml(sub.cancellationReason || '')}">
           <td>${escapeHtml(sub.cleaner?.name || '—')}</td>
           <td><span class="wrap-anywhere">${escapeHtml(sub.cleaner?.user?.email || '—')}</span></td>
-          <td>${escapeHtml(SUBSCRIPTION_PLANS[sub.plan] || sub.plan)} · ${formatPence(sub.pricePence)}/mo</td>
+          <td>${escapeHtml(SUBSCRIPTION_PLANS[sub.plan] || sub.plan)} · ${formatPence(sub.pricePence)}/${sub.billingInterval === 'week' ? 'wk' : 'mo'}</td>
           <td>${subscriptionState(sub)}</td>
           <td>${sub.renewsAt ? new Date(sub.renewsAt).toLocaleDateString('en-GB') : '—'}</td>
           <td>${subscriptionRequest(sub)}</td>
@@ -120,6 +120,39 @@ async function loadSubscriptions() {
   }
 }
 
+// Moves cleaners on the monthly Starter plan to weekly billing. Shows who is
+// affected first and only goes ahead after a confirmation.
+async function moveStarterToWeekly(button) {
+  hideAlert('subscriptions-alert');
+  document.getElementById('subscriptions-success').hidden = true;
+  button.disabled = true;
+  try {
+    const preview = await apiRequest('/admin/subscriptions/move-starter-to-weekly', { method: 'POST', body: {}, auth: true });
+    if (!preview.count) {
+      showAlert('subscriptions-alert', 'No Starter cleaners are on monthly billing, so there is nothing to move.');
+      return;
+    }
+    const list = preview.cleaners.slice(0, 15).join(', ') + (preview.count > 15 ? ` and ${preview.count - 15} more` : '');
+    const ok = window.confirm(
+      `Move ${preview.count} Starter cleaner${preview.count === 1 ? '' : 's'} (${list}) to £2.50 a week now?\n\n` +
+      'They will pay more over a month than before. Stripe starts the weekly billing today, charges the first week straight away and credits the unused part of the month already paid. Each cleaner is emailed. This cannot be undone from here.'
+    );
+    if (!ok) return;
+    const result = await apiRequest('/admin/subscriptions/move-starter-to-weekly', { method: 'POST', body: { confirm: true }, auth: true });
+    const success = document.getElementById('subscriptions-success');
+    success.textContent = `Moved ${result.moved} to weekly billing.`;
+    success.hidden = false;
+    if (result.failed.length) {
+      showAlert('subscriptions-alert', `${result.failed.length} could not be moved: ` + result.failed.map((f) => `${f.cleaner} (${f.error})`).join('; '));
+    }
+    await loadSubscriptions();
+  } catch (err) {
+    showAlert('subscriptions-alert', err.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function decideSubscription(button, path, { prompt, suggestion = '', body, done }) {
   hideAlert('subscriptions-alert');
   document.getElementById('subscriptions-success').hidden = true;
@@ -138,6 +171,7 @@ async function decideSubscription(button, path, { prompt, suggestion = '', body,
   }
 }
 
+document.getElementById('subscriptions-to-weekly').addEventListener('click', (e) => moveStarterToWeekly(e.currentTarget));
 document.getElementById('subscriptions-refresh').addEventListener('click', () => {
   loadSubscriptions();
   refreshSubscriptionsBadge();

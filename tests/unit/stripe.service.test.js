@@ -3,11 +3,13 @@ process.env.STRIPE_SECRET_KEY = 'sk_test_fake';
 const mockProductsRetrieve = jest.fn();
 const mockProductsCreate = jest.fn();
 const mockSubscriptionsCreate = jest.fn();
+const mockSubscriptionsRetrieve = jest.fn();
+const mockSubscriptionsUpdate = jest.fn();
 
 jest.mock('stripe', () => {
   return jest.fn().mockImplementation(() => ({
     products: { retrieve: mockProductsRetrieve, create: mockProductsCreate },
-    subscriptions: { create: mockSubscriptionsCreate },
+    subscriptions: { create: mockSubscriptionsCreate, retrieve: mockSubscriptionsRetrieve, update: mockSubscriptionsUpdate },
   }));
 });
 
@@ -49,6 +51,18 @@ describe('stripe.service.createSubscription', () => {
     );
     const [[sentParams]] = mockSubscriptionsCreate.mock.calls;
     expect(sentParams.items[0].price_data.product_data).toBeUndefined();
+  });
+
+  it('bills on the interval it is given, and monthly when none is given', async () => {
+    mockProductsRetrieve.mockResolvedValue({ id: 'cleanops-plan-starter' });
+    mockSubscriptionsCreate.mockResolvedValue({ id: 'sub_1' });
+    const base = { customerId: 'cus_1', planId: 'starter', pricePence: 250, productName: 'CleanOps Starter', paymentMethodId: 'pm_1' };
+
+    await stripeService.createSubscription({ ...base, interval: 'week' });
+    expect(mockSubscriptionsCreate.mock.calls[0][0].items[0].price_data.recurring).toEqual({ interval: 'week' });
+
+    await stripeService.createSubscription(base);
+    expect(mockSubscriptionsCreate.mock.calls[1][0].items[0].price_data.recurring).toEqual({ interval: 'month' });
   });
 
   it("creates the plan's Product once when it doesn't exist yet (404), then reuses it on the next call", async () => {
@@ -100,5 +114,40 @@ describe('stripe.service.createSubscription', () => {
 
     expect(mockProductsCreate).not.toHaveBeenCalled();
     expect(mockSubscriptionsCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('stripe.service.switchSubscriptionInterval', () => {
+  const args = { subscriptionId: 'sub_1', planId: 'starter', pricePence: 250, interval: 'week', productName: 'CleanOps Starter' };
+
+  it('replaces the existing item (not adds one) with the weekly price and prorates', async () => {
+    mockSubscriptionsRetrieve.mockResolvedValue({
+      id: 'sub_1',
+      items: { data: [{ id: 'si_1', price: { unit_amount: 250, recurring: { interval: 'month' } } }] },
+    });
+    mockProductsRetrieve.mockResolvedValue({ id: 'cleanops-plan-starter' });
+    mockSubscriptionsUpdate.mockResolvedValue({ id: 'sub_1', status: 'active' });
+
+    await stripeService.switchSubscriptionInterval(args);
+
+    expect(mockSubscriptionsUpdate).toHaveBeenCalledWith('sub_1', {
+      items: [
+        {
+          id: 'si_1',
+          price_data: { currency: 'gbp', unit_amount: 250, recurring: { interval: 'week' }, product: 'cleanops-plan-starter' },
+        },
+      ],
+      proration_behavior: 'create_prorations',
+    });
+  });
+
+  it('does nothing when the subscription is already on that price (safe to run twice)', async () => {
+    const already = { id: 'sub_1', items: { data: [{ id: 'si_1', price: { unit_amount: 250, recurring: { interval: 'week' } } }] } };
+    mockSubscriptionsRetrieve.mockResolvedValue(already);
+
+    const result = await stripeService.switchSubscriptionInterval(args);
+
+    expect(result).toBe(already);
+    expect(mockSubscriptionsUpdate).not.toHaveBeenCalled();
   });
 });

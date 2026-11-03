@@ -1184,7 +1184,8 @@ components:
           type: string
         plan:
           type: string
-          enum: [starter, pro, industrial_pro]
+          enum: [starter, pro]
+          description: Industrial Pro is no longer offered to new subscribers; existing ones keep it.
 
     InsuranceAddOnRequest:
       type: object

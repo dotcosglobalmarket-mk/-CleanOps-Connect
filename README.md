@@ -19,7 +19,7 @@ This repository contains the backend service powering the CleanOps Connect platf
 
 ### Cleaner Subscription System
 
-- Monthly subscription tiers: Starter, Pro, Industrial Pro.
+- Subscription tiers: Starter (weekly) and Pro (monthly).
 - Optional insurance add‑on integrated into billing logic.
 
 ### Compliance & Verification
@@ -108,7 +108,7 @@ npm run dev
 - **Job** – customer job requests
 - **JobOffer** – AI‑ranked cleaner offers
 - **ServiceType** – domestic & industrial categories
-- **Subscription** – monthly plans + insurance add‑on
+- **Subscription** – weekly or monthly plans + insurance add‑on
 
 ## API Endpoints (Initial Set)
 
@@ -165,10 +165,13 @@ An **industrial** job can be posted as a tender: `POST /jobs` with `tender: { cl
 
 ### Subscriptions
 
-A monthly **platform fee**, charged to the cleaner, separate from and never affecting the per-job commission rate (see Payments below). It covers platform running costs (SMS notifications, payment processing). Billed as a real recurring Stripe Subscription — not a DB-only flag.
+A recurring **platform fee** (weekly on Starter, monthly on Pro), charged to the cleaner, separate from and never affecting the per-job commission rate (see Payments below). It covers platform running costs (SMS notifications, payment processing). Billed as a real recurring Stripe Subscription — not a DB-only flag.
 
-- **Starter**: £2.50/month
-- **Pro** and **Industrial Pro**: £10/month
+- **Starter**: £2.50/week
+- **Pro**: £10/month
+- **Industrial Pro** is no longer sold (the API rejects it for new subscriptions); cleaners already on it keep their plan and price.
+
+Each subscription records the interval it was created with (`billingInterval`, `week` or `month`), so a plan change here never alters an existing cleaner's billing; subscriptions from before weekly billing have no value and are treated as monthly. Revenue totals show a weekly plan as its monthly equivalent (price × 52 ÷ 12).
 
 Flow: `POST /subscriptions/setup-intent` returns a Stripe SetupIntent client secret; the cleaner enters card details client-side via the Stripe Payment Element (card details never touch our servers) and confirms it; the resulting `paymentMethodId` is then passed to `POST /subscriptions` to actually start billing.
 
@@ -177,7 +180,7 @@ Flow: `POST /subscriptions/setup-intent` returns a Stripe SetupIntent client sec
 - `POST /subscriptions/insurance` 🔒 (cleaner or admin) – Add insurance add‑on to the active subscription
 - `GET /subscriptions/me` 🔒 (cleaner) – View your own active subscription (or `null`)
 
-`customer.subscription.updated`/`.deleted` and `invoice.payment_failed` webhooks keep `isActive`/`stripeStatus`/`renewsAt` in sync and email the cleaner if a monthly charge fails.
+`customer.subscription.updated`/`.deleted` and `invoice.payment_failed` webhooks keep `isActive`/`stripeStatus`/`renewsAt` in sync and email the cleaner if a charge fails.
 
 ### Payments (Escrow & Commission)
 

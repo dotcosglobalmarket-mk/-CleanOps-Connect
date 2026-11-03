@@ -17,6 +17,7 @@ const {
   listAuditQuerySchema,
   listSubscriptionsQuerySchema,
   cancelSubscriptionSchema,
+  moveStarterToWeeklySchema,
   declineCancellationSchema,
   listStaffQuerySchema,
   createStaffSchema,
@@ -108,6 +109,11 @@ router.post(
 router.get('/audit', validateQuery(listAuditQuerySchema), AdminController.listAudit);
 
 router.get('/subscriptions', validateQuery(listSubscriptionsQuerySchema), AdminController.listSubscriptions);
+router.post(
+  '/subscriptions/move-starter-to-weekly',
+  validateBody(moveStarterToWeeklySchema),
+  AdminController.moveStarterToWeekly
+);
 router.post(
   '/subscriptions/:id/cancel',
   validateParams(idParamSchema),
