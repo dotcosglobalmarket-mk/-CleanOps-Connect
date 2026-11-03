@@ -1854,3 +1854,28 @@ button.danger:disabled { opacity: 0.5; cursor: not-allowed; }
 .check-row { display: flex; gap: 0.6rem; align-items: flex-start; margin: 1rem 0; font-weight: 600; }
 .check-row input { margin-top: 0.25rem; flex: 0 0 auto; }
 #privacy-blockers ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
+/* Locked panel: shown instead of job offers until the platform fee is paid. */
+.gate-card {
+  border: 2px solid var(--color-accent);
+  background: var(--color-surface);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+}
+
+.gate-card h3 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.gate-card p {
+  margin: 0;
+  max-width: 46ch;
+  font-weight: 600;
+  color: var(--color-text);
+}
