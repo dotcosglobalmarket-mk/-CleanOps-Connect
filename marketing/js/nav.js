@@ -2,14 +2,8 @@ import { isLoggedIn, getRole, getUser, clearSession, getImpersonator, exitImpers
 import { escapeHtml } from './dom.js';
 import './pwa.js';
 
-// Flat, geometric enterprise-SaaS mark: solid navy shield, no gradients,
-// with a bold electric-blue checkmark as the sole internal accent.
-export const BRAND_MARK = `
-  <svg class="brand-mark" width="28" height="28" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="CleanOps Connect shield logo">
-    <path d="M50 4 L90 20 V46 C90 70 73 88 50 96 C27 88 10 70 10 46 V20 Z" fill="#0A1A2F" />
-    <path d="M28 52 L45 68 L74 34" fill="none" stroke="#2D8CFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
-  </svg>
-`;
+// The CleanOps Connect logo (mark and wordmark in one picture). Kept as an export so any page can reuse it.
+export const BRAND_MARK = `<img class="brand-logo" src="/brand/logo-full.png" alt="CleanOps Connect" width="117" height="46" />`;
 
 function renderNav() {
   const nav = document.getElementById('site-nav');
@@ -36,7 +30,7 @@ function renderNav() {
   }
 
   nav.innerHTML = `
-    <a href="index.html" class="brand">${BRAND_MARK}<span class="brand-word"><strong>CleanOps</strong> Connect</span></a>
+    <a href="index.html" class="brand" aria-label="CleanOps Connect home">${BRAND_MARK}</a>
     <div class="nav-links">${links}</div>
   `;
 

@@ -136,21 +136,19 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   color: #fff;
 }
 
-.logo-icon {
-  width: 36px;
-  height: 36px;
-  background: var(--accent);
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+.logo-img {
+  height: 54px;
+  width: auto;
+  display: block;
 }
 
-.logo-text {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 1.15rem;
+/* Light pages show the navy wordmark; in dark mode the white one. */
+.logo-img.on-dark { display: none; }
+:root[data-theme="dark"] .logo-img.on-light { display: none; }
+:root[data-theme="dark"] .logo-img.on-dark { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo-img.on-light { display: none; }
+  :root:not([data-theme="light"]) .logo-img.on-dark { display: block; }
 }
 
 .nav-links {
@@ -193,7 +191,6 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 .nav-menu-items { display: none; }
 
 .nav-inner { gap: 12px; }
-.logo-text { white-space: nowrap; }
 
 @media (max-width: 640px) {
   .nav-desktop { display: none; }
@@ -203,7 +200,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   .nav-menu-items .theme-toggle { display: none; }
   /* Signed in, the row holds Dashboard + Log out; the name doesn't fit beside them. */
   .nav-menu-items .nav-user { display: none; }
-  .logo-text { font-size: 1rem; }
+  .logo-img { height: 44px; }
   .nav-links { gap: 6px; }
   .nav-links a { padding: 8px 8px; white-space: nowrap; }
   /* If the links still don't fit beside the logo (long labels, wider web
@@ -213,10 +210,9 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   .hero { padding-top: 150px; }
 }
 
-/* Below 360px (iPhone SE 1st gen, small Androids) even that row is too wide:
-   the icon alone is the logo there. */
+/* Below 360px (iPhone SE 1st gen, small Androids) that row is too wide: shrink the logo a little. */
 @media (max-width: 360px) {
-  .logo-text { display: none; }
+  .logo-img { height: 38px; }
 }
 
 .theme-toggle { width: 38px; height: 38px; padding: 0 !important; display: inline-flex; align-items: center; justify-content: center; }
