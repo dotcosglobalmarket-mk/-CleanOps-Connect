@@ -2,6 +2,7 @@ const User = require('../models/User');
 const CleanerProfile = require('../models/CleanerProfile');
 const ServiceType = require('../models/ServiceType');
 const emailService = require('./email.service');
+const smsService = require('./sms.service');
 const logger = require('../utils/logger');
 
 // Transactional emails for the job lifecycle. Every function here is
@@ -41,6 +42,39 @@ async function serviceName(job) {
   return serviceType ? serviceType.name : 'cleaning';
 }
 
+// Text messages go only to people who turned them on, are short, and say nothing about the
+// job itself (no names, addresses or prices): they only tell the person to open their
+// dashboard. A failed text never blocks anything, same as email.
+const SMS_OFF = 'Turn texts off in your dashboard.';
+const SMS = {
+  newOffer: `CleanOps Connect: you have a new job offer. Open your dashboard to see it and reply. ${SMS_OFF}`,
+  tenderInvite: `CleanOps Connect: you have been invited to quote for a job. Open your dashboard to see it. ${SMS_OFF}`,
+  jobAccepted: `CleanOps Connect: a cleaner has accepted your job. Open your dashboard to pay and confirm. ${SMS_OFF}`,
+  paymentSecured: `CleanOps Connect: the customer has paid for your job. Open your dashboard for the details. ${SMS_OFF}`,
+};
+
+// A problem with the text is logged and never stops the email that goes with it.
+async function textUser(userId, body) {
+  try {
+    if (!userId) return;
+    const user = await User.findById(userId);
+    const sms = user && user.smsAlerts;
+    if (!sms || !sms.enabled || !sms.mobile) return;
+    await smsService.send({ to: sms.mobile, body });
+  } catch (err) {
+    logger.error(`[notifications] text alert failed: ${err.message}`);
+  }
+}
+
+async function textCleaner(cleanerProfileId, body) {
+  try {
+    const profile = await CleanerProfile.findById(cleanerProfileId);
+    if (profile) await textUser(profile.user, body);
+  } catch (err) {
+    logger.error(`[notifications] text alert failed: ${err.message}`);
+  }
+}
+
 function safely(name, fn) {
   return (...args) =>
     Promise.resolve()
@@ -55,8 +89,9 @@ module.exports = {
   offersSent: safely('offersSent', async (job, offers) => {
     const service = await serviceName(job);
     await Promise.all(
-      offers.map(async (offer) =>
-        emailService.send({
+      offers.map(async (offer) => {
+        await textCleaner(offer.cleaner, SMS.newOffer);
+        return emailService.send({
           to: await cleanerEmail(offer.cleaner),
           subject: `New job offer: ${service} in ${area(job.postcode)}`,
           paragraphs: [
@@ -64,8 +99,8 @@ module.exports = {
             'Offers go to several cleaners, and the first one to accept books the job. You set your own price when you accept.',
           ],
           action: cleanerLink('See the offer', 'offers'),
-        })
-      )
+        });
+      })
     );
   }),
 
@@ -73,8 +108,9 @@ module.exports = {
     const service = await serviceName(job);
     const closes = job.tender && job.tender.closesAt ? new Date(job.tender.closesAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '';
     await Promise.all(
-      offers.map(async (offer) =>
-        emailService.send({
+      offers.map(async (offer) => {
+        await textCleaner(offer.cleaner, SMS.tenderInvite);
+        return emailService.send({
           to: await cleanerEmail(offer.cleaner),
           subject: `Invitation to quote: ${service} in ${area(job.postcode)}`,
           paragraphs: [
@@ -82,8 +118,8 @@ module.exports = {
             'You set your own price. The customer compares quotes and awards the job to one cleaner.',
           ],
           action: cleanerLink('See the tender', 'offers'),
-        })
-      )
+        });
+      })
     );
   }),
 
@@ -127,6 +163,7 @@ module.exports = {
   }),
 
   jobBooked: safely('jobBooked', async (job) => {
+    await textUser(job.customer, SMS.jobAccepted);
     await emailService.send({
       to: await customerEmail(job),
       subject: 'A cleaner has accepted your job — pay to confirm',
@@ -156,6 +193,7 @@ module.exports = {
   }),
 
   paymentReceived: safely('paymentReceived', async (job) => {
+    await textCleaner(job.cleaner, SMS.paymentSecured);
     await emailService.send({
       to: await cleanerEmail(job.cleaner),
       subject: 'Payment secured — your job is confirmed',

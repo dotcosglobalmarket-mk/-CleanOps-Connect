@@ -3625,6 +3625,89 @@ paths:
         '200':
           description: Event received
 
+  /sms-alerts/me:
+    get:
+      summary: View my text alert settings
+      description: >-
+        Whether text alerts are on, the UK mobile number if so, whether text sending is set up on the
+        server, and the exact wording the person agrees to (with its version).
+
+
+        Allowed roles: customer, cleaner.
+      tags:
+        - Text alerts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+    put:
+      summary: Turn on text alerts
+      description: >-
+        Needs a UK mobile number, the tick-box agreement (`consent: true`) and the `consentVersion` of
+        the wording shown (a changed wording returns 409). Records when and to which wording the person
+        agreed. Texts are short service messages, never advertising, and do not mention the job itself.
+
+
+        Allowed roles: customer, cleaner.
+      tags:
+        - Text alerts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mobile:
+                  type: string
+                  minLength: 6
+                  maxLength: 30
+                consentVersion:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                consent:
+                  type: boolean
+                  enum:
+                    - true
+              required:
+                - mobile
+                - consentVersion
+                - consent
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+    delete:
+      summary: Turn off text alerts
+      description: |-
+        Turns text alerts off and deletes the stored mobile number.
+
+        Allowed roles: customer, cleaner.
+      tags:
+        - Text alerts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
 components:
 
   securitySchemes:

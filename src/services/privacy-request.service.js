@@ -161,6 +161,15 @@ async function exportData(userId) {
         }
       : undefined,
     cardConsentLog: user.cardConsentLog,
+    textAlerts: user.smsAlerts && (user.smsAlerts.enabled || user.smsAlerts.consentAt)
+      ? {
+          enabled: Boolean(user.smsAlerts.enabled),
+          mobile: user.smsAlerts.mobile,
+          consentAt: user.smsAlerts.consentAt,
+          consentVersion: user.smsAlerts.consentVersion,
+          disabledAt: user.smsAlerts.disabledAt,
+        }
+      : undefined,
   };
 
   let profile;
@@ -292,6 +301,7 @@ async function erase(userId, { confirmEmail, reason }, req) {
   user.passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
   user.stripeCustomerId = undefined;
   user.savedCard = undefined;
+  user.smsAlerts = undefined;
   user.resetPasswordTokenHash = undefined;
   user.resetPasswordExpiresAt = undefined;
   user.active = false;

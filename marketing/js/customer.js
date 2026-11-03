@@ -7,6 +7,7 @@ import { avatarHtml, hydrateAvatars } from './avatar.js';
 import { fetchGuide, renderGuide } from './price-guide.js';
 import { mountChat, fetchUnread, setupConversations } from './chat.js';
 import { mountSeries } from './series-ui.js';
+import { mountSmsAlerts } from './sms-alerts.js';
 import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate, formatVisit, formatWhen } from './dashboard-ui.js';
 
 requireRole('customer');
@@ -921,7 +922,13 @@ async function showView(name, { openJobId } = {}) {
   show('view-messages', messages);
   show('view-card', cardView);
   show('view-series', seriesView);
+  show('view-sms', name === 'sms');
   document.getElementById('show-post-job').hidden = name !== 'jobs';
+
+  if (name === 'sms') {
+    mountSmsAlerts(document.getElementById('sms-alerts-root'));
+    return;
+  }
 
   if (cardView) {
     cardMessage('card-success', '');

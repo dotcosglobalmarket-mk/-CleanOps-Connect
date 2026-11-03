@@ -4,6 +4,7 @@ import { setupTabs, formatPence } from './dashboard-ui.js';
 import { mountSeries } from './series-ui.js';
 import { STRIPE_PUBLISHABLE_KEY } from './config.js';
 import { avatarHtml, hydrateAvatars, prepareAvatar } from './avatar.js';
+import { mountSmsAlerts } from './sms-alerts.js';
 
 requireRole('cleaner');
 
@@ -195,6 +196,7 @@ const selectPanel = setupTabs((panel) => {
   if (panel === 'coverage') ensureSubscriptionPaymentElement().catch(() => {});
   if (panel === 'compliance') loadComplianceDocuments();
   if (panel === 'regular') loadRegularJobs();
+  if (panel === 'profile') mountSmsAlerts(document.getElementById('sms-alerts-root'));
 });
 document.getElementById('regular-refresh').addEventListener('click', loadRegularJobs);
 
