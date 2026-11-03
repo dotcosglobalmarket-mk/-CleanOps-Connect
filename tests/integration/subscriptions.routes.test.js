@@ -80,6 +80,15 @@ describe('Subscriptions routes', () => {
       expect(res.status).toBe(401);
     });
 
+    it('no longer lets anyone choose Industrial Pro', async () => {
+      const res = await request(app)
+        .post('/subscriptions')
+        .set('Authorization', authHeaderFor('cleaner', 'owner1'))
+        .send(validBody({ plan: 'industrial_pro' }));
+      expect(res.status).toBe(400);
+      expect(stripeService.createSubscription).not.toHaveBeenCalled();
+    });
+
     it('returns 400 for an invalid plan', async () => {
       const res = await request(app)
         .post('/subscriptions')

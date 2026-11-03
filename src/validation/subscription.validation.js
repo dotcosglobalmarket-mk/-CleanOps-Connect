@@ -7,7 +7,9 @@ const setupIntentSchema = z.object({
 
 const activateSubscriptionSchema = z.object({
   cleanerId: objectId(),
-  plan: z.enum(['starter', 'pro', 'industrial_pro']),
+  // Industrial Pro is no longer sold. Cleaners already on it keep it (the model,
+  // prices and labels still know it); nobody new can choose it.
+  plan: z.enum(['starter', 'pro']),
   paymentMethodId: z.string().min(1),
 });
 

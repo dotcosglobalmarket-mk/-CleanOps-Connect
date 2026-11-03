@@ -19,7 +19,7 @@ This repository contains the backend service powering the CleanOps Connect platf
 
 ### Cleaner Subscription System
 
-- Subscription tiers: Starter (weekly), Pro, Industrial Pro (monthly).
+- Subscription tiers: Starter (weekly) and Pro (monthly).
 - Optional insurance add‑on integrated into billing logic.
 
 ### Compliance & Verification
@@ -165,10 +165,11 @@ An **industrial** job can be posted as a tender: `POST /jobs` with `tender: { cl
 
 ### Subscriptions
 
-A recurring **platform fee** (weekly on Starter, monthly on Pro and Industrial Pro), charged to the cleaner, separate from and never affecting the per-job commission rate (see Payments below). It covers platform running costs (SMS notifications, payment processing). Billed as a real recurring Stripe Subscription — not a DB-only flag.
+A recurring **platform fee** (weekly on Starter, monthly on Pro), charged to the cleaner, separate from and never affecting the per-job commission rate (see Payments below). It covers platform running costs (SMS notifications, payment processing). Billed as a real recurring Stripe Subscription — not a DB-only flag.
 
 - **Starter**: £2.50/week
-- **Pro** and **Industrial Pro**: £10/month
+- **Pro**: £10/month
+- **Industrial Pro** is no longer sold (the API rejects it for new subscriptions); cleaners already on it keep their plan and price.
 
 Each subscription records the interval it was created with (`billingInterval`, `week` or `month`), so a plan change here never alters an existing cleaner's billing; subscriptions from before weekly billing have no value and are treated as monthly. Revenue totals show a weekly plan as its monthly equivalent (price × 52 ÷ 12).
 
