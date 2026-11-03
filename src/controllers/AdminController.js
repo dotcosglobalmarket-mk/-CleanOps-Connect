@@ -193,6 +193,14 @@ async function cancelSubscription(req, res, next) {
   }
 }
 
+async function moveStarterToWeekly(req, res, next) {
+  try {
+    res.status(200).json(await subscriptionService.moveStarterToWeekly({ confirm: req.body.confirm === true }, req));
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function declineSubscriptionCancellation(req, res, next) {
   try {
     res.status(200).json(await subscriptionService.declineCancellation(req.params.id, req.body.reason, req));
@@ -222,5 +230,6 @@ module.exports = {
   allocateJob,
   listSubscriptions,
   cancelSubscription,
+  moveStarterToWeekly,
   declineSubscriptionCancellation,
 };

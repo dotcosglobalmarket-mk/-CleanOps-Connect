@@ -488,4 +488,45 @@ describe('Admin routes', () => {
       expect(res.status).toBe(400);
     });
   });
+
+  describe('POST /admin/subscriptions/move-starter-to-weekly', () => {
+    const subscriptionService = require('../../src/services/subscription.service');
+    let moveSpy;
+
+    beforeEach(() => {
+      moveSpy = jest.spyOn(subscriptionService, 'moveStarterToWeekly').mockResolvedValue({ dryRun: true, count: 0, cleaners: [] });
+    });
+    afterEach(() => moveSpy.mockRestore());
+
+    it('needs an admin: 401 without auth, 403 for an operator', async () => {
+      expect((await request(app).post('/admin/subscriptions/move-starter-to-weekly').send({})).status).toBe(401);
+      const res = await request(app)
+        .post('/admin/subscriptions/move-starter-to-weekly')
+        .set('Authorization', authHeaderFor('operator'))
+        .send({});
+      expect(res.status).toBe(403);
+      expect(moveSpy).not.toHaveBeenCalled();
+    });
+
+    it('previews unless confirm is exactly true', async () => {
+      await request(app).post('/admin/subscriptions/move-starter-to-weekly').set('Authorization', authHeaderFor('admin')).send({});
+      expect(moveSpy).toHaveBeenLastCalledWith({ confirm: false }, expect.anything());
+
+      const res = await request(app)
+        .post('/admin/subscriptions/move-starter-to-weekly')
+        .set('Authorization', authHeaderFor('admin'))
+        .send({ confirm: true });
+      expect(res.status).toBe(200);
+      expect(moveSpy).toHaveBeenLastCalledWith({ confirm: true }, expect.anything());
+    });
+
+    it('rejects a confirm that is not a real boolean', async () => {
+      const res = await request(app)
+        .post('/admin/subscriptions/move-starter-to-weekly')
+        .set('Authorization', authHeaderFor('admin'))
+        .send({ confirm: 'yes' });
+      expect(res.status).toBe(400);
+      expect(moveSpy).not.toHaveBeenCalled();
+    });
+  });
 });

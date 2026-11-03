@@ -60,6 +60,11 @@ const cancelSubscriptionSchema = z.object({
   reason,
 });
 
+// Without confirm: true the call only previews who would move.
+const moveStarterToWeeklySchema = z.object({
+  confirm: z.boolean().optional(),
+});
+
 const declineCancellationSchema = z.object({
   reason,
 });
@@ -122,6 +127,7 @@ module.exports = {
   listAuditQuerySchema,
   listSubscriptionsQuerySchema,
   cancelSubscriptionSchema,
+  moveStarterToWeeklySchema,
   declineCancellationSchema,
   listStaffQuerySchema,
   createStaffSchema,

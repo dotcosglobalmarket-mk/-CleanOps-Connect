@@ -306,6 +306,19 @@ module.exports = {
     });
   }),
 
+  subscriptionMovedToWeekly: safely('subscriptionMovedToWeekly', async (cleanerProfileId, { pricePence }) => {
+    await emailService.send({
+      to: await cleanerEmail(cleanerProfileId),
+      subject: 'Your CleanOps Starter plan is now billed weekly',
+      paragraphs: [
+        `Your Starter plan is now billed ${pounds(pricePence)} every week, instead of once a month.`,
+        'The unused part of the month you had already paid for is credited against your weekly payments.',
+        'You can see your plan, or ask to cancel, under Coverage & Subscription.',
+      ],
+      action: cleanerLink('View my subscription', 'coverage'),
+    });
+  }),
+
   subscriptionCancellationRequested: safely('subscriptionCancellationRequested', async (cleanerProfileId) => {
     await emailService.send({
       to: await cleanerEmail(cleanerProfileId),
