@@ -1,3 +1,4 @@
+jest.mock('../../src/models/User', () => ({ findById: jest.fn().mockResolvedValue({ role: 'customer' }) }));
 jest.mock('../../src/services/subscription.service', () => ({ requireActiveSubscription: jest.fn().mockResolvedValue(undefined) }));
 // Lifecycle emails are fire-and-forget side effects; tested in notification.service.test.js.
 jest.mock('../../src/services/notification.service');

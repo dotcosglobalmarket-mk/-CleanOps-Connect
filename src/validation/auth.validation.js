@@ -24,6 +24,8 @@ const resetPasswordSchema = z.object({
   password: z.string().min(8),
 });
 
+const verifyEmailSchema = z.object({ token: z.string().min(20).max(200) });
+
 const twoFactorSetupSchema = z.object({ setupToken: z.string().min(1) });
 
 const twoFactorEnableSchema = z.object({
@@ -41,6 +43,7 @@ module.exports = {
   twoFactorSetupSchema,
   twoFactorEnableSchema,
   twoFactorVerifySchema,
+  verifyEmailSchema,
   registerSchema,
   loginSchema,
   requestPasswordResetSchema,

@@ -3708,6 +3708,66 @@ paths:
         '403':
           description: Your account is not allowed to do this
 
+  /auth/email-status:
+    get:
+      summary: Has my email address been confirmed?
+      description: >-
+        Returns whether the signed-in person has confirmed their address, whether they are currently
+        blocked from posting jobs, accepting offers or subscribing until they do, and whether the server
+        can send the email at all.
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Sign in required
+
+  /auth/resend-verification:
+    post:
+      summary: Send a new email confirmation link
+      description: >-
+        For the signed-in customer or cleaner whose address is not yet confirmed. An earlier link stops
+        working. One request a minute, five an hour.
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Link sent (or the address was already confirmed)
+        '401':
+          description: Sign in required
+
+  /auth/verify-email:
+    post:
+      summary: Confirm an email address with the emailed link
+      description: >-
+        Takes the token from the confirmation email. The link works once and expires after 48 hours.
+        Public: the token is the credential.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  minLength: 20
+                  maxLength: 200
+              required:
+                - token
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+
 components:
 
   securitySchemes:

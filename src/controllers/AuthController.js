@@ -1,5 +1,6 @@
 const authService = require('../services/auth.service');
 const twoFactorService = require('../services/two-factor.service');
+const emailVerificationService = require('../services/email-verification.service');
 
 async function register(req, res, next) {
   try {
@@ -38,6 +39,30 @@ async function resetPassword(req, res, next) {
   }
 }
 
+async function verifyEmail(req, res, next) {
+  try {
+    res.status(200).json(await emailVerificationService.verify(req.body.token));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function resendVerification(req, res, next) {
+  try {
+    res.status(200).json(await emailVerificationService.resend(req.user.id));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function emailStatus(req, res, next) {
+  try {
+    res.status(200).json(await emailVerificationService.status(req.user.id));
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function twoFactorSetup(req, res, next) {
   try {
     res.status(200).json(await twoFactorService.startSetup(req.body));
@@ -70,4 +95,7 @@ module.exports = {
   login,
   requestPasswordReset,
   resetPassword,
+  verifyEmail,
+  resendVerification,
+  emailStatus,
 };

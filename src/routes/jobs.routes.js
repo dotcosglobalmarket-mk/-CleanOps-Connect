@@ -3,6 +3,7 @@ const JobController = require('../controllers/JobController');
 const ReviewController = require('../controllers/ReviewController');
 const { createReviewSchema } = require('../validation/review.validation');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireVerifiedEmail } = require('../middleware/verified-email');
 const { aiWritingLimiter } = require('../middleware/ai-rate-limit');
 const { validateBody, validateParams } = require('../middleware/validate');
 const {
@@ -25,7 +26,7 @@ router.post(
   validateBody(describeJobSchema),
   JobController.describe
 );
-router.post('/', requireAuth, requireRole('customer'), validateBody(createJobSchema), JobController.create);
+router.post('/', requireAuth, requireRole('customer'), requireVerifiedEmail, validateBody(createJobSchema), JobController.create);
 router.get('/mine', requireAuth, requireRole('customer'), JobController.listMine);
 // Printable service record, and a pre-start compliance pack for industrial jobs.
 router.get(
@@ -57,6 +58,7 @@ router.post(
   '/:id/offers/:offerId/accept',
   requireAuth,
   requireRole('cleaner'),
+  requireVerifiedEmail,
   validateParams(offerIdParamSchema),
   validateBody(acceptOfferSchema),
   JobController.acceptOffer
@@ -67,6 +69,7 @@ router.post(
   '/:id/offers/:offerId/quote',
   requireAuth,
   requireRole('cleaner'),
+  requireVerifiedEmail,
   validateParams(offerIdParamSchema),
   validateBody(submitQuoteSchema),
   JobController.submitQuote

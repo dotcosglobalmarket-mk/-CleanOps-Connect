@@ -1,6 +1,7 @@
 const express = require('express');
 const SubscriptionController = require('../controllers/SubscriptionController');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireVerifiedEmail } = require('../middleware/verified-email');
 const { validateBody } = require('../middleware/validate');
 const {
   setupIntentSchema,
@@ -23,6 +24,7 @@ router.post(
   '/',
   requireAuth,
   requireRole('cleaner', 'admin'),
+  requireVerifiedEmail,
   validateBody(activateSubscriptionSchema),
   SubscriptionController.activate
 );

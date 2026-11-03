@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const notificationService = require('./notification.service');
 const twoFactorService = require('./two-factor.service');
+const emailVerificationService = require('./email-verification.service');
+const logger = require('../utils/logger');
 const { signToken, toPublicUser, revokeSessions } = require('./session.service');
 
 const SALT_ROUNDS = 10;
@@ -34,6 +36,13 @@ async function register({ name, email, password, role, phone }) {
 
   const passwordHash = await hashPassword(password);
   const user = await User.create({ name, email, passwordHash, role, phone });
+
+  // Ask them to confirm the address. A problem here must never stop someone registering.
+  try {
+    await emailVerificationService.startFor(user);
+  } catch (err) {
+    logger.error(`[auth] could not start email confirmation: ${err.message}`);
+  }
 
   return { user: toPublicUser(user), token: signToken(user) };
 }
@@ -92,6 +101,8 @@ async function resetPassword(token, newPassword) {
   user.passwordHash = await hashPassword(newPassword);
   user.resetPasswordTokenHash = undefined;
   user.resetPasswordExpiresAt = undefined;
+  // The link reached their inbox, which confirms the address too.
+  emailVerificationService.markVerifiedByEmailProof(user);
   // Anyone signed in with the old password is signed out.
   revokeSessions(user);
   await user.save();

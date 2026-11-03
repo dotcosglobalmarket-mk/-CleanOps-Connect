@@ -8,9 +8,11 @@ import { fetchGuide, renderGuide } from './price-guide.js';
 import { mountChat, fetchUnread, setupConversations } from './chat.js';
 import { mountSeries } from './series-ui.js';
 import { mountSmsAlerts } from './sms-alerts.js';
+import { mountEmailBanner } from './email-banner.js';
 import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate, formatVisit, formatWhen } from './dashboard-ui.js';
 
 requireRole('customer');
+mountEmailBanner(document.getElementById('email-banner'));
 
 const CONFIRM_WINDOW_HOURS = 48;
 

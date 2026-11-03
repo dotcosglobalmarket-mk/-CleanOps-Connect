@@ -453,6 +453,16 @@ What is deleted, and what does the deleting (the privacy notice states the same 
 | Text alert mobile number | Until alerts are turned off, or the account is erased | Turning off unsets it (`sms-alerts.service.js`); erasure clears it |
 | Payments, refund approvals | 6 years | Not deleted by the app |
 
+## Email confirmation
+
+New customers and cleaners are emailed a link to confirm their address (`email-verification.service.js`).
+
+- The link works once and expires after 48 hours; only a SHA-256 hash is stored. It opens `verify-email.html`, where a button press confirms (so a mail scanner that opens links cannot confirm by accident). A new link can be sent from the dashboard notice (one a minute, five an hour); it replaces the old one.
+- Until they confirm, a customer cannot post a job and a cleaner cannot accept an offer, send a quote or start a subscription (`requireVerifiedEmail` returns 403 with `code: "email_not_verified"`). They can still sign in and use everything else.
+- **Not locked out:** accounts that existed before this are never blocked (they are only shown the notice). Staff are not affected. Completing a password reset also confirms the address, because that link reached their inbox.
+- **Safety valve:** the block applies only while email sending is set up (`RESEND_API_KEY` and `EMAIL_FROM`). Without it nobody could receive the link, so nobody is blocked.
+- `POST /auth/verify-email`, `POST /auth/resend-verification`, `GET /auth/email-status`. The confirmation time is in a data export; erasure clears it.
+
 ## Text message alerts (optional)
 
 Cleaners and customers can turn on short text alerts under **My Profile** (cleaners) or **Text alerts** (customers). Sent through Twilio, only to people who turned them on.

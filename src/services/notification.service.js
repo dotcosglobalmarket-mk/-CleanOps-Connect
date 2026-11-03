@@ -551,6 +551,19 @@ module.exports = {
     });
   }),
 
+  emailVerification: safely('emailVerification', async (user, token) => {
+    await emailService.send({
+      to: user.email,
+      subject: 'Confirm your email address for CleanOps Connect',
+      paragraphs: [
+        'Welcome to CleanOps Connect. Please confirm that this is your email address, so you can post or accept jobs and we can send you booking and payment emails.',
+        "If you didn't create an account, you can safely ignore this email.",
+        'This link works once and expires in 48 hours.',
+      ],
+      action: { label: 'Confirm my email address', url: frontendUrl(`verify-email.html?token=${token}`) },
+    });
+  }),
+
   passwordResetRequested: safely('passwordResetRequested', async (user, token) => {
     await emailService.send({
       to: user.email,

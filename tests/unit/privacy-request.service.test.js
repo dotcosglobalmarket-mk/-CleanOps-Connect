@@ -212,6 +212,19 @@ describe('erase', () => {
     expect(out).toMatchObject({ erased: true, counts: { stripeCustomers: 1, messages: 3, files: 2, jobs: 2 } });
   });
 
+  it('shows when the email address was confirmed in the export, and erasure clears the confirmation record', async () => {
+    const when = new Date('2026-11-03');
+    User.findById.mockResolvedValue(customer({ emailVerification: { required: true, verifiedAt: when, tokenHash: 'SECRET-HASH' } }));
+    const copy = await svc.exportData('u1');
+    expect(copy.account.emailConfirmedAt).toEqual(when);
+    expect(JSON.stringify(copy)).not.toContain('SECRET-HASH');
+
+    const user = customer({ emailVerification: { required: true, tokenHash: 'SECRET-HASH' } });
+    User.findById.mockResolvedValue(user);
+    await svc.erase('u1', ask(), req);
+    expect(user.emailVerification).toBeUndefined();
+  });
+
   it('erasing an account also deletes the stored text alert number', async () => {
     const user = customer({ smsAlerts: { enabled: true, mobile: '+447123456789', consentAt: new Date(), consentVersion: 'sms-2026-11' } });
     User.findById.mockResolvedValue(user);
