@@ -36,6 +36,16 @@ const userSchema = new mongoose.Schema(
     tokenVersion: { type: Number, default: 0 },
     // Set when the account was erased at the person's request (see privacy-request.service.js).
     erasedAt: { type: Date },
+    // Email confirmation (see email-verification.service.js). `required` is set for customers
+    // and cleaners who registered after it existed; older accounts are asked, never blocked.
+    // Only a hash of the emailed link is kept.
+    emailVerification: {
+      required: { type: Boolean },
+      verifiedAt: { type: Date },
+      tokenHash: { type: String },
+      expiresAt: { type: Date },
+      sentAt: { type: Date },
+    },
     // Text message alerts (see sms-alerts.service.js). Off unless the person turned them on
     // and gave a UK mobile number; turning them off deletes the number.
     smsAlerts: {

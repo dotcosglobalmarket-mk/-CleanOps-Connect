@@ -32,6 +32,7 @@ function toPublicUser(user) {
     email: user.email,
     role: user.role,
     phone: user.phone,
+    emailVerified: Boolean(user.emailVerification && user.emailVerification.verifiedAt),
   };
 }
 

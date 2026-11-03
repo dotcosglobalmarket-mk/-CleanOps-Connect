@@ -5,8 +5,10 @@ import { mountSeries } from './series-ui.js';
 import { STRIPE_PUBLISHABLE_KEY } from './config.js';
 import { avatarHtml, hydrateAvatars, prepareAvatar } from './avatar.js';
 import { mountSmsAlerts } from './sms-alerts.js';
+import { mountEmailBanner } from './email-banner.js';
 
 requireRole('cleaner');
+mountEmailBanner(document.getElementById('email-banner'));
 
 // Coverage radius is stored server-side in km; the UI shows miles.
 const KM_PER_MILE = 1.609344;

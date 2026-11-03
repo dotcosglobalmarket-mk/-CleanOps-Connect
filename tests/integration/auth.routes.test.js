@@ -6,7 +6,7 @@ jest.mock('../../src/models/User', () => ({
   updateOne: jest.fn(),
   create: jest.fn(),
 }));
-jest.mock('../../src/services/notification.service', () => ({ passwordResetRequested: jest.fn() }));
+jest.mock('../../src/services/notification.service', () => ({ passwordResetRequested: jest.fn(), emailVerification: jest.fn() }));
 
 const request = require('supertest');
 const bcrypt = require('bcryptjs');
@@ -78,6 +78,33 @@ describe('Auth routes', () => {
 
       const decoded = jwt.verify(res.body.token, process.env.JWT_SECRET);
       expect(decoded).toMatchObject({ sub: 'user1', role: 'customer' });
+    });
+
+    it('asks a new customer to confirm their email address with a single-use link', async () => {
+      const save = jest.fn().mockResolvedValue(undefined);
+      User.findOne.mockResolvedValue(null);
+      User.create.mockResolvedValue({ _id: 'user1', name: 'Alice', email: 'alice@example.com', role: 'customer', save });
+
+      const res = await request(app).post('/auth/register').send({ name: 'Alice', email: 'alice@example.com', password: 'password123', role: 'customer' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.user.emailVerified).toBe(false);
+      expect(notificationService.emailVerification).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'alice@example.com' }),
+        expect.stringMatching(/^[0-9a-f]{64}$/)
+      );
+      expect(save).toHaveBeenCalled();
+    });
+
+    it('still registers them when the confirmation link cannot be prepared', async () => {
+      const save = jest.fn().mockRejectedValue(new Error('db hiccup'));
+      User.findOne.mockResolvedValue(null);
+      User.create.mockResolvedValue({ _id: 'user1', name: 'Alice', email: 'alice@example.com', role: 'cleaner', save });
+
+      const res = await request(app).post('/auth/register').send({ name: 'Alice', email: 'alice@example.com', password: 'password123', role: 'cleaner' });
+
+      expect(res.status).toBe(201);
+      expect(typeof res.body.token).toBe('string');
     });
 
     it('returns 409 when the email is already registered', async () => {
@@ -226,6 +253,14 @@ describe('Auth routes', () => {
       expect(user.resetPasswordTokenHash).toBeUndefined();
       expect(user.resetPasswordExpiresAt).toBeUndefined();
       expect(save).toHaveBeenCalledTimes(1);
+    });
+
+    it('also confirms the email address, because the link reached their inbox', async () => {
+      const user = { _id: 'user1', name: 'Alice', email: 'alice@example.com', role: 'customer', emailVerification: { required: true }, resetPasswordTokenHash: 'h', resetPasswordExpiresAt: new Date(Date.now() + 60000), save: jest.fn().mockResolvedValue(undefined) };
+      User.findOne.mockResolvedValue(user);
+      const res = await request(app).post('/auth/reset-password').send({ token: 'good-token', password: 'newpassword123' });
+      expect(res.status).toBe(200);
+      expect(user.emailVerification.verifiedAt).toBeInstanceOf(Date);
     });
   });
 

@@ -44,6 +44,7 @@ describe('impersonation.service.start', () => {
       email: 'sarah@example.com',
       role: 'cleaner',
       phone: null,
+      emailVerified: false,
     });
 
     expect(AuditLog.create).toHaveBeenCalledWith(

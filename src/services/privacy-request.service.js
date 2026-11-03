@@ -161,6 +161,7 @@ async function exportData(userId) {
         }
       : undefined,
     cardConsentLog: user.cardConsentLog,
+    emailConfirmedAt: user.emailVerification && user.emailVerification.verifiedAt ? user.emailVerification.verifiedAt : undefined,
     textAlerts: user.smsAlerts && (user.smsAlerts.enabled || user.smsAlerts.consentAt)
       ? {
           enabled: Boolean(user.smsAlerts.enabled),
@@ -302,6 +303,7 @@ async function erase(userId, { confirmEmail, reason }, req) {
   user.stripeCustomerId = undefined;
   user.savedCard = undefined;
   user.smsAlerts = undefined;
+  user.emailVerification = undefined;
   user.resetPasswordTokenHash = undefined;
   user.resetPasswordExpiresAt = undefined;
   user.active = false;
