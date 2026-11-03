@@ -6,8 +6,8 @@
   "start_url": "/app.html",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0A1A2F",
-  "theme_color": "#0A1A2F",
+  "background_color": "#FFFFFF",
+  "theme_color": "#001647",
   "categories": ["business", "lifestyle"],
   "icons": [
     { "src": "/icons/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
