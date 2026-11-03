@@ -1,24 +1,26 @@
 /* Homepage. Loaded only by index.html. Tokens, layout and components follow the
    approved prototype (https://claude.ai/artifact/BExgwv2Y9eQU2xqKs23WG6). */
 :root {
-  --bg: #FFF9F5;
-  --bg-alt: #FFF3EB;
+  --bg: #F7F9FC;
+  --bg-alt: #EEF2F9;
   --bg-card: #FFFFFF;
-  --fg: #2D3748;
-  --fg-muted: #64748B;
-  --fg-light: #94A3B8;
-  --accent: #E8735A;
-  --accent-hover: #D4614A;
-  --accent-soft: #FDEAE5;
+  --fg: #0B1B3F;
+  --fg-muted: #56637E;
+  --fg-light: #8A96AE;
+  --accent: #FE5200;            /* logo orange: buttons, icons, sparkles */
+  --accent-hover: #E04A00;
+  --accent-soft: #FFEDE3;
+  --accent-text: #CF4100;       /* orange used as small text on light pages (passes contrast) */
+  --on-accent: #001647;         /* text on an orange button */
   --green: #38A169;
   --green-soft: #E6F7ED;
-  --teal: #2B8A8E;
-  --teal-soft: #E0F5F5;
-  --navy: #1E293B;
-  --navy-soft: #334155;
-  --border: #F1E4DB;
-  --shadow: 0 2px 16px rgba(45,55,72,0.06);
-  --shadow-lg: 0 8px 32px rgba(45,55,72,0.10);
+  --teal: #2F66C8;              /* brand blue for secondary icons */
+  --teal-soft: #E6EEFB;
+  --navy: #001647;              /* logo navy */
+  --navy-soft: #0B2A6B;
+  --border: #DCE3F0;
+  --shadow: 0 2px 16px rgba(0,22,71,0.07);
+  --shadow-lg: 0 8px 32px rgba(0,22,71,0.12);
   --radius: 16px;
   --radius-sm: 10px;
   --radius-pill: 999px;
@@ -31,24 +33,26 @@
 
 
 :root[data-theme="dark"] {
-  --bg: #1A1A2E;
-  --bg-alt: #16213E;
-  --bg-card: #1E293B;
-  --fg: #F1F5F9;
-  --fg-muted: #94A3B8;
-  --fg-light: #64748B;
-  --accent: #F0907A;
-  --accent-hover: #E8735A;
-  --accent-soft: rgba(232,115,90,0.15);
+  --bg: #07122B;
+  --bg-alt: #0A1938;
+  --bg-card: #0F2147;
+  --fg: #EEF2FA;
+  --fg-muted: #9AA9C7;
+  --fg-light: #6B7B9D;
+  --accent: #FF7A3D;
+  --accent-hover: #FF6A24;
+  --accent-soft: rgba(254,82,0,0.16);
+  --accent-text: #FF8A55;
+  --on-accent: #001647;
   --green: #68D391;
   --green-soft: rgba(56,161,105,0.15);
-  --teal: #4FD1C5;
-  --teal-soft: rgba(43,138,142,0.15);
-  --navy: #F1F5F9;
-  --navy-soft: #CBD5E1;
-  --border: #334155;
-  --shadow: 0 2px 16px rgba(0,0,0,0.2);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.3);
+  --teal: #6FA0F0;
+  --teal-soft: rgba(47,102,200,0.20);
+  --navy: #EEF2FA;
+  --navy-soft: #C5D0E8;
+  --border: #1E3159;
+  --shadow: 0 2px 16px rgba(0,0,0,0.25);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.35);
   color-scheme: dark;
 }
 
@@ -113,15 +117,10 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   color: #fff;
 }
 
-.logo-icon {
-  width: 36px;
-  height: 36px;
-  background: var(--accent);
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+.logo-img {
+  height: 54px;
+  width: auto;
+  display: block;
 }
 
 /* Light pages show the navy wordmark; in dark mode (only when the visitor switches to it) the white one. */
@@ -159,12 +158,12 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 
 .nav-links .btn-nav {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-family: var(--font-display);
   font-weight: 600;
 }
 
-.nav-links .btn-nav:hover { background: var(--accent-hover); color: #fff; }
+.nav-links .btn-nav:hover { background: var(--accent-hover); color: var(--on-accent); }
 
 /* "Install app" (added by js/pwa.js): frosted pill on the dark hero, soft coral pill once the bar turns white */
 .nav-links .install-app {
@@ -192,7 +191,6 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 .nav-menu-items { display: none; }
 
 .nav-inner { gap: 12px; }
-.logo-text { white-space: nowrap; }
 
 @media (max-width: 640px) {
   .nav-desktop { display: none; }
@@ -205,7 +203,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   /* Install: icon only, so the row still fits. */
   .nav-menu-items .install-app { width: 38px; height: 38px; padding: 0; justify-content: center; }
   .nav-menu-items .install-label { display: none; }
-  .logo-text { font-size: 1rem; }
+  .logo-img { height: 44px; }
   .nav-links { gap: 6px; }
   .nav-links a { padding: 8px 8px; white-space: nowrap; }
   /* If the links still don't fit beside the logo (long labels, wider web
@@ -215,17 +213,15 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   .hero { padding-top: 150px; }
 }
 
-/* With the install icon added, the phone row needs ~44px more than it has below
-   about 420px, so the wordmark steps aside (the logo mark stays), as it already
-   does below 360px. Only while the install button is offered. */
+/* With the install icon added, the phone row needs about 44px more than it has below about 420px,
+   so the logo steps down a size. Only while the install button is offered. */
 @media (max-width: 420px) {
-  .can-install .logo-text { display: none; }
+  .can-install .logo-img { height: 34px; }
 }
 
-/* Below 360px (iPhone SE 1st gen, small Androids) even that row is too wide:
-   the icon alone is the logo there. */
+/* Below 360px (iPhone SE 1st gen, small Androids) that row is too wide: shrink the logo a little. */
 @media (max-width: 360px) {
-  .logo-text { display: none; }
+  .logo-img { height: 38px; }
 }
 
 .theme-toggle { width: 38px; height: 38px; padding: 0 !important; display: inline-flex; align-items: center; justify-content: center; }
@@ -245,10 +241,10 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   overflow: hidden;
   background:
     linear-gradient(165deg,
-      rgba(15,23,42,0.72) 0%,
-      rgba(30,41,59,0.68) 30%,
-      rgba(20,30,48,0.70) 60%,
-      rgba(15,23,42,0.75) 100%
+      rgba(0,12,40,0.74) 0%,
+      rgba(0,22,71,0.70) 30%,
+      rgba(0,18,58,0.72) 60%,
+      rgba(0,12,40,0.78) 100%
     ),
     url('/img/hero-cleaning.jpg') center/cover no-repeat;
 }
@@ -310,7 +306,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 8px rgba(232,115,90,0.6);
+  box-shadow: 0 0 8px rgba(254,82,0,0.6);
 }
 
 .hero h1 {
@@ -325,7 +321,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 
 .hero h1 em {
   font-style: normal;
-  color: var(--accent);
+  color: #FF6A1F;
   position: relative;
 }
 
@@ -352,7 +348,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 }
 
 .hero-search:focus-within {
-  border-color: var(--accent);
+  border-color: var(--accent-text);
   background: rgba(255,255,255,0.15);
 }
 
@@ -372,7 +368,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 
 .hero-search button {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border: none;
   padding: 14px 28px;
   font-family: var(--font-display);
@@ -453,8 +449,8 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 .nav-sticky .nav-links button:hover { color: var(--fg); background: var(--accent-soft); }
 .nav-sticky .nav-links .nav-strong { color: var(--fg); }
 .nav-sticky .nav-links .nav-user { color: var(--fg-muted); }
-.nav-sticky .nav-links .btn-nav { background: var(--accent); color: #fff; }
-.nav-sticky .nav-links .btn-nav:hover { background: var(--accent-hover); color: #fff; }
+.nav-sticky .nav-links .btn-nav { background: var(--accent); color: var(--on-accent); }
+.nav-sticky .nav-links .btn-nav:hover { background: var(--accent-hover); color: var(--on-accent); }
 
 /* WAVE DIVIDER */
 .wave-divider {
@@ -476,7 +472,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   font-size: 0.82rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-text);
   margin-bottom: 8px;
 }
 
@@ -533,7 +529,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   height: 28px;
   border-radius: 50%;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 0.82rem;
@@ -634,7 +630,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   align-items: center;
   gap: 8px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 1rem;
@@ -653,7 +649,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   align-items: center;
   gap: 8px;
   background: transparent;
-  color: var(--accent);
+  color: var(--accent-text);
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 1rem;
@@ -680,7 +676,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 }
 
 .coverage-inner {
-  background: linear-gradient(135deg, var(--navy) 0%, #2D4059 100%);
+  background: linear-gradient(135deg, var(--navy) 0%, #0B2A6B 100%);
   border-radius: 24px;
   padding: 56px 32px;
   color: #fff;
@@ -824,7 +820,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 0.8rem;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent);
   flex-shrink: 0;
 }
@@ -913,7 +909,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 }
 
 .cta-inner {
-  background: linear-gradient(135deg, var(--accent) 0%, #D4614A 60%, #C4513D 100%);
+  background: linear-gradient(135deg, #001647 0%, #0B2A6B 100%);
   border-radius: 24px;
   padding: 56px 32px;
   text-align: center;
@@ -937,7 +933,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 
 .btn-white {
   background: #fff;
-  color: var(--accent);
+  color: var(--accent-text);
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 1rem;
@@ -1003,7 +999,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   align-items: center;
   gap: 6px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
   padding: 8px 16px;
   border-radius: var(--radius-pill);
   font-size: 0.82rem;
@@ -1035,7 +1031,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   transition: color 0.15s;
 }
 
-.footer-col a:hover { color: var(--accent); }
+.footer-col a:hover { color: var(--accent-text); }
 
 .footer-bottom {
   margin-top: 36px;

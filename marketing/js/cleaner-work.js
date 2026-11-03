@@ -243,7 +243,17 @@ async function loadOffers() {
   } catch (err) {
     container.innerHTML = '';
     if (err.status === 402) {
-      container.innerHTML = '<div class="table-empty">Job offers appear here once your platform fee is paid. Go to Coverage &amp; Subscription to activate your plan.</div>';
+      // No subscription, no offers: a clear gate with a way straight to the plan page.
+      container.innerHTML = `
+        <div class="gate-card" role="alert">
+          <h3>Subscribe first</h3>
+          <p>Job offers are locked until you have paid the platform fee. Until then you will not see or be able to accept any jobs.</p>
+          <button type="button" id="offers-gate-button">Pay the platform fee</button>
+        </div>`;
+      document.getElementById('offers-gate-button').addEventListener('click', () => {
+        const target = document.querySelector('.dash-nav-item[data-panel="coverage"]');
+        if (target) target.click();
+      });
     } else if (err.status !== 404) {
       showAlert('offers-alert', err.message);
     }
