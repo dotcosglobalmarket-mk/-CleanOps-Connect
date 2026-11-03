@@ -1,10 +1,6 @@
 // In-memory Job store that honours the queries the service makes, including the
 // atomic "claim this attempt" update, so double runs are really exercised.
 const mockStore = { jobs: [], series: {}, users: {} };
-const mockMatchAttempts = (cond, value) => {
-  if (cond && typeof cond === 'object' && cond.$in) return cond.$in.includes(value == null ? null : value);
-  return cond === value;
-};
 
 jest.mock('../../src/models/Job', () => {
   const apply = (job, update) => {

@@ -327,7 +327,15 @@ Run the automated test suite:
 npm test
 ```
 
-Unit tests (`tests/unit/`) cover the pure business logic — coverage filtering, AI scoring, insurance gating, Mapbox geocoding, auth/validation middleware, and error handling — with no database required. Integration tests (`tests/integration/`) exercise the Express routes end-to-end (auth, ownership checks, validation) with the Mongoose models mocked, so no live MongoDB is needed to run them locally or in CI. The GitHub Actions deploy workflow (`.github/workflows/deploy.yml`) runs this suite as a required `test` job before every deploy.
+Unit tests (`tests/unit/`) cover the pure business logic — coverage filtering, AI scoring, insurance gating, Mapbox geocoding, auth/validation middleware, and error handling — with no database required. Integration tests (`tests/integration/`) exercise the Express routes end-to-end (auth, ownership checks, validation) with the Mongoose models mocked, so no live MongoDB is needed to run them locally or in CI. The GitHub Actions deploy workflow (`.github/workflows/deploy.yml`) runs ESLint and this suite as a required `test` job before every deploy.
+
+Check the code for mistakes (undefined names, unused variables, unreachable code) with:
+
+```
+npm run lint
+```
+
+`openapi.yaml` describes every route the API serves, and a test (`tests/unit/openapi-coverage.test.js`) fails when a route is added without being documented there, or when the file documents a route that does not exist. Open `/docs` on a running server to browse it.
 
 ## Deployment
 

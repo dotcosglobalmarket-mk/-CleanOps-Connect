@@ -3,7 +3,7 @@ import { openDocument } from './documents.js';
 import { fetchGuide, renderGuide } from './price-guide.js';
 import { escapeHtml } from './dom.js';
 import { mountJobPhotos } from './job-photos.js';
-import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate, formatVisit, formatWhen } from './dashboard-ui.js';
+import { showAlert, hideAlert, renderTable, statusBadge, formatPence, formatDate, formatWhen } from './dashboard-ui.js';
 
 // Offers inbox, booked jobs, earnings and Stripe payouts for the cleaner
 // dashboard. The profile/coverage tabs live in cleaner.js.

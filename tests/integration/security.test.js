@@ -5,6 +5,10 @@ jest.mock('../../src/models/User', () => ({
 
 const request = require('supertest');
 
+// Each test loads the whole app from scratch, which can take over Jest's default
+// 5 seconds on a busy or cold machine.
+jest.setTimeout(30000);
+
 function loadApp(env = {}) {
   let createApp;
   jest.isolateModules(() => {

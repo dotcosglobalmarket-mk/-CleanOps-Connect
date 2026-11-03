@@ -1,7 +1,7 @@
 const Job = require('../models/Job');
 const CleanerProfile = require('../models/CleanerProfile');
 const stripeService = require('./stripe.service');
-const { STATES, EVENTS, transition, PaymentStateError } = require('./payment-state-machine');
+const { STATES, EVENTS, transition } = require('./payment-state-machine');
 const notifications = require('./notification.service');
 const jobPhotos = require('./job-photo.service');
 const logger = require('../utils/logger');
@@ -87,12 +87,6 @@ function notFound(message) {
 function badRequest(message) {
   const error = new Error(message);
   error.status = 400;
-  return error;
-}
-
-function forbidden(message) {
-  const error = new Error(message);
-  error.status = 403;
   return error;
 }
 
