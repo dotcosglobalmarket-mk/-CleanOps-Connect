@@ -31,31 +31,6 @@
   --gutter-r: max(16px, env(safe-area-inset-right, 0px));
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #07122B;
-    --bg-alt: #0A1938;
-    --bg-card: #0F2147;
-    --fg: #EEF2FA;
-    --fg-muted: #9AA9C7;
-    --fg-light: #6B7B9D;
-    --accent: #FF7A3D;
-    --accent-hover: #FF6A24;
-    --accent-soft: rgba(254,82,0,0.16);
-    --accent-text: #FF8A55;
-    --on-accent: #001647;
-    --green: #68D391;
-    --green-soft: rgba(56,161,105,0.15);
-    --teal: #6FA0F0;
-    --teal-soft: rgba(47,102,200,0.20);
-    --navy: #EEF2FA;
-    --navy-soft: #C5D0E8;
-    --border: #1E3159;
-    --shadow: 0 2px 16px rgba(0,0,0,0.25);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,0.35);
-    color-scheme: dark;
-  }
-}
 
 :root[data-theme="dark"] {
   --bg: #07122B;
@@ -148,14 +123,10 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   display: block;
 }
 
-/* Light pages show the navy wordmark; in dark mode the white one. */
+/* Light pages show the navy wordmark; in dark mode (only when the visitor switches to it) the white one. */
 .logo-img.on-dark { display: none; }
 :root[data-theme="dark"] .logo-img.on-light { display: none; }
 :root[data-theme="dark"] .logo-img.on-dark { display: block; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .logo-img.on-light { display: none; }
-  :root:not([data-theme="light"]) .logo-img.on-dark { display: block; }
-}
 
 .nav-links {
   display: flex;
@@ -248,10 +219,6 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 .theme-toggle .icon-sun { display: none; }
 :root[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
 :root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .theme-toggle .icon-sun { display: block; }
-  :root:not([data-theme="light"]) .theme-toggle .icon-moon { display: none; }
-}
 
 /* ===== HERO — Full-bleed dark photo style ===== */
 .hero {
@@ -707,7 +674,6 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 }
 
 :root[data-theme="dark"] .coverage-inner { background: linear-gradient(135deg, #07122B 0%, #0F2147 100%); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .coverage-inner { background: linear-gradient(135deg, #07122B 0%, #0F2147 100%); } }
 
 .coverage-inner .section-label { color: rgba(255,255,255,0.6); }
 .coverage-inner .section-title { color: #fff; }
