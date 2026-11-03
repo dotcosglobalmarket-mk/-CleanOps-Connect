@@ -29,29 +29,6 @@
   --gutter-r: max(16px, env(safe-area-inset-right, 0px));
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #1A1A2E;
-    --bg-alt: #16213E;
-    --bg-card: #1E293B;
-    --fg: #F1F5F9;
-    --fg-muted: #94A3B8;
-    --fg-light: #64748B;
-    --accent: #F0907A;
-    --accent-hover: #E8735A;
-    --accent-soft: rgba(232,115,90,0.15);
-    --green: #68D391;
-    --green-soft: rgba(56,161,105,0.15);
-    --teal: #4FD1C5;
-    --teal-soft: rgba(43,138,142,0.15);
-    --navy: #F1F5F9;
-    --navy-soft: #CBD5E1;
-    --border: #334155;
-    --shadow: 0 2px 16px rgba(0,0,0,0.2);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,0.3);
-    color-scheme: dark;
-  }
-}
 
 :root[data-theme="dark"] {
   --bg: #1A1A2E;
@@ -147,11 +124,10 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   flex-shrink: 0;
 }
 
-.logo-text {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 1.15rem;
-}
+/* Light pages show the navy wordmark; in dark mode (only when the visitor switches to it) the white one. */
+.logo-img.on-dark { display: none; }
+:root[data-theme="dark"] .logo-img.on-light { display: none; }
+:root[data-theme="dark"] .logo-img.on-dark { display: block; }
 
 .nav-links {
   display: flex;
@@ -256,10 +232,6 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 .theme-toggle .icon-sun { display: none; }
 :root[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
 :root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .theme-toggle .icon-sun { display: block; }
-  :root:not([data-theme="light"]) .theme-toggle .icon-moon { display: none; }
-}
 
 /* ===== HERO — Full-bleed dark photo style ===== */
 .hero {
@@ -714,8 +686,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   color: #fff;
 }
 
-:root[data-theme="dark"] .coverage-inner { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .coverage-inner { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); } }
+:root[data-theme="dark"] .coverage-inner { background: linear-gradient(135deg, #07122B 0%, #0F2147 100%); }
 
 .coverage-inner .section-label { color: rgba(255,255,255,0.6); }
 .coverage-inner .section-title { color: #fff; }
