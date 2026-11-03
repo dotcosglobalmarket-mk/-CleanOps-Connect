@@ -11,7 +11,6 @@ import {
   paymentStatusBadge,
   formatPence,
   formatDate,
-  formatVisit,
   formatWhen,
   shortId,
   setupTabs,

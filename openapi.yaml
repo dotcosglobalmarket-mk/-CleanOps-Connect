@@ -960,6 +960,2671 @@ paths:
         '200':
           description: Updated; the cleaner's rating is recalculated
 
+  /admin/cleaners:
+    get:
+      summary: List cleaners
+      description: >-
+        Filter by `deactivationStatus` (`active`, `under_review`, `suspended`) and/or `verified`. A
+        cleaner counts as verified once their DBS check is verified and their insurance status is not
+        `none`.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: deactivationStatus
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - active
+              - under_review
+              - suspended
+        - name: verified
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - 'true'
+              - 'false'
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/cleaners/{id}:
+    get:
+      summary: View a cleaner
+      description: |-
+        One cleaner's full profile for admin work.
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/cleaners/{id}/deactivation:
+    patch:
+      summary: Set a cleaner's review or suspension status
+      description: >-
+        Sets `deactivationStatus`. This is the human review step: a suspension triggered by a rating
+        must land as `under_review` first, never straight to `suspended`.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deactivationStatus:
+                  type: string
+                  enum:
+                    - active
+                    - under_review
+                    - suspended
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 2000
+              required:
+                - deactivationStatus
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/cleaners/{id}/impersonate:
+    post:
+      summary: View the site as a cleaner (support)
+      description: >-
+        Needs a `reason`. Returns a 30-minute, read-only token for the cleaner's own account so support
+        can see what the cleaner sees. Any request that is not a `GET` made with this token is rejected.
+        The reason is recorded in the audit log.
+
+
+        Allowed roles: admin.
+
+
+        Needs the staff permission: cleaners.impersonate.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 2000
+              required:
+                - reason
+      responses:
+        '201':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/cleaners/{id}/reset-payouts:
+    post:
+      summary: Reset a cleaner's payout set-up
+      description: >-
+        Clears the cleaner's link to their Stripe payout account so they can set it up again. A reason
+        is recorded in the audit log.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 2000
+              required:
+                - reason
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/cleaners/{id}/verification:
+    patch:
+      summary: Update a cleaner's compliance status
+      description: >-
+        Sets `dbsVerified`, `coshhTrained` and/or `insuranceStatus` (at least one is required). Cleaners
+        cannot set these themselves.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dbsVerified:
+                  type: boolean
+                coshhTrained:
+                  type: boolean
+                insuranceStatus:
+                  type: string
+                  enum:
+                    - none
+                    - own
+                    - platform
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/compliance-documents:
+    get:
+      summary: List compliance documents to review
+      description: >-
+        DBS, COSHH and insurance certificates uploaded by cleaners. Filter by `status` (`pending`,
+        `approved`, `rejected`, `superseded`, `expired`, `withdrawn` or `all`).
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending
+              - approved
+              - rejected
+              - superseded
+              - expired
+              - withdrawn
+              - all
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/compliance-documents/{id}/file:
+    get:
+      summary: Download an uploaded certificate
+      description: |-
+        Returns the uploaded file. Opening it is recorded in the audit log.
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The file
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+    delete:
+      summary: Delete an uploaded certificate file on request
+      description: >-
+        Deletes the stored file (for example at the cleaner's request) but keeps the record of the
+        decision. A reason is recorded in the audit log.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+                - reason
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/compliance-documents/{id}/review:
+    post:
+      summary: Approve or reject a compliance document
+      description: >-
+        Records the decision (`approve` or `reject`, with an optional reason). Approving sets the
+        cleaner's matching badge.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decision:
+                  type: string
+                  enum:
+                    - approve
+                    - reject
+                reason:
+                  type: string
+                  maxLength: 500
+                expiresAt:
+                  type: string
+                  maxLength: 40
+              required:
+                - decision
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/jobs:
+    get:
+      summary: List jobs
+      description: >-
+        Jobs across every status. Filter by `status` (the allocation status) and/or `paymentStatus` (the
+        payment state).
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - open
+              - allocated
+              - in_progress
+              - completed
+              - cancelled
+        - name: paymentStatus
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - BOOKED
+              - PAID_HELD
+              - CANCELLED
+              - CANCELLED_BY_CLEANER
+              - CANCELLED_BY_CUSTOMER
+              - IN_PROGRESS
+              - AWAITING_CONFIRMATION
+              - DISPUTED
+              - RESOLVED_REFUND
+              - RESOLVED_PARTIAL
+              - RESOLVED_PAYOUT
+              - CONFIRMED
+              - PAYOUT_PENDING
+              - PAYOUT_BLOCKED
+              - TRANSFER_FAILED
+              - MANUAL_REVIEW_HOLD
+              - PAID_OUT
+              - REFUNDED
+              - PARTIALLY_REFUNDED
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/jobs/{id}:
+    get:
+      summary: View a job
+      description: |-
+        One job with its customer, cleaner and service type.
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/jobs/{id}/allocate:
+    post:
+      summary: Run matching again for a job
+      description: >-
+        Re-runs allocation and sends offers to matching cleaners, and returns why a job was not matched
+        when it was not.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/privacy/{id}/erase:
+    post:
+      summary: Erase a person's account (privacy request)
+      description: >-
+        Needs `identityChecked: true`, the account's email typed again as `confirmEmail`, and a reason.
+        Refused while a booking is in progress or has money to settle, while a regular booking is
+        running, or while a cleaner has an active subscription. Otherwise the Stripe customer is deleted
+        first (if that fails nothing else changes, so it can be retried), then pictures, certificate
+        files and messages are deleted, address and free text are removed from bookings, payment records
+        are kept for 6 years, and the account is anonymised and signed out. Recorded in the audit log.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identityChecked:
+                  type: boolean
+                  enum:
+                    - true
+                confirmEmail:
+                  type: string
+                  minLength: 3
+                  maxLength: 254
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 450
+              required:
+                - identityChecked
+                - confirmEmail
+                - reason
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/privacy/{id}/export:
+    get:
+      summary: Export a person's data
+      description: >-
+        Returns a copy of the personal data held for the account as JSON (Subject Access Request).
+        Secrets are excluded. The export is recorded in the audit log.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: identityChecked
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - 'true'
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/privacy/lookup:
+    get:
+      summary: Find a person for a privacy request
+      description: |-
+        Looks an account up by email so a data export or erasure request can be handled.
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 254
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/revenue:
+    get:
+      summary: Revenue overview
+      description: >-
+        Commission, subscription fees, subscribers by plan, failed payments and recent charges for a
+        period (`7d`, `30d` or `year`), compared with the previous period. Weekly plans count as their
+        monthly equivalent in the monthly totals.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: range
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - 7d
+              - 30d
+              - year
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/subscriptions:
+    get:
+      summary: List platform subscriptions
+      description: |-
+        Filter by `requested` (cancellation asked for), `active`, `ending` or `ended`.
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - active
+              - requested
+              - ending
+              - ended
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/subscriptions/{id}/cancel:
+    post:
+      summary: Cancel a cleaner's subscription
+      description: >-
+        Either at the next renewal (`period_end`) or straight away (`now`). Neither issues a refund. A
+        reason is recorded in the audit log and the cleaner is emailed.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                when:
+                  type: string
+                  enum:
+                    - period_end
+                    - now
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 2000
+              required:
+                - when
+                - reason
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/subscriptions/{id}/decline-cancellation:
+    post:
+      summary: Decline a cancellation request
+      description: |-
+        The subscription carries on. A reason is recorded in the audit log.
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 2000
+              required:
+                - reason
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/subscriptions/move-starter-to-weekly:
+    post:
+      summary: Move Starter cleaners from monthly to weekly billing
+      description: >-
+        Without `confirm: true` it only returns who would move (a preview). With it, each live monthly
+        Starter subscription is changed in Stripe to £2.50 a week; Stripe starts the weekly billing that
+        day and credits the unused part of the month already paid. Each cleaner is emailed and each
+        change is audit-logged. Cleaners who have asked to cancel, or whose plan is set to end, are left
+        alone. Safe to run again: only cleaners still on monthly billing are picked up.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirm:
+                  type: boolean
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/summary:
+    get:
+      summary: Overview counts
+      description: >-
+        Cleaner verification, review and suspension counts, job totals and the size of the payments
+        queue, for the admin overview screen.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/users/{id}/reset-two-factor:
+    post:
+      summary: Clear a staff member's two-step login
+      description: >-
+        For a lost authenticator. Ends the account's sessions; the person sets two-step login up again
+        at the next sign-in. A reason is recorded in the audit log.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 2000
+              required:
+                - reason
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /auth/2fa/enable:
+    post:
+      summary: Finish two-step login set-up
+      description: >-
+        Checks the first code from the authenticator app and turns two-step login on. Returns the
+        signed-in user, a session token and the one-time recovery codes, which are shown only once.
+        Public: authorised by the `setupToken`.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                setupToken:
+                  type: string
+                  minLength: 1
+                code:
+                  type: string
+                  minLength: 6
+                  maxLength: 12
+              required:
+                - setupToken
+                - code
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+
+  /auth/2fa/setup:
+    post:
+      summary: Start two-step login set-up
+      description: >-
+        Takes the short-lived `setupToken` that login returns to a staff account that has not set up
+        two-step login yet, and returns what is needed to add the account to an authenticator app.
+        Public: it is authorised by that token, not by a session.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                setupToken:
+                  type: string
+                  minLength: 1
+              required:
+                - setupToken
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+
+  /auth/2fa/verify:
+    post:
+      summary: Complete a login with a two-step code
+      description: >-
+        Takes the `challengeToken` that login returns and either a six-digit code from the authenticator
+        app or a recovery code (each recovery code works once). Returns the signed-in user and a session
+        token. Wrong codes count towards a temporary lockout. Public: authorised by the challenge token.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                challengeToken:
+                  type: string
+                  minLength: 1
+                code:
+                  type: string
+                  minLength: 6
+                  maxLength: 20
+              required:
+                - challengeToken
+                - code
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+
+  /auth/request-password-reset:
+    post:
+      summary: Ask for a password reset email
+      description: >-
+        Always returns the same response whether or not the email is registered, so it cannot be used to
+        find out who has an account. The link is emailed only when email sending is configured.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  pattern: >-
+                    ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+              required:
+                - email
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+
+  /auth/reset-password:
+    post:
+      summary: Set a new password with a reset token
+      description: >-
+        Uses the token from the reset email. Tokens work once and expire after 1 hour; only a hash of
+        the token is stored.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  minLength: 1
+                password:
+                  type: string
+                  minLength: 8
+              required:
+                - token
+                - password
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+
+  /cleaners/{id}/photo:
+    get:
+      summary: Get a cleaner's profile picture
+      description: >-
+        Returned to that cleaner, to staff, and to a customer the cleaner has been offered to or booked
+        with. Anyone else, and any request for a suspended cleaner, gets 404. Not cached.
+
+
+        Allowed roles: customer, cleaner, operator, admin.
+      tags:
+        - Cleaners
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The picture
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /cleaners/me:
+    get:
+      summary: View my cleaner profile
+      description: >-
+        Your own profile, including dashboard fields such as bio, hourly rate, working hours, contact
+        details and custom services.
+
+
+        Allowed roles: cleaner.
+      tags:
+        - Cleaners
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+    patch:
+      summary: Update my cleaner profile
+      description: |-
+        Updates your own profile fields. Compliance flags cannot be set here.
+
+        Allowed roles: cleaner.
+      tags:
+        - Cleaners
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                companyName:
+                  type: string
+                basePostcode:
+                  type: string
+                  minLength: 1
+                services:
+                  type: array
+                  items:
+                    type: string
+                    pattern: ^[0-9a-fA-F]{24}$
+                available:
+                  type: boolean
+                bio:
+                  type: string
+                  maxLength: 2000
+                hourlyRate:
+                  type: number
+                  minimum: 0
+                responseTime:
+                  type: string
+                  maxLength: 200
+                travelDistanceMiles:
+                  type: number
+                  minimum: 0
+                phoneNumber:
+                  type: string
+                  maxLength: 40
+                contactEmail:
+                  type: string
+                  format: email
+                  pattern: >-
+                    ^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                website:
+                  type: string
+                  format: uri
+                instagram:
+                  type: string
+                  maxLength: 60
+                workingDays:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - mon
+                      - tue
+                      - wed
+                      - thu
+                      - fri
+                      - sat
+                      - sun
+                startTime:
+                  type: string
+                  pattern: ^([01]\d|2[0-3]):[0-5]\d$
+                endTime:
+                  type: string
+                  pattern: ^([01]\d|2[0-3]):[0-5]\d$
+                acceptEmergencyBookings:
+                  type: boolean
+                customServices:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /cleaners/me/photo:
+    post:
+      summary: Upload my profile picture or logo
+      description: >-
+        The image is the request body (`image/jpeg` or `image/png`, up to 1 MB, first bytes checked).
+        The website crops it to a 400px square first. It replaces and deletes any earlier picture.
+
+
+        Allowed roles: cleaner.
+      tags:
+        - Cleaners
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Picture saved
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+    delete:
+      summary: Remove my profile picture
+      description: |-
+        Removes and deletes the picture.
+
+        Allowed roles: cleaner.
+      tags:
+        - Cleaners
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Success
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /compliance-documents:
+    post:
+      summary: Upload a compliance document
+      description: >-
+        The file is the request body (`application/pdf`, `image/jpeg` or `image/png`, up to 5 MB); the
+        document type and expiry date go in the query. It is reviewed by our team before any badge
+        appears.
+
+
+        Allowed roles: cleaner.
+      tags:
+        - Compliance documents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - dbs
+              - coshh
+              - insurance
+        - name: filename
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+      requestBody:
+        required: true
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: Document uploaded for review
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /compliance-documents/mine:
+    get:
+      summary: List my compliance documents
+      description: |-
+        The signed-in cleaner's own DBS, COSHH and insurance uploads and their review status.
+
+        Allowed roles: cleaner.
+      tags:
+        - Compliance documents
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /customers/me/card:
+    get:
+      summary: View my saved card
+      description: >-
+        Whether a card is saved (brand, last four digits) and the wording of the agreement for charging
+        it for regular bookings. Full card numbers are never held here.
+
+
+        Allowed roles: customer.
+      tags:
+        - Customers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+    post:
+      summary: Save the card the customer has just confirmed
+      description: >-
+        Takes the payment method confirmed through the setup intent and saves it as the card charged for
+        regular bookings.
+
+
+        Allowed roles: customer.
+      tags:
+        - Customers
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                consentVersion:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                paymentMethodId:
+                  type: string
+                  pattern: ^pm_[A-Za-z0-9_]+$
+                consent:
+                  type: boolean
+                  enum:
+                    - true
+              required:
+                - consentVersion
+                - paymentMethodId
+                - consent
+      responses:
+        '200':
+          description: Card saved
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+    delete:
+      summary: Remove the saved card
+      description: |-
+        Removes the saved card. Regular bookings cannot be charged until a new card is saved.
+
+        Allowed roles: customer.
+      tags:
+        - Customers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Card removed
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /customers/me/card/consent:
+    post:
+      summary: Agree to the card terms for regular bookings
+      description: >-
+        Records the customer's agreement that visits of a regular booking are charged to the saved card
+        48 hours before each visit.
+
+
+        Allowed roles: customer.
+      tags:
+        - Customers
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                consentVersion:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                consent:
+                  type: boolean
+                  enum:
+                    - true
+              required:
+                - consentVersion
+                - consent
+      responses:
+        '200':
+          description: Agreement recorded
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /customers/me/card/setup-intent:
+    post:
+      summary: Start saving a card for regular bookings
+      description: >-
+        Creates a Stripe SetupIntent and returns its client secret so the card can be entered with
+        Stripe.js. Card details never reach our servers.
+
+
+        Allowed roles: customer.
+      tags:
+        - Customers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Client secret returned
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /jobs/{id}/offers/{offerId}/accept:
+    post:
+      summary: Accept a job offer at your own price
+      description: >-
+        The cleaner sets the price (`pricePence`); the platform never sets or negotiates it. Books the
+        job (creates the Stripe payment) and declines every other outstanding offer for it. Only the
+        offered cleaner can do this.
+
+
+        Allowed roles: cleaner.
+      tags:
+        - Jobs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pricePence:
+                  type: integer
+                  minimum: 0
+                  exclusiveMinimum: true
+                  maximum: 9007199254740991
+              required:
+                - pricePence
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /jobs/{id}/offers/{offerId}/decline:
+    post:
+      summary: Decline an offer, or withdraw a tender quote
+      description: |-
+        Only the offered cleaner can do this.
+
+        Allowed roles: cleaner.
+      tags:
+        - Jobs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /jobs/{id}/photos:
+    get:
+      summary: List a job's photos
+      description: |-
+        Visible to the job's customer, its booked cleaner and staff.
+
+        Allowed roles: customer, cleaner, operator, admin.
+      tags:
+        - Jobs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+    post:
+      summary: Add a photo to a job
+      description: >-
+        The picture itself is the request body (`image/jpeg` or `image/png`). Set `kind` in the query:
+        `before` or `after` (cleaner, while the job is under way) or `problem` (customer, after
+        completion or during a dispute). Limits apply per job and per person per hour. Photos are
+        deleted 90 days after the job closes.
+
+
+        Allowed roles: customer, cleaner, operator, admin.
+      tags:
+        - Jobs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: kind
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - before
+              - after
+              - problem
+        - name: filename
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: Photo added
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /jobs/{id}/photos/{photoId}:
+    delete:
+      summary: Delete a job photo
+      description: |-
+        Only the person who added it, and only until the job is disputed.
+
+        Allowed roles: customer, cleaner, operator, admin.
+      tags:
+        - Jobs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: photoId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Photo deleted
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /jobs/{id}/photos/{photoId}/file:
+    get:
+      summary: Get one job photo
+      description: >-
+        Returns the picture, not cached. Staff opening one is recorded in the audit log
+        (`job_photo.view`).
+
+
+        Allowed roles: customer, cleaner, operator, admin.
+      tags:
+        - Jobs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: photoId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The picture
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /ops/cleaners/{id}:
+    get:
+      summary: View a cleaner (operations)
+      description: |-
+        A cleaner's profile together with the audit entries recorded for that cleaner.
+
+        Needs the staff permission: cleaners.read.
+      tags:
+        - Ops
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /ops/jobs:
+    get:
+      summary: List jobs (operations)
+      description: |-
+        Jobs with their payment state, for support work.
+
+        Needs the staff permission: jobs.read.
+      tags:
+        - Ops
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - open
+              - allocated
+              - in_progress
+              - completed
+              - cancelled
+        - name: paymentStatus
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - BOOKED
+              - PAID_HELD
+              - CANCELLED
+              - CANCELLED_BY_CLEANER
+              - CANCELLED_BY_CUSTOMER
+              - IN_PROGRESS
+              - AWAITING_CONFIRMATION
+              - DISPUTED
+              - RESOLVED_REFUND
+              - RESOLVED_PARTIAL
+              - RESOLVED_PAYOUT
+              - CONFIRMED
+              - PAYOUT_PENDING
+              - PAYOUT_BLOCKED
+              - TRANSFER_FAILED
+              - MANUAL_REVIEW_HOLD
+              - PAID_OUT
+              - REFUNDED
+              - PARTIALLY_REFUNDED
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /ops/jobs/{id}:
+    get:
+      summary: View a job (operations)
+      description: |-
+        One job with its staff notes.
+
+        Needs the staff permission: jobs.read.
+      tags:
+        - Ops
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /ops/series:
+    get:
+      summary: List regular bookings needing attention (operations)
+      description: |-
+        Every regular booking with failed card charges and cleaner cancellations.
+
+        Needs the staff permission: jobs.read.
+      tags:
+        - Ops
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - awaiting_card
+              - active
+              - paused
+              - cancelled
+              - ended
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /payments/jobs/{id}/book:
+    post:
+      summary: Book a job manually (admin only)
+      description: >-
+        A manual override. Normal bookings happen when a cleaner accepts an offer at their own price.
+        Creates the Stripe payment for the cleaner and price the admin gives and moves the job to
+        awaiting payment.
+
+
+        Allowed roles: admin.
+      tags:
+        - Payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cleanerId:
+                  type: string
+                  pattern: ^[0-9a-fA-F]{24}$
+                pricePence:
+                  type: integer
+                  minimum: 0
+                  exclusiveMinimum: true
+                  maximum: 9007199254740991
+              required:
+                - cleanerId
+                - pricePence
+      responses:
+        '201':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /payments/jobs/{id}/cancel:
+    post:
+      summary: Cancel a booking
+      description: >-
+        The job's own customer or cleaner, or an admin. Before payment this cancels the payment at
+        Stripe first and is refused if the payment has just gone through. After payment the refund
+        follows the cancellation rules in the terms of use.
+      tags:
+        - Payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+
+  /payments/jobs/{id}/check-in:
+    post:
+      summary: Check in at the job
+      description: |-
+        The booked cleaner marks that they have arrived and started. The job is then in progress.
+
+        Allowed roles: cleaner.
+      tags:
+        - Payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /payments/jobs/{id}/complete:
+    post:
+      summary: Mark the job complete
+      description: >-
+        The booked cleaner says the work is done. The customer then has 48 hours to confirm it or raise
+        a dispute; if they do neither, it is confirmed automatically.
+
+
+        Allowed roles: cleaner.
+      tags:
+        - Payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /payments/jobs/{id}/confirm:
+    post:
+      summary: Confirm the job is done
+      description: >-
+        The job's customer, or an admin. The platform's commission is taken from the cleaner's price and
+        the rest is paid out to the cleaner.
+
+
+        Allowed roles: customer, admin.
+      tags:
+        - Payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /payments/jobs/{id}/dispute:
+    post:
+      summary: Raise a problem with the job
+      description: >-
+        The job's customer, or an admin, gives a reason and can add a written description. The payment
+        is held until the dispute is resolved.
+
+
+        Allowed roles: customer, admin.
+      tags:
+        - Payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reasonCode:
+                  type: string
+                  enum:
+                    - not_completed
+                    - quality_issue
+                    - damage_caused
+                    - no_show
+                    - other
+                detail:
+                  type: string
+                  maxLength: 2000
+              required:
+                - reasonCode
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /payments/jobs/{id}/resolve/partial:
+    post:
+      summary: Resolve a dispute by splitting the payment
+      description: >-
+        Admin only. Part is refunded to the customer. The platform's commission is taken from the
+        cleaner's remaining share and the rest is paid to the cleaner.
+
+
+        Allowed roles: admin.
+      tags:
+        - Payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refundPence:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+                payoutPence:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+              required:
+                - refundPence
+                - payoutPence
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /payments/jobs/{id}/resolve/payout:
+    post:
+      summary: Resolve a dispute in the cleaner's favour
+      description: |-
+        Admin only. The cleaner is paid as if the job had been confirmed.
+
+        Allowed roles: admin.
+      tags:
+        - Payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /payments/jobs/{id}/resolve/refund:
+    post:
+      summary: Resolve a dispute with a full refund
+      description: |-
+        Admin only. The customer is refunded in full and the cleaner is not paid.
+
+        Allowed roles: admin.
+      tags:
+        - Payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /payments/ops/jobs/{id}/manual-retry:
+    post:
+      summary: Retry a failed payout
+      description: |-
+        Tries the transfer to the cleaner again. A reason is recorded in the audit log.
+
+        Needs the staff permission: payments.retry.
+      tags:
+        - Payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /payments/ops/jobs/{id}/release-payout:
+    post:
+      summary: Release a held payout early
+      description: >-
+        Releases the cleaner's payout for a confirmed job before the normal release time. A reason is
+        recorded in the audit log.
+
+
+        Needs the staff permission: payments.retry.
+      tags:
+        - Payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /payments/ops/queue:
+    get:
+      summary: List jobs needing manual payment attention
+      description: |-
+        Jobs held for manual review or with a blocked payout.
+
+        Needs the staff permission: payments.queue.read.
+      tags:
+        - Payments
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /series/{id}/cancel:
+    post:
+      summary: Cancel a regular booking
+      description: >-
+        Ends the booking now. Visits not yet charged are dropped; a visit already paid for stays booked
+        (the customer can skip it separately).
+
+
+        Allowed roles: customer.
+      tags:
+        - Regular bookings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /series/{id}/end:
+    post:
+      summary: Give notice to end a regular booking
+      description: >-
+        The cleaner gives 14 days' notice. The last visit is the one on or before the end of the notice;
+        later visits are dropped. Notice can be given once.
+
+
+        Allowed roles: cleaner.
+      tags:
+        - Regular bookings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /series/{id}/pause:
+    post:
+      summary: Pause a regular booking
+      description: >-
+        Only a running booking can be paused. The cleaner is told. No visits are charged while it is
+        paused.
+
+
+        Allowed roles: customer.
+      tags:
+        - Regular bookings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /series/{id}/resume:
+    post:
+      summary: Resume a paused regular booking
+      description: >-
+        Needs a saved card and the customer's agreement to the card wording first. The count of cleaner
+        cancellations starts again.
+
+
+        Allowed roles: customer.
+      tags:
+        - Regular bookings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /series/{id}/visits/{jobId}/cleaner-cancel:
+    post:
+      summary: Cancel one visit of a regular booking
+      description: >-
+        The cleaner cannot do one visit. The customer is refunded in full, it is logged against the
+        cleaner, and a second one pauses the booking.
+
+
+        Allowed roles: cleaner.
+      tags:
+        - Regular bookings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /series/{id}/visits/{jobId}/skip:
+    post:
+      summary: Skip one visit of a regular booking
+      description: >-
+        Free until the visit is charged (48 hours before it). After that it is paid for, so the usual
+        late-cancellation rule applies (half back).
+
+
+        Allowed roles: customer.
+      tags:
+        - Regular bookings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /series/mine:
+    get:
+      summary: List my regular bookings
+      description: |-
+        Your own regular bookings with their upcoming visits and which actions apply to each.
+
+        Allowed roles: customer, cleaner.
+      tags:
+        - Regular bookings
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /service-types:
+    get:
+      summary: List service types
+      description: >-
+        No sign-in needed: the website uses it to fill the "service type" list when a customer posts a
+        job. Optional `category` filter (`domestic` or `industrial`).
+      tags:
+        - Service types
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - domestic
+              - industrial
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+    post:
+      summary: Add a service type
+      description: |-
+        Admin only.
+
+        Allowed roles: admin.
+      tags:
+        - Service types
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                category:
+                  type: string
+                  enum:
+                    - domestic
+                    - industrial
+                description:
+                  type: string
+                requiresCoshh:
+                  type: boolean
+              required:
+                - name
+                - category
+      responses:
+        '201':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /service-types/{id}:
+    patch:
+      summary: Edit a service type
+      description: |-
+        Admin only.
+
+        Allowed roles: admin.
+      tags:
+        - Service types
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                category:
+                  type: string
+                  enum:
+                    - domestic
+                    - industrial
+                description:
+                  type: string
+                requiresCoshh:
+                  type: boolean
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /subscriptions/me:
+    get:
+      summary: View my subscription
+      description: >-
+        The cleaner's own active platform subscription, or `null`. Includes `billingInterval` (`week` or
+        `month`).
+
+
+        Allowed roles: cleaner.
+      tags:
+        - Subscriptions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /subscriptions/me/cancellation-request:
+    post:
+      summary: Ask to cancel the platform subscription
+      description: |-
+        The cleaner asks to leave. Their plan and billing carry on until an admin confirms by email.
+
+        Allowed roles: cleaner.
+      tags:
+        - Subscriptions
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 500
+      responses:
+        '201':
+          description: Request recorded
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+    delete:
+      summary: Withdraw a cancellation request
+      description: |-
+        Withdraws a request that an admin has not yet decided.
+
+        Allowed roles: cleaner.
+      tags:
+        - Subscriptions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Request withdrawn
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /subscriptions/setup-intent:
+    post:
+      summary: Start entering a card for the subscription
+      description: >-
+        Creates (or reuses) the cleaner's Stripe customer and returns a SetupIntent client secret so a
+        card can be entered with Stripe.js.
+
+
+        Allowed roles: cleaner, admin.
+      tags:
+        - Subscriptions
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cleanerId:
+                  type: string
+                  pattern: ^[0-9a-fA-F]{24}$
+              required:
+                - cleanerId
+      responses:
+        '200':
+          description: Client secret returned
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /webhooks/stripe:
+    post:
+      summary: Stripe webhook receiver
+      description: >-
+        Called by Stripe, not by the website. The signature is verified before anything is trusted, and
+        each event is processed once. Handles payment, subscription, invoice and payout-account events.
+
+
+        Public: authorised by the Stripe signature.
+      tags:
+        - Webhooks
+      responses:
+        '200':
+          description: Event received
+
 components:
 
   securitySchemes:

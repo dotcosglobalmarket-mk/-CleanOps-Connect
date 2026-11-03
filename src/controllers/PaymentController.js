@@ -1,6 +1,5 @@
 const paymentService = require('../services/payment.service');
 const opsService = require('../services/ops.service');
-const stripeService = require('../services/stripe.service');
 const Job = require('../models/Job');
 const CleanerProfile = require('../models/CleanerProfile');
 

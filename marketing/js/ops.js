@@ -29,8 +29,6 @@ const DISPUTE_REASONS = {
   other: 'Other',
 };
 
-let refundLimitPence = null;
-
 setupTabs((panel) => {
   if (panel === 'series') loadSeries();
 });
@@ -40,7 +38,6 @@ async function loadToday() {
   hideAlert('today-alert');
   try {
     const s = await apiRequest('/ops/summary', { auth: true });
-    refundLimitPence = s.refundLimitPence;
     document.getElementById('stat-open-disputes').textContent = s.disputes.open;
     document.getElementById('stat-pending-approvals').textContent = s.disputes.pendingApprovals;
     document.getElementById('stat-unverified').textContent = s.cleaners.unverified;
@@ -120,7 +117,6 @@ async function openDispute(jobId) {
       { auth: true }
     );
     currentDisputeId = jobId;
-    refundLimitPence = limit;
     document.getElementById('dispute-chat-log').innerHTML = '';
     document.getElementById('dispute-chat-reason').value = '';
     document.getElementById('dispute-id').textContent = String(job._id).slice(-8);

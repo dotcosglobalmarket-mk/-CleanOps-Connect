@@ -19,7 +19,6 @@ function notFoundHandler(req, res, next) {
   res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
 }
 
-// eslint-disable-next-line no-unused-vars
 function errorHandler(err, req, res, next) {
   console.error(err.stack || err.message);
   // Stripe's SDK wraps network-level failures (StripeConnectionError) with a

@@ -117,7 +117,7 @@ function maskContactDetails(input) {
     if (!looksLikePhoneNumber(run)) return run;
     found.add('phone');
     // Keep trailing separators so the sentence reads normally.
-    const trailing = run.match(/[\s.,\-]+$/);
+    const trailing = run.match(/[\s.,-]+$/);
     return `${REPLACEMENT}${trailing ? trailing[0] : ''}`;
   });
 
