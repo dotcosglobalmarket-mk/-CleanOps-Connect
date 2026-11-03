@@ -191,7 +191,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 .nav-links .btn-nav:hover { background: var(--accent-hover); color: #fff; }
 
 /* "Install app" (added by js/pwa.js): frosted pill on the dark hero, soft coral pill once the bar turns white */
-.nav-links #install-app {
+.nav-links .install-app {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -203,15 +203,15 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
 }
-.nav-links #install-app:hover { background: rgba(255,255,255,0.28); }
-.nav-sticky .nav-links #install-app {
+.nav-links .install-app:hover { background: rgba(255,255,255,0.28); }
+.nav-sticky .nav-links .install-app {
   color: var(--fg);
   background: var(--accent-soft);
   border-color: transparent;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-.nav-sticky .nav-links #install-app:hover { background: var(--accent-soft); color: var(--accent-hover); }
+.nav-sticky .nav-links .install-app:hover { background: var(--accent-soft); color: var(--accent-hover); }
 
 .nav-menu-items { display: none; }
 
@@ -226,6 +226,9 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   .nav-menu-items .theme-toggle { display: none; }
   /* Signed in, the row holds Dashboard + Log out; the name doesn't fit beside them. */
   .nav-menu-items .nav-user { display: none; }
+  /* Install: icon only, so the row still fits. */
+  .nav-menu-items .install-app { width: 38px; height: 38px; padding: 0; justify-content: center; }
+  .nav-menu-items .install-label { display: none; }
   .logo-text { font-size: 1rem; }
   .nav-links { gap: 6px; }
   .nav-links a { padding: 8px 8px; white-space: nowrap; }
@@ -234,6 +237,13 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   .nav-inner { flex-wrap: wrap; row-gap: 4px; }
   .nav-menu-items { margin-left: auto; }
   .hero { padding-top: 150px; }
+}
+
+/* With the install icon added, the phone row needs ~44px more than it has below
+   about 420px, so the wordmark steps aside (the logo mark stays), as it already
+   does below 360px. Only while the install button is offered. */
+@media (max-width: 420px) {
+  .can-install .logo-text { display: none; }
 }
 
 /* Below 360px (iPhone SE 1st gen, small Androids) even that row is too wide:
