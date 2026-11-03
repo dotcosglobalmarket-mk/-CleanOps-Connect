@@ -34,6 +34,7 @@
       <button type="button" id="tab-messages" class="tab-button" role="tab" aria-selected="false" aria-controls="view-messages" data-view="messages">Messages <span id="messages-unread" class="unread-badge" hidden></span></button>
       <button type="button" id="tab-card" class="tab-button" role="tab" aria-selected="false" aria-controls="view-card" data-view="card">Payment card</button>
       <button type="button" id="tab-series" class="tab-button" role="tab" aria-selected="false" aria-controls="view-series" data-view="series" hidden>Regular cleaning</button>
+      <button type="button" id="tab-sms" class="tab-button" role="tab" aria-selected="false" aria-controls="view-sms" data-view="sms">Text alerts</button>
     </div>
 
     <div id="page-alert" class="alert alert-error" hidden></div>
@@ -47,6 +48,10 @@
       <div id="series-alert" class="alert alert-error" hidden></div>
       <div id="series-success" class="alert alert-success" hidden></div>
       <div id="series-list"></div>
+    </div>
+
+    <div id="view-sms" role="tabpanel" aria-labelledby="tab-sms" hidden>
+      <div id="sms-alerts-root"></div>
     </div>
 
     <div id="view-card" role="tabpanel" aria-labelledby="tab-card" hidden>

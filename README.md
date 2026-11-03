@@ -74,6 +74,7 @@ STRIPE_WEBHOOK_SECRET=
 STRIPE_CONNECT_WEBHOOK_SECRET=
 # PAYOUT_HOLD_DAYS=3            (optional; days to hold the cleaner's share after confirmation, 0-7)
 # RECURRING_JOBS_ENABLED=true   (optional; off unless set: see Regular bookings below)
+# TWILIO_ACCOUNT_SID= / TWILIO_AUTH_TOKEN= / TWILIO_FROM=   (optional; text alerts, see Text message alerts below)
 ```
 
 `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_CONNECT_WEBHOOK_SECRET`
@@ -449,7 +450,19 @@ What is deleted, and what does the deleting (the privacy notice states the same 
 | DBS certificate copy | 6 months after checked; rejected files 30 days | `DocumentFile.expireAt` |
 | COSHH / insurance file | While in use; deleted when replaced or when it expires | Compliance service |
 | Profile picture or logo | While on the profile | Deleted when replaced or removed |
+| Text alert mobile number | Until alerts are turned off, or the account is erased | Turning off unsets it (`sms-alerts.service.js`); erasure clears it |
 | Payments, refund approvals | 6 years | Not deleted by the app |
+
+## Text message alerts (optional)
+
+Cleaners and customers can turn on short text alerts under **My Profile** (cleaners) or **Text alerts** (customers). Sent through Twilio, only to people who turned them on.
+
+- **Off by default and opt-in.** The person gives a UK mobile number and ticks the exact wording shown (versioned: `CONSENT` in `sms-alerts.service.js`; the time and version are stored). Turning off deletes the number. `GET/PUT/DELETE /sms-alerts/me` (customers and cleaners only, rate-limited).
+- **Four texts today:** a new job offer and a tender invitation (to the cleaner), a cleaner accepting a job (to the customer) and payment secured (to the cleaner). Each is under 160 characters, plain text, and says nothing about the job (no names, places or prices); it only tells the person to open their dashboard. Service messages only, never advertising. The email for the same event is still sent.
+- **Needs Twilio.** Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and either `TWILIO_FROM` (a sender name or number) or `TWILIO_MESSAGING_SERVICE_SID`. Without them nothing is sent (the text is only logged, number masked) and the screens say text alerts are not available yet, so no numbers are collected.
+- **UK numbers only** (07 mobiles). UK sender names cannot receive replies, so turning off is done in the dashboard; the message says so.
+- A failed text is logged and never blocks the booking, the payment or the email.
+- The number is included in a data export and deleted on erasure (see Privacy requests). **Before adding Twilio keys**, check the privacy notice and DPIA reflect Twilio as a US provider (the notice is already updated; confirm Twilio's UK–US data bridge status or transfer terms).
 
 ## Two-step login (staff)
 

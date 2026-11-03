@@ -141,6 +141,15 @@ describe('exportData', () => {
     expect(JSON.stringify(copy)).not.toMatch(/HASH-SECRET|TOTP-SECRET|RESET-SECRET|pm_1|cus_1/);
   });
 
+  it('includes the person\'s own text alert number and agreement, and omits the section when they never used it', async () => {
+    User.findById.mockResolvedValue(customer({ smsAlerts: { enabled: true, mobile: '+447123456789', consentAt: new Date('2026-11-03'), consentVersion: 'sms-2026-11' } }));
+    const copy = await svc.exportData('u1');
+    expect(copy.account.textAlerts).toMatchObject({ enabled: true, mobile: '+447123456789', consentVersion: 'sms-2026-11' });
+
+    User.findById.mockResolvedValue(customer());
+    expect((await svc.exportData('u1')).account.textAlerts).toBeUndefined();
+  });
+
   it('refuses staff', async () => {
     User.findById.mockResolvedValue(customer({ role: 'admin' }));
     await expect(svc.exportData('u1')).rejects.toMatchObject({ status: 400 });
@@ -201,6 +210,13 @@ describe('erase', () => {
     expect(user.erasedAt).toBeInstanceOf(Date);
     expect(user.save).toHaveBeenCalled();
     expect(out).toMatchObject({ erased: true, counts: { stripeCustomers: 1, messages: 3, files: 2, jobs: 2 } });
+  });
+
+  it('erasing an account also deletes the stored text alert number', async () => {
+    const user = customer({ smsAlerts: { enabled: true, mobile: '+447123456789', consentAt: new Date(), consentVersion: 'sms-2026-11' } });
+    User.findById.mockResolvedValue(user);
+    await svc.erase('u1', ask(), req);
+    expect(user.smsAlerts).toBeUndefined();
   });
 
   it('erases a cleaner: pictures and certificate files deleted, profile blanked and taken off the marketplace', async () => {

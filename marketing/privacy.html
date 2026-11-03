@@ -27,7 +27,7 @@
   <main>
     <article class="card legal">
       <h1>Privacy notice</h1>
-      <p class="legal-updated">Last updated: 31 October 2026</p>
+      <p class="legal-updated">Last updated: 3 November 2026</p>
 
       <p>
         This notice explains how CleanOps Connect uses personal data about customers, cleaners and visitors to this
@@ -52,6 +52,7 @@
         <li><strong>Job photos (optional)</strong> — before and after pictures a cleaner chooses to add to a job, and pictures a customer chooses to add when reporting a problem. A picture can show the inside of a home and anyone or anything in it, so please photograph only the work, and avoid people and personal papers. The customer, the cleaner on that job and our staff can see them; each time our staff open one it is recorded in an audit log.</li>
         <li><strong>Payments</strong> — card payments are taken by Stripe. We never see or store full card numbers. We keep payment references, amounts, refunds and payout status.</li>
         <li><strong>Saved card (customers, optional)</strong> — if you save a card, Stripe holds it. We keep Stripe's references for you and the card, its brand, last four digits and expiry date, the time you agreed to it being charged, and which version of the wording you agreed to. A card is only saved if you choose to, and you can remove it at any time.</li>
+        <li><strong>Text message alerts (optional)</strong> — if you turn them on, the UK mobile number you give, the time you agreed and which version of the wording you agreed to. The texts only tell you to open your dashboard (for example that you have a new job offer); they never advertise anything and say nothing about the job itself. Turning alerts off deletes the number.</li>
         <li><strong>Regular bookings</strong> — the frequency, price per visit, end date and every visit of a weekly, fortnightly or monthly booking, including visits skipped, paused or cancelled and why (for example a card that could not be charged).</li>
         <li><strong>Disputes and support</strong> — the reason code and any detail you give when raising a dispute, and records of how it was resolved.</li>
         <li><strong>Messages</strong> — messages you send in the in-app chat with the customer or cleaner on a job. Phone numbers, email addresses, postcodes and links are hidden before a message is saved, and we keep only the hidden version plus a note that something was hidden. Our staff can read a conversation only to resolve a dispute or investigate misuse; each time they do, the reason is recorded in an audit log.</li>
@@ -73,6 +74,7 @@
           <tr><td>Showing a cleaner's optional profile picture or logo to customers</td><td>Consent (you choose to upload it and can remove it at any time)</td></tr>
           <tr><td>Optional job photos, so a customer and a cleaner can show the state of the work and we can look into a reported problem fairly</td><td>Legitimate interests (evidence for fair dispute resolution); you choose whether to add a photo</td></tr>
           <tr><td>Emails about your bookings (offers, payment, check-in, completion, disputes, payouts)</td><td>Contract</td></tr>
+          <tr><td>Text message alerts that tell you to open your dashboard (new job offer, a job accepted, a payment secured)</td><td>Consent (you turn them on with your mobile number and can turn them off at any time)</td></tr>
           <tr><td>In-app chat between a customer and the cleaner they booked, and hiding contact details so bookings and payments stay protected on the platform</td><td>Contract; legitimate interests (safety, fraud and fee avoidance)</td></tr>
           <tr><td>Publishing reviews from completed bookings</td><td>Legitimate interests (helping customers choose, and fair treatment of cleaners)</td></tr>
           <tr><td>Keeping the service secure (logs, rate limiting)</td><td>Legitimate interests</td></tr>
@@ -98,6 +100,7 @@
         <li><strong>Mapbox</strong> — turning postcodes into map locations.</li>
         <li><strong>Anthropic</strong> — only if you press "Help me write this" on the job form or your cleaner profile: the job type, frequency, estimated hours, or the services, travel distance and bio text you entered, plus any text you typed, are sent to suggest wording. Please don't include names, contact details or your address. It is also used, with web search, if you ask for a local price guide: only the service type and the first part of a postcode (for example LS12, never the full postcode) are sent.</li>
         <li><strong>Resend</strong> — sending emails about your bookings.</li>
+        <li><strong>Twilio</strong> — delivering text message alerts, only to people who turned them on. It receives your mobile number and the text of the message.</li>
         <li><strong>Hosting providers</strong> — DigitalOcean (our application and our database, both in the London region) and Cloudflare (website delivery).</li>
         <li>Regulators, the police or courts where the law requires it.</li>
       </ul>
@@ -105,7 +108,9 @@
         Our database is hosted in the UK (London). DigitalOcean, Cloudflare, Stripe, Anthropic and Mapbox are US
         companies, so some of the data they handle may be processed in the United States. All five are certified under
         the UK&ndash;US data bridge, which is how those transfers are covered. If we ever use a provider that is not
-        certified, we will use the UK International Data Transfer Agreement or Addendum instead.
+        certified, we will use the UK International Data Transfer Agreement or Addendum instead. Twilio, which
+        delivers text alerts, is also a US company: transfers to it are covered by the UK&ndash;US data bridge if it is
+        certified under it, and otherwise by the UK International Data Transfer Agreement or Addendum.
       </p>
 
       <h2>How long we keep it</h2>
@@ -115,6 +120,7 @@
         <li>Job photos — deleted 90 days after the job is closed (confirmed, cancelled, or any reported problem settled), and in every case within 12 months of being added. You can remove a photo you added yourself until a problem is reported on the job.</li>
         <li>Payment and transaction records — 6 years after the end of the financial year they relate to, to meet HMRC record-keeping rules.</li>
         <li>Saved card — until you remove it, when it is also removed from Stripe. The record of what you agreed to (the time, the wording version, and the card's brand and last four digits) is kept with the payment records above, so we can show what was agreed if a payment is disputed.</li>
+        <li>Text alert number — until you turn alerts off, which deletes it, or your account is erased. Twilio keeps its own delivery records for the period set in its terms.</li>
         <li>Regular bookings — the booking and its visits are kept with your job history.</li>
         <li>Chat messages — deleted automatically 6 months after they are sent.</li>
         <li>Dispute records — the written description of a problem is deleted 12 months after it was reported. The reason code and the outcome stay with the payment record (above).</li>

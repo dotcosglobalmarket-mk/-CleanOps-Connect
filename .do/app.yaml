@@ -10,6 +10,8 @@
 # (e.g. "CleanOps Connect <bookings@cleanop-connect.co.uk>" on a domain verified
 # in Resend), OPS_NOTIFICATION_EMAIL (dispute and payout alerts), and
 # STRIPE_CONNECT_WEBHOOK_SECRET if Connect events use a separate endpoint.
+# Optional text alerts: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM (or
+# TWILIO_MESSAGING_SERVICE_SID). Without them no texts are sent.
 name: cleanops-connect
 region: lon
 services:

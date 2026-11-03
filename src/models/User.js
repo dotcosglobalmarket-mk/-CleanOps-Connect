@@ -36,6 +36,15 @@ const userSchema = new mongoose.Schema(
     tokenVersion: { type: Number, default: 0 },
     // Set when the account was erased at the person's request (see privacy-request.service.js).
     erasedAt: { type: Date },
+    // Text message alerts (see sms-alerts.service.js). Off unless the person turned them on
+    // and gave a UK mobile number; turning them off deletes the number.
+    smsAlerts: {
+      enabled: { type: Boolean },
+      mobile: { type: String },
+      consentAt: { type: Date },
+      consentVersion: { type: String },
+      disabledAt: { type: Date },
+    },
     // Customer's saved card (see customer-card.service.js). Only Stripe ids and
     // the non-sensitive summary Stripe returns are kept here, never card numbers.
     stripeCustomerId: {

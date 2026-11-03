@@ -15,6 +15,7 @@ const chatRoutes = require('./chat.routes');
 const pricingRoutes = require('./pricing.routes');
 const complianceDocumentsRoutes = require('./compliance-documents.routes');
 const jobPhotosRoutes = require('./job-photos.routes');
+const smsAlertsRoutes = require('./sms-alerts.routes');
 
 const router = express.Router();
 
@@ -33,5 +34,6 @@ router.use('/reviews', reviewsRoutes);
 router.use('/chat', chatRoutes);
 router.use('/pricing', pricingRoutes);
 router.use('/compliance-documents', complianceDocumentsRoutes);
+router.use('/sms-alerts', smsAlertsRoutes);
 
 module.exports = router;
