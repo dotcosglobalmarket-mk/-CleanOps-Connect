@@ -8,7 +8,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const STANDARD_RETENTION_DAYS = 365;
 const FINANCIAL_RETENTION_DAYS = 6 * 365;
 // Also kept 6 years: the record that someone's data was copied or erased at their request.
-const FINANCIAL_ACTION_PREFIXES = ['dispute.', 'approval.', 'payout.', 'user.erase', 'user.export'];
+const FINANCIAL_ACTION_PREFIXES = ['dispute.', 'approval.', 'payout.', 'user.erase', 'user.export', 'user.request_closed'];
 
 const isFinancialAction = (action) => FINANCIAL_ACTION_PREFIXES.some((prefix) => String(action).startsWith(prefix));
 

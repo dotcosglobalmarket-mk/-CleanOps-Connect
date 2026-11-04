@@ -109,7 +109,18 @@ const privacyEraseSchema = z.object({
   reason: z.string().trim().min(3).max(450),
 });
 
+const closeDataRequestSchema = z
+  .object({
+    outcome: z.enum(['done', 'declined']),
+    reason: z.string().trim().max(450).optional(),
+  })
+  .refine((v) => v.outcome !== 'declined' || (v.reason && v.reason.length >= 3), {
+    message: 'Say why the request is declined',
+    path: ['reason'],
+  });
+
 module.exports = {
+  closeDataRequestSchema,
   privacyLookupQuerySchema,
   privacyExportQuerySchema,
   privacyEraseSchema,

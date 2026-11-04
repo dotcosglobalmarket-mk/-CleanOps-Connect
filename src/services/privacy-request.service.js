@@ -15,6 +15,8 @@ const Subscription = require('../models/Subscription');
 const SubscriptionPayment = require('../models/SubscriptionPayment');
 const AuditLog = require('../models/AuditLog');
 const stripeService = require('./stripe.service');
+const DataRequest = require('../models/DataRequest');
+const dataRequestService = require('./data-request.service');
 const auditService = require('./audit.service');
 const { STATES } = require('./payment-state-machine');
 const { STAFF_ROLES } = require('../config/permissions');
@@ -124,7 +126,7 @@ async function exportData(userId) {
   const jobIds = jobs.map((j) => j._id);
   const where = ownerFilter(user, cleaner);
 
-  const [offers, reviewsWritten, reviewsReceived, messages, documents, photos, subscriptions, subscriptionPayments, series, notes, audit] =
+  const [offers, reviewsWritten, reviewsReceived, messages, documents, photos, subscriptions, subscriptionPayments, series, notes, audit, dataRequests] =
     await Promise.all([
       asCleaner && cleaner ? JobOffer.find({ cleaner: cleaner._id }).select('job status score quotePricePence quoteMessage quotedAt createdAt').lean() : [],
       asCleaner ? [] : Review.find({ customer: user._id }).select('job rating comment status createdAt').lean(),
@@ -141,6 +143,7 @@ async function exportData(userId) {
       AuditLog.find({ $or: [{ targetType: 'user', targetId: user._id }, ...(cleaner ? [{ targetType: 'cleaner', targetId: cleaner._id }] : [])] })
         .select('action actorRole createdAt reason')
         .lean(),
+      DataRequest.find({ user: user._id }).select('type status note createdAt dueAt closedAt outcomeNote').sort({ createdAt: 1 }).lean(),
     ]);
 
   const account = {
@@ -200,6 +203,7 @@ async function exportData(userId) {
     jobPhotos: photos,
     subscriptions,
     subscriptionPayments,
+    yourRequestsToUs: dataRequests,
     ourRecordsOfActionsOnYourAccount: audit,
     staffNotesOnYourBookings: {
       reviewBeforeSending: 'Internal notes our team wrote about your bookings. Check them for other people\'s details before this copy is sent.',
@@ -310,6 +314,7 @@ async function erase(userId, { confirmEmail, reason }, req) {
   user.tokenVersion = (user.tokenVersion || 0) + 1;
   user.erasedAt = new Date();
   await user.save();
+  await dataRequestService.afterErasure(user._id, req);
 
   await auditService.record({
     req,

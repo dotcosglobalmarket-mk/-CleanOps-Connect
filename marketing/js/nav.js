@@ -25,6 +25,7 @@ function renderNav() {
     links = `
       <span class="nav-user">${escapeHtml(user ? user.name : '')} (${escapeHtml(role)})</span>
       <a href="${dashboardHref}">Dashboard</a>
+      ${role === 'customer' || role === 'cleaner' ? '<a href="account.html">Account</a>' : ''}
       <a href="#" id="logout-link">Log out</a>
     `;
   }

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account settings — CleanOps Connect</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate icon" href="/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#001647" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="CleanOps" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav id="site-nav"></nav>
+  </header>
+
+  <main>
+    <div class="card" style="max-width: 520px; margin: 0 auto 1rem;">
+      <h2>Change your password</h2>
+      <div id="pw-alert" class="alert alert-error" hidden></div>
+      <div id="pw-success" class="alert alert-success" hidden></div>
+      <form id="pw-form" novalidate>
+        <div class="form-row">
+          <label for="pw-current">Current password</label>
+          <input id="pw-current" type="password" autocomplete="current-password" required />
+        </div>
+        <div class="form-row">
+          <label for="pw-new">New password</label>
+          <input id="pw-new" type="password" autocomplete="new-password" minlength="8" required />
+          <p class="field-help">At least 8 characters. You will stay signed in here; any other phone or computer signed in to your account will be signed out.</p>
+        </div>
+        <button type="submit">Change password</button>
+      </form>
+    </div>
+
+    <div class="card" style="max-width: 520px; margin: 0 auto 1rem;">
+      <h2>Your data</h2>
+      <p class="field-help">
+        You can ask for a copy of the personal data we hold about you, or ask us to delete your account. We check it is
+        really you, then reply within one month. Deleting is permanent: payment and booking records we are required to
+        keep stay for 6 years without your personal details. See our <a href="privacy.html">privacy notice</a>.
+      </p>
+      <div id="dr-alert" class="alert alert-error" hidden></div>
+      <div id="dr-success" class="alert alert-success" hidden></div>
+      <form id="dr-form" novalidate>
+        <fieldset class="form-row" style="border:0;padding:0;margin:0 0 0.75rem;">
+          <legend>What would you like?</legend>
+          <label class="check-row"><input type="radio" name="dr-type" value="export" checked /> <span>A copy of my data</span></label>
+          <label class="check-row"><input type="radio" name="dr-type" value="erase" /> <span>Delete my account</span></label>
+        </fieldset>
+        <div class="form-row">
+          <label for="dr-note">Anything we should know? (optional)</label>
+          <textarea id="dr-note" maxlength="500" rows="3"></textarea>
+        </div>
+        <div class="form-row" id="dr-password-row" hidden>
+          <label for="dr-password">Your password, to confirm</label>
+          <input id="dr-password" type="password" autocomplete="current-password" />
+        </div>
+        <button type="submit" id="dr-submit">Send request</button>
+      </form>
+      <h3>Your requests</h3>
+      <div id="dr-list"></div>
+    </div>
+    <p style="text-align:center"><a id="back-link" href="customer.html">Back to your dashboard</a></p>
+  </main>
+
+  <footer class="auth-footer">
+    <p><a href="privacy.html">Privacy notice</a> · <a href="terms.html">Terms of use</a> · <a href="cookies.html">Cookies</a></p>
+    <p class="legal-company">Ethnatcel Care Ltd (Company No. 12674639), registered in England &amp; Wales · ICO Reg. No. ZC137204</p>
+  </footer>
+
+  <script type="module" src="js/nav.js"></script>
+  <script type="module" src="js/account.js"></script>
+</body>
+</html>

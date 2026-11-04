@@ -60,7 +60,7 @@ describe('audit entry retention', () => {
   });
 
   it('keeps refund, payout and dispute decisions for 6 years', async () => {
-    for (const action of ['dispute.resolve', 'dispute.resolution.requested', 'approval.approve', 'approval.reject', 'payout.manual_retry', 'payout.release_early']) {
+    for (const action of ['dispute.resolve', 'dispute.resolution.requested', 'approval.approve', 'approval.reject', 'payout.manual_retry', 'payout.release_early', 'user.erase', 'user.export', 'user.request_closed']) {
       AuditLog.create.mockClear();
       await auditService.record({ ...base, action });
       const { expireAt } = AuditLog.create.mock.calls[0][0];
