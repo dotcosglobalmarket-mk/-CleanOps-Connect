@@ -26,6 +26,7 @@ const {
   privacyLookupQuerySchema,
   privacyExportQuerySchema,
   privacyEraseSchema,
+  closeDataRequestSchema,
 } = require('../validation/admin.validation');
 const ComplianceDocumentController = require('../controllers/ComplianceDocumentController');
 const PrivacyController = require('../controllers/PrivacyController');
@@ -59,6 +60,8 @@ router.post(
 router.get('/revenue', validateQuery(revenueQuerySchema), AdminController.revenue);
 
 // Privacy requests (a person's right to a copy of their data, or to have it erased).
+router.get('/privacy/requests', PrivacyController.listRequests);
+router.post('/privacy/requests/:id/close', validateParams(idParamSchema), validateBody(closeDataRequestSchema), PrivacyController.closeRequest);
 router.get('/privacy/lookup', validateQuery(privacyLookupQuerySchema), PrivacyController.lookup);
 router.get('/privacy/:id/export', validateParams(cleanerIdParamSchema), validateQuery(privacyExportQuerySchema), PrivacyController.exportData);
 router.post('/privacy/:id/erase', validateParams(cleanerIdParamSchema), validateBody(privacyEraseSchema), PrivacyController.erase);

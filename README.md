@@ -432,6 +432,14 @@ Admin only: **Admin dashboard → Privacy Requests**. The admin looks the person
 - `POST /admin/privacy/:id/erase` `{ identityChecked: true, confirmEmail, reason }` — refused while a booking is in progress or has money to settle, while a regular booking is running, or while a cleaner has an active subscription. Otherwise: the Stripe customer is deleted first (if that fails nothing else changes, so it can be retried); pictures, certificate files, job photos and their messages are deleted; address detail and free text come out of their bookings (the booking and payment record stays 6 years); a cleaner's profile is blanked and taken off the marketplace; reviews keep their stars but lose their words; the account row is anonymised, locked and signed out (`erasedAt`). Staff accounts are not erased here: use Deactivate.
 - Not done by the tool: a cleaner's Stripe Connect account is left in place (Stripe keeps its own payout records); the audit log entries about them stay for their normal period.
 
+### Account settings (customers and cleaners)
+
+`account.html` (the "Account" link in the top menu once signed in):
+
+- `POST /account/change-password` `{ currentPassword, newPassword }` — signs every other device out (`tokenVersion`) and returns a fresh `{ token, user }` for this one. A wrong current password is a **400**, not 401, because the website treats a 401 as "session ended". 5 tries per 15 minutes per person.
+- `GET /account/data-requests`, `POST /account/data-requests` `{ type: 'export' | 'erase', note?, currentPassword? }` — records a request (`DataRequest`) due in one month. Deleting needs the password. One open request of each kind at a time. 5 per hour.
+- Admin: `GET /admin/privacy/requests` (waiting, oldest due first, with an overdue flag) and `POST /admin/privacy/requests/:id/close` `{ outcome: 'done' | 'declined', reason }` (a reason is needed to decline). The panel at the top of **Privacy Requests** has Look up / Mark done / Decline. Nothing is copied or erased automatically: the admin still uses the tools below, then closes the request. Closing is audit-logged (`user.request_closed`, kept 6 years) and emails the person. Closed requests are kept 6 years, then removed by a TTL index; erasing an account closes its open delete request and clears the free-text notes.
+
 ## Upload limits
 
 Per logged-in person per hour: 60 job photo uploads, 20 cleaner picture uploads, 20 compliance document uploads (`uploadLimiter` in `src/middleware/upload-rate-limit.js`; it runs before the upload is read). `UPLOAD_RATE_LIMIT_MAX` replaces all three, for tests.

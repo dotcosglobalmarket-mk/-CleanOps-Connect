@@ -1,5 +1,6 @@
 const privacyService = require('../services/privacy-request.service');
 const auditService = require('../services/audit.service');
+const dataRequestService = require('../services/data-request.service');
 
 async function lookup(req, res, next) {
   try {
@@ -40,4 +41,20 @@ async function erase(req, res, next) {
   }
 }
 
-module.exports = { lookup, exportData, erase };
+async function listRequests(req, res, next) {
+  try {
+    res.status(200).json(await dataRequestService.listPending());
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function closeRequest(req, res, next) {
+  try {
+    res.status(200).json(await dataRequestService.close(req.params.id, req.body, req));
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { lookup, exportData, erase, listRequests, closeRequest };

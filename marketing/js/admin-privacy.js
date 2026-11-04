@@ -1,6 +1,6 @@
 import { apiRequest, apiFetchBlob } from './api.js';
 import { escapeHtml } from './dom.js';
-import { showAlert, hideAlert, formatDate } from './dashboard-ui.js';
+import { showAlert, hideAlert, formatDate, renderTable, statusBadge } from './dashboard-ui.js';
 
 // Privacy Requests tab: look a person up, download a copy of their data, or erase
 // their account. The server does the work and refuses anything unsafe (money still
@@ -95,5 +95,65 @@ el('privacy-erase-form').addEventListener('submit', async (event) => {
   } catch (err) {
     showAlert('privacy-alert', err.message);
     syncButtons();
+  }
+});
+
+// --- Requests made from the account page ---
+
+const TYPES = { export: 'Copy of their data', erase: 'Delete account' };
+
+export async function loadPrivacyRequests() {
+  const box = el('privacy-requests');
+  try {
+    const requests = await apiRequest('/admin/privacy/requests', { auth: true });
+    box.innerHTML = renderTable({
+      columns: ['Person', 'Asked for', 'Received', 'Reply by', 'Their note', 'Actions'],
+      emptyMessage: 'No requests waiting.',
+      fit: true,
+      rows: requests.map(
+        (r) => `<tr>
+          <td>${r.person ? `${escapeHtml(r.person.name)}<br /><span class="field-help">${escapeHtml(r.person.email)} (${escapeHtml(r.person.role)})</span>` : 'Unknown'}</td>
+          <td>${escapeHtml(TYPES[r.type] || r.type)}</td>
+          <td>${escapeHtml(formatDate(r.createdAt))}</td>
+          <td>${escapeHtml(formatDate(r.dueAt))} ${r.overdue ? statusBadge('Overdue', 'bad') : ''}</td>
+          <td>${escapeHtml(r.note || '')}</td>
+          <td>
+            <button type="button" class="secondary" data-request-lookup="${escapeHtml(r.person ? r.person.email : '')}">Look up</button>
+            <button type="button" data-request-done="${escapeHtml(r.id)}">Mark done</button>
+            <button type="button" class="danger" data-request-decline="${escapeHtml(r.id)}">Decline</button>
+          </td>
+        </tr>`
+      ),
+    });
+  } catch (err) {
+    showAlert('privacy-alert', err.message);
+  }
+}
+
+async function closeRequest(id, body) {
+  clearMessages();
+  try {
+    await apiRequest(`/admin/privacy/requests/${id}/close`, { method: 'POST', auth: true, body });
+    showAlert('privacy-success', 'Request closed. The person has been emailed and the decision is in the audit log.');
+    await loadPrivacyRequests();
+  } catch (err) {
+    showAlert('privacy-alert', err.message);
+  }
+}
+
+el('privacy-requests').addEventListener('click', (event) => {
+  const lookup = event.target.closest('[data-request-lookup]');
+  const done = event.target.closest('[data-request-done]');
+  const decline = event.target.closest('[data-request-decline]');
+  if (lookup) {
+    el('privacy-email').value = lookup.dataset.requestLookup;
+    el('privacy-lookup-form').requestSubmit();
+  } else if (done) {
+    if (window.confirm('Mark this request done? Only do this once you have sent the copy or erased the account.')) {
+      closeRequest(done.dataset.requestDone, { outcome: 'done' });
+    }
+  } else if (decline) {
+    const reason = window.prompt('Why is this request being declined? The person will be told.');
+    if (reason && reason.trim().length >= 3) closeRequest(decline.dataset.requestDecline, { outcome: 'declined', reason: reason.trim() });
   }
 });

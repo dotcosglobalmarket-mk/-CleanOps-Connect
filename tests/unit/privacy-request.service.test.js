@@ -16,6 +16,8 @@ jest.mock('../../src/models/Series', () => ({ find: jest.fn(), countDocuments: j
 jest.mock('../../src/models/Subscription', () => ({ exists: jest.fn(), find: jest.fn() }));
 jest.mock('../../src/models/SubscriptionPayment', () => ({ find: jest.fn() }));
 jest.mock('../../src/models/AuditLog', () => ({ find: jest.fn() }));
+jest.mock('../../src/models/DataRequest', () => ({ find: jest.fn() }));
+jest.mock('../../src/services/data-request.service', () => ({ afterErasure: jest.fn() }));
 jest.mock('../../src/services/stripe.service', () => ({ deleteCustomer: jest.fn() }));
 jest.mock('../../src/services/audit.service', () => ({ record: jest.fn() }));
 
@@ -33,6 +35,8 @@ const Series = require('../../src/models/Series');
 const Subscription = require('../../src/models/Subscription');
 const SubscriptionPayment = require('../../src/models/SubscriptionPayment');
 const AuditLog = require('../../src/models/AuditLog');
+const DataRequest = require('../../src/models/DataRequest');
+const dataRequestService = require('../../src/services/data-request.service');
 const stripeService = require('../../src/services/stripe.service');
 const audit = require('../../src/services/audit.service');
 const svc = require('../../src/services/privacy-request.service');
@@ -67,6 +71,7 @@ beforeEach(() => {
   SubscriptionPayment.find.mockReturnValue(mockChain([]));
   CleanerDocument.find.mockReturnValue(mockChain([]));
   AuditLog.find.mockReturnValue(mockChain([]));
+  DataRequest.find.mockReturnValue(mockChain([]));
   CleanerProfile.findOne.mockResolvedValue(null);
 });
 
@@ -170,7 +175,7 @@ describe('erase', () => {
     User.findById.mockResolvedValue(customer({ role: 'operator' }));
     await expect(svc.erase('u1', ask(), req)).rejects.toMatchObject({ status: 400 });
 
-    [stripeService.deleteCustomer, DocumentFile.deleteMany, Message.deleteMany, Job.updateOne, Job.updateMany, audit.record].forEach((fn) =>
+    [stripeService.deleteCustomer, DocumentFile.deleteMany, Message.deleteMany, Job.updateOne, Job.updateMany, audit.record, dataRequestService.afterErasure].forEach((fn) =>
       expect(fn).not.toHaveBeenCalled()
     );
   });
@@ -186,6 +191,7 @@ describe('erase', () => {
 
     const out = await svc.erase('u1', ask(), req);
 
+    expect(dataRequestService.afterErasure).toHaveBeenCalledWith('u1', req);
     expect(stripeService.deleteCustomer).toHaveBeenCalledWith('cus_1');
     expect(stripeService.deleteCustomer.mock.invocationCallOrder[0]).toBeLessThan(Job.updateOne.mock.invocationCallOrder[0]);
     expect(DocumentFile.deleteMany).toHaveBeenCalledWith({ _id: { $in: ['pf1', 'pf2'] } });

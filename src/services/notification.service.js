@@ -564,6 +564,49 @@ module.exports = {
     });
   }),
 
+  passwordChanged: safely('passwordChanged', async (user) => {
+    await emailService.send({
+      to: user.email,
+      subject: 'Your CleanOps Connect password was changed',
+      paragraphs: [
+        'The password on your CleanOps Connect account was just changed, and you were signed out on your other devices.',
+        'If this was not you, reset your password straight away and contact us.',
+      ],
+      action: { label: 'Reset my password', url: frontendUrl('forgot-password.html') },
+    });
+  }),
+
+  dataRequestReceived: safely('dataRequestReceived', async (user, request) => {
+    const what = request.type === 'erase' ? 'delete your account and personal data' : 'send you a copy of your personal data';
+    await emailService.send({
+      to: user.email,
+      subject: 'We have your request',
+      paragraphs: [
+        `We have received your request to ${what}.`,
+        `We will reply by ${new Date(request.dueAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}. We may need to check it is really you, and some records, such as payments, we are required by law to keep.`,
+      ],
+    });
+    const opsAlert = module.exports.opsAlert;
+    if (opsAlert) {
+      await opsAlert(
+        request.type === 'erase' ? 'Privacy request: account deletion' : 'Privacy request: copy of data',
+        `${user.email} asked from their account page. Due by ${new Date(request.dueAt).toLocaleDateString('en-GB')}. Open the Privacy Requests tab in the admin dashboard.`
+      );
+    }
+  }),
+
+  dataRequestClosed: safely('dataRequestClosed', async (user, request) => {
+    const declined = request.status === 'declined';
+    const what = request.type === 'erase' ? 'delete your account' : 'send you a copy of your data';
+    await emailService.send({
+      to: user.email,
+      subject: declined ? 'About your request' : 'Your request is complete',
+      paragraphs: declined
+        ? [`We have looked at your request to ${what} and are not able to go ahead.`, request.outcomeNote ? `Reason: ${request.outcomeNote}` : '', 'You can reply to this email or contact us if you would like to talk about it, and you can complain to the Information Commissioner\'s Office (ico.org.uk).'].filter(Boolean)
+        : [`Your request to ${what} has been dealt with.`, request.outcomeNote || ''].filter(Boolean),
+    });
+  }),
+
   passwordResetRequested: safely('passwordResetRequested', async (user, token) => {
     await emailService.send({
       to: user.email,

@@ -1,7 +1,7 @@
 import { apiRequest, apiFetchBlob, requireRole, startImpersonation } from './api.js';
 import { escapeHtml } from './dom.js';
 import { mountJobPhotos } from './job-photos.js';
-import './admin-privacy.js';
+import { loadPrivacyRequests } from './admin-privacy.js';
 import {
   PAYMENT_STATES,
   showAlert,
@@ -22,6 +22,7 @@ setupTabs((panel) => {
   if (panel === 'revenue') loadRevenue();
   if (panel === 'documents') loadDocuments();
   if (panel === 'subscriptions') loadSubscriptions();
+  if (panel === 'privacy') loadPrivacyRequests();
 });
 
 // --- Subscriptions ---

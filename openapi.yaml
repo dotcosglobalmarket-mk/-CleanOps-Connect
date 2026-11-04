@@ -3768,6 +3768,178 @@ paths:
         '400':
           description: The request is not valid
 
+  /account/change-password:
+    post:
+      summary: Change my password
+      description: >-
+        Needs the current password. A wrong current password returns 400 (not 401, so the website does
+        not sign the person out). Signs every other device out and returns a fresh session token for
+        this one. Customers and cleaners only; limited to 5 tries per 15 minutes.
+
+
+        Allowed roles: customer, cleaner.
+      tags:
+        - account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currentPassword:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                newPassword:
+                  type: string
+                  minLength: 8
+                  maxLength: 200
+              required:
+                - currentPassword
+                - newPassword
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /account/data-requests:
+    get:
+      summary: List my data requests
+      description: >-
+        The signed-in person's own requests for a copy of their data or for their account to be deleted,
+        with status and the date we must answer by.
+
+
+        Allowed roles: customer, cleaner.
+      tags:
+        - account
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+    post:
+      summary: Ask for a copy of my data or for my account to be deleted
+      description: >-
+        Records the request (`type` is `export` or `erase`) for the director to check and carry out; we
+        answer within one month. Deleting needs the current password. A second open request of the same
+        kind returns the existing one with `alreadyOpen: true`. Limited to 5 per hour.
+
+
+        Allowed roles: customer, cleaner.
+      tags:
+        - account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - export
+                    - erase
+                note:
+                  type: string
+                  maxLength: 500
+                currentPassword:
+                  type: string
+                  maxLength: 200
+              required:
+                - type
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/privacy/requests:
+    get:
+      summary: List open data requests from account pages
+      description: >-
+        Requests customers and cleaners made from their account page that are still waiting, oldest due
+        date first, with an overdue flag.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
+  /admin/privacy/requests/{id}/close:
+    post:
+      summary: Close a data request
+      description: >-
+        `outcome` is `done` or `declined`; declining needs a reason. Recorded in the audit log, the
+        person is emailed, and the request record is kept for 6 years.
+
+
+        Allowed roles: admin.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                outcome:
+                  type: string
+                  enum:
+                    - done
+                    - declined
+                reason:
+                  type: string
+                  maxLength: 450
+              required:
+                - outcome
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: The request is not valid
+        '401':
+          description: Sign in required
+        '403':
+          description: Your account is not allowed to do this
+
 components:
 
   securitySchemes:
